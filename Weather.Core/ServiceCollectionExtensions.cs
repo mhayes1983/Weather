@@ -30,6 +30,9 @@ public static class ServiceCollectionExtensions
         // Registration order is the table's column order.
         AddOpenMeteo(services, new ColumnDescriptor("ecmwf", "ECMWF"), "ecmwf_ifs025");
         AddOpenMeteo(services, new ColumnDescriptor("gfs", "GFS"), "gfs_seamless");
+        AddOpenMeteo(services, new ColumnDescriptor("gem", "GEM"), "gem_seamless");
+        AddOpenMeteo(services, new ColumnDescriptor("icon", "ICON"), "icon_seamless");
+        AddOpenMeteo(services, new ColumnDescriptor("weathernext", "WeatherNext (mean)"), "google_weathernext2_ensemble_mean", OpenMeteoSource.EnsembleEndpoint);
         AddNewsCenterMaine(services, new ColumnDescriptor("ncm-coastal", "NCM Coastal"), "Portland 10-Day");
         AddNewsCenterMaine(services, new ColumnDescriptor("ncm-inland", "NCM Inland"), "Bangor 10-Day");
         services.AddSingleton<IForecastSource, WeatherUndergroundSource>();
@@ -38,9 +41,13 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    private static void AddOpenMeteo(IServiceCollection services, ColumnDescriptor column, string model) =>
+    private static void AddOpenMeteo(
+        IServiceCollection services,
+        ColumnDescriptor column,
+        string model,
+        string endpoint = OpenMeteoSource.ForecastEndpoint) =>
         services.AddSingleton<IForecastSource>(provider =>
-            ActivatorUtilities.CreateInstance<OpenMeteoSource>(provider, column, model));
+            ActivatorUtilities.CreateInstance<OpenMeteoSource>(provider, column, model, endpoint));
 
     private static void AddNewsCenterMaine(IServiceCollection services, ColumnDescriptor column, string section) =>
         services.AddSingleton<IForecastSource>(provider =>

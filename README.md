@@ -1,6 +1,6 @@
 # Weather
 
-Compares daily high temperatures from several forecast sources in one 16-day table. Days well above or below average are highlighted, replacing a spreadsheet that was filled in by hand.
+Compares daily high temperatures from several forecast sources in one 16-day table. Days well above or below average are highlighted.
 
 It opens on Topsham, ME (04086) and works with any US ZIP code. It shows current forecasts only, so there is no database.
 
@@ -19,6 +19,9 @@ It opens on Topsham, ME (04086) and works with any US ZIP code. It shows current
 |---|---|---|---|
 | ECMWF | [Open-Meteo](https://open-meteo.com/) | 14 | No |
 | GFS | [Open-Meteo](https://open-meteo.com/) | 16 | No |
+| GEM | [Open-Meteo](https://open-meteo.com/) | 10 | No |
+| ICON | [Open-Meteo](https://open-meteo.com/) | 7 | No |
+| WeatherNext (mean) | [Open-Meteo](https://open-meteo.com/), Google WeatherNext 2 ensemble mean | 14 | No |
 | NCM Coastal | [NewsCenter Maine](https://www.newscentermaine.com/10-day), Portland 10-Day | 10 | No |
 | NCM Inland | [NewsCenter Maine](https://www.newscentermaine.com/10-day), Bangor 10-Day | 10 | No |
 | WU | Weather Underground | 6 | Yes, a personal weather station key |
@@ -109,4 +112,4 @@ The `zip` value is optional and defaults to Topsham. All temperatures are in °F
 
 ## Data use
 
-Weather Underground data is limited to personal, non-commercial use. A public or commercial version of this site would need a different arrangement. The NewsCenter Maine columns read the station's web page, so a redesign of that page could break them.
+Open-Meteo's free API is for non-commercial use, and its data is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), so the website credits it. Weather Underground data is limited to personal, non-commercial use. A public or commercial version of this site would need a different arrangement. The NewsCenter Maine columns read the station's web page, so a redesign of that page could break them.

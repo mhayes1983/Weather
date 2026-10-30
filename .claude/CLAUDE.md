@@ -49,6 +49,8 @@ The client needs no changes; columns come from the API.
 ## Source quirks
 
 - **ECMWF:** Open-Meteo returns null for the last two days of the 16-day range.
+- **GEM and ICON:** Open-Meteo models with about 10 and 7 days of data.
+- **WeatherNext:** the ensemble mean, from Open-Meteo's separate ensemble endpoint, about 14 days. Averaging 64 members mutes long-range highs. Open-Meteo's FAQ says ensemble APIs need a paid plan, though the free host answers today, so it may stop.
 - **NewsCenter Maine:** an HTML scrape of `/10-day`, Maine ZIPs only. Dates have no year, and the page drops today during the afternoon, so blank NCM cells for today are normal.
 - **Weather Underground:** the key only allows the `5day` endpoint, which returns 6 days. The 7, 10 and 15-day endpoints return 401. Personal, non-commercial use only.
 - **NWS:** about 7 days. Evening forecasts have no high for today.

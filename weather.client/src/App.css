@@ -179,3 +179,9 @@ tbody tr:last-child td {
 .legend .swatch:not(:first-child) {
     margin-left: 12px;
 }
+
+.attribution {
+    margin: 16px 0 0;
+    font-size: 0.8rem;
+    opacity: 0.75;
+}

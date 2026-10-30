@@ -69,6 +69,10 @@ function App() {
                     <ForecastTable columns={forecast.columns} rows={forecast.rows} unit={unit} />
                     <Legend aboveAverageF={forecast.aboveAverageF} belowAverageF={forecast.belowAverageF} />
                 </>}
+
+            <footer className="attribution">
+                Weather data by <a href="https://open-meteo.com/">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>)
+            </footer>
         </main>
     );
 }

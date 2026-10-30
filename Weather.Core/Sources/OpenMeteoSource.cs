@@ -8,10 +8,14 @@ namespace Weather.Core.Sources;
 public sealed class OpenMeteoSource(
     ColumnDescriptor column,
     string model,
+    string endpoint,
     IHttpClientFactory httpClientFactory,
     IOptions<WeatherOptions> options,
     TimeProvider timeProvider) : IForecastSource
 {
+    public const string ForecastEndpoint = "https://api.open-meteo.com/v1/forecast";
+    public const string EnsembleEndpoint = "https://ensemble-api.open-meteo.com/v1/ensemble";
+
     public ColumnDescriptor Column => column;
 
     public TimeSpan CacheDuration => TimeSpan.FromMinutes(options.Value.FreeSourceCacheMinutes);
@@ -22,7 +26,7 @@ public sealed class OpenMeteoSource(
     {
         var url = string.Create(
             CultureInfo.InvariantCulture,
-            $"https://api.open-meteo.com/v1/forecast?latitude={location.Latitude}&longitude={location.Longitude}&daily=temperature_2m_max&temperature_unit=fahrenheit&timezone={Uri.EscapeDataString(location.TimeZoneId)}&forecast_days={options.Value.ForecastDays}&models={model}");
+            $"{endpoint}?latitude={location.Latitude}&longitude={location.Longitude}&daily=temperature_2m_max&temperature_unit=fahrenheit&timezone={Uri.EscapeDataString(location.TimeZoneId)}&forecast_days={options.Value.ForecastDays}&models={model}");
 
         var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
         using var document = JsonDocument.Parse(await client.GetStringAsync(url, cancellationToken));
