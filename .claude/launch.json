@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "weather",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "Weather.Server", "--launch-profile", "https"],
+      "port": 54777,
+      "url": "https://localhost:54777"
+    }
+  ]
+}
