@@ -29,23 +29,20 @@ public sealed class WeatherUndergroundStation(
 
     public bool HasKeys => !string.IsNullOrWhiteSpace(options.Value.WeatherUnderground.ApiKey);
 
+    public bool CanLocate => HasKeys;
+
+    public async Task<GeoPoint> GetCoordinatesAsync(CancellationToken cancellationToken)
+    {
+        using var document = await GetCurrentDocumentAsync(cancellationToken);
+        var observation = document.RootElement.GetProperty("observations")[0];
+        return new GeoPoint(observation.GetProperty("lat").GetDouble(), observation.GetProperty("lon").GetDouble());
+    }
+
     public async Task<StationReading> GetCurrentAsync(CancellationToken cancellationToken)
     {
-        // Stations with nothing from the past hour return an empty body.
-        var body = await GetAsync("current", cancellationToken);
-        if (string.IsNullOrWhiteSpace(body))
-        {
-            throw new StationNoDataException();
-        }
+        using var document = await GetCurrentDocumentAsync(cancellationToken);
 
-        using var document = JsonDocument.Parse(body);
-        var observations = document.RootElement.GetProperty("observations");
-        if (observations.GetArrayLength() == 0)
-        {
-            throw new StationNoDataException();
-        }
-
-        var observation = observations[0];
+        var observation = document.RootElement.GetProperty("observations")[0];
         var imperial = observation.GetProperty("imperial");
         var temperature = Number(imperial, "temp");
 
@@ -96,6 +93,25 @@ public sealed class WeatherUndergroundStation(
             })
             .OrderBy(point => point.Time)
             .ToList();
+    }
+
+    private async Task<JsonDocument> GetCurrentDocumentAsync(CancellationToken cancellationToken)
+    {
+        // Stations with nothing from the past hour return an empty body.
+        var body = await GetAsync("current", cancellationToken);
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            throw new StationNoDataException();
+        }
+
+        var document = JsonDocument.Parse(body);
+        if (document.RootElement.GetProperty("observations").GetArrayLength() == 0)
+        {
+            document.Dispose();
+            throw new StationNoDataException();
+        }
+
+        return document;
     }
 
     private async Task<string> GetAsync(string path, CancellationToken cancellationToken)

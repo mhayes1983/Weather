@@ -1,5 +1,6 @@
 import type { StationReading } from '../api/station';
 import { displayStationTemperature, type Unit } from '../temperature';
+import { compass } from '../wind';
 
 interface CurrentConditionsProps {
     reading: StationReading;
@@ -11,12 +12,7 @@ interface Card {
     rows: [string, string][];
 }
 
-const compassPoints = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
 const missing = '—';
-
-function compass(degrees: number | null): string {
-    return degrees === null ? missing : compassPoints[Math.round(degrees / 22.5) % 16];
-}
 
 function measure(value: number | null, suffix: string, digits = 0): string {
     return value === null ? missing : `${value.toFixed(digits)}${suffix}`;
@@ -33,7 +29,7 @@ function CurrentConditions({ reading, unit }: CurrentConditionsProps) {
             rows: [
                 ['Speed', measure(reading.windSpeedMph, ' mph', 1)],
                 ['Gust', measure(reading.windGustMph, ' mph', 1)],
-                ['Direction', compass(reading.windDirectionDegrees)],
+                ['Direction', compass(reading.windDirectionDegrees) ?? missing],
                 ['Max gust today', measure(reading.maxDailyGustMph, ' mph', 1)],
             ],
         },

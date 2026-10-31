@@ -1,9 +1,11 @@
 ﻿import { useEffect, useState } from 'react';
 import NavBar from './components/NavBar';
+import DailyForecastPage from './pages/DailyForecastPage';
+import ForecastDayPage from './pages/ForecastDayPage';
 import ForecastPage from './pages/ForecastPage';
 import StationPage from './pages/StationPage';
 import type { Unit } from './temperature';
-import { useRoute } from './useRoute';
+import { forecastDate, useRoute } from './useRoute';
 import './App.css';
 
 const homeStation = 'home';
@@ -19,14 +21,18 @@ function App() {
         setForecastOpened(true);
     }
 
+    const date = forecastDate(route);
+
     useEffect(() => {
-        document.title = route === '/forecast' ? 'Forecast Comparison' : 'Weather Station';
+        document.title = route === '/' ? 'Weather Station' : route === '/forecast' ? 'Forecast Comparison' : 'Daily Forecast';
     }, [route]);
 
     return (
         <>
             <NavBar route={route} onNavigate={navigate} />
             {route === '/' && <StationPage selected={station} onStationChange={setStation} unit={unit} onUnitChange={setUnit} />}
+            {route === '/daily' && <DailyForecastPage station={station} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
+            {date && <ForecastDayPage date={date} station={station} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
             {forecastOpened && <ForecastPage hidden={route !== '/forecast'} unit={unit} onUnitChange={setUnit} />}
         </>
     );
