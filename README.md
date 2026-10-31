@@ -8,6 +8,7 @@ It opens on Topsham, ME (04086) and works with any US ZIP code. It shows current
 
 - Station page with current conditions and 24-hour charts, refreshed every minute
 - Active National Weather Service alerts for the selected station, with a page listing them all
+- Zoomable radar map of Maine and the Northeast, with a two-hour loop
 - Daily Forecast page for the selected station, with hourly detail, descriptions, and sun and moon times
 - Side-by-side highs from each source for the next 16 days
 - Orange for 6°F or more above average, blue for 6°F or more below
@@ -91,6 +92,10 @@ Active National Weather Service watches, warnings and advisories for the selecte
 
 The page only updates while it's open and alerts are cached for two minutes, so don't rely on it for safety warnings. If the check fails, the page says so rather than showing no alerts.
 
+## Radar
+
+The Radar page shows NOAA/NWS base reflectivity over an OpenStreetMap map, with Maine and Northeast buttons and a two-hour loop. The browser loads the radar and map images directly from those services, so it needs no key and no server code. It shows precipitation only, and snow can look weaker than it is.
+
 ## Other weather stations
 
 The station page has a dropdown for other Weather Underground stations, listed under `Stations` in `Weather.Server/appsettings.json`. Each entry has a case-sensitive `Id` and a `Name`. They use your Weather Underground key, and your own station stays on Ambient Weather, which updates faster and reports more.
@@ -142,11 +147,12 @@ Run the tests:
 dotnet test Weather.Core.Tests/Weather.Core.Tests.csproj
 ```
 
-Build and lint the website from `weather.client`:
+Build, lint and test the website from `weather.client`:
 
 ```bash
 npm run build
 npm run lint
+npm test
 ```
 
 To add a forecast source, implement `IForecastSource` in `Weather.Core/Sources` and register it in `ServiceCollectionExtensions.cs`. The new column then appears in the table automatically.

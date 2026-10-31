@@ -13,6 +13,7 @@ function isCurrent(link: Route, route: Route) {
 const links: { route: Route; label: string }[] = [
     { route: '/', label: 'Station' },
     { route: '/daily', label: 'Daily Forecast' },
+    { route: '/radar', label: 'Radar' },
     { route: '/forecast', label: 'Forecast Comparison' },
 ];
 

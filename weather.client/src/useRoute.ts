@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 
-export type Route = '/' | '/alerts' | '/forecast' | '/daily' | `/daily/${string}`;
+export type Route = '/' | '/alerts' | '/forecast' | '/radar' | '/daily' | `/daily/${string}`;
 
 function currentRoute(): Route {
     const path = window.location.pathname;
-    if (path === '/alerts' || path === '/forecast' || path === '/daily') {
+    if (path === '/alerts' || path === '/forecast' || path === '/radar' || path === '/daily') {
         return path;
     }
 
