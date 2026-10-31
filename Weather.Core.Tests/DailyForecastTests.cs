@@ -97,10 +97,10 @@ public class DailyForecastTests
         var time = new FixedTime(now ?? TestData.Now);
         cache ??= new WeatherCache();
         return new DailyForecastService(
-            [
+            new StationDirectory([
                 new AmbientWeatherStation(http, options, time),
                 new WeatherUndergroundStation(new WeatherStationOptions { Id = Id, Name = "Test" }, http, options),
-            ],
+            ], http, options),
             new StationLocator(cache),
             new OpenMeteoOutlook(http, options),
             new NwsDescriptions(http, cache),
@@ -180,13 +180,23 @@ public class DailyForecastTests
         Assert.Null(await Service(StubHttp.Json(Respond)).GetDayAsync(new DateOnly(2026, 12, 25)));
 
     [Fact]
-    public async Task UnknownStationIsRejected()
+    public async Task LookedUpStationsWork()
+    {
+        var report = (await Service(StubHttp.Json(Respond)).GetAsync("KLOOKUP1"))!;
+
+        Assert.Equal(SourceStatus.Ok, report.Status);
+        Assert.Equal("KLOOKUP1", report.StationName);
+        Assert.Equal(3, report.Days.Count);
+    }
+
+    [Fact]
+    public async Task MalformedStationIsRejected()
     {
         var http = StubHttp.Json(Respond);
         var service = Service(http);
 
-        Assert.Null(await service.GetAsync("KOTHER1"));
-        Assert.Null(await service.GetDayAsync(Today, "KOTHER1"));
+        Assert.Null(await service.GetAsync("not valid!"));
+        Assert.Null(await service.GetDayAsync(Today, "not valid!"));
         Assert.Empty(http.Requests);
     }
 

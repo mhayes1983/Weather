@@ -23,6 +23,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IClimateNormals, AcisClimateNormals>();
         services.AddSingleton<ForecastTableService>();
         services.AddSingleton<IWeatherStation, AmbientWeatherStation>();
+        services.AddSingleton<StationDirectory>();
+        services.AddSingleton<StationLookup>();
         services.AddSingleton<StationService>();
         services.AddSingleton<StationLocator>();
         services.AddSingleton<NwsAlerts>();

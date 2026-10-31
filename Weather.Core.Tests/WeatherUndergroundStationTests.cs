@@ -61,10 +61,10 @@ public class WeatherUndergroundStationTests
         var options = Options(key);
         var time = new FixedTime(TestData.Now);
         return new StationService(
-            [
+            new StationDirectory([
                 new AmbientWeatherStation(http, options, time),
                 new WeatherUndergroundStation(new WeatherStationOptions { Id = Id, Name = "Test" }, http, options),
-            ],
+            ], http, options),
             new WeatherCache(),
             options,
             time,
@@ -161,12 +161,24 @@ public class WeatherUndergroundStationTests
     }
 
     [Fact]
-    public async Task UnknownStationReturnsNull()
+    public async Task MalformedIdReturnsNull()
     {
         var http = Working();
 
-        Assert.Null(await Service(http).GetReportAsync("KOTHER1"));
+        Assert.Null(await Service(http).GetReportAsync("not valid!"));
         Assert.Empty(http.Requests);
+    }
+
+    [Fact]
+    public async Task UnconfiguredStationsUseTheirPublicName()
+    {
+        var options = Options();
+        var http = StubHttp.Json(_ => Current().Replace("Private Road", "Harpswell"));
+        var station = new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, http, options);
+
+        var reading = await station.GetCurrentAsync(default);
+
+        Assert.Equal("Harpswell", reading.StationName);
     }
 
     [Fact]
@@ -219,9 +231,10 @@ public class WeatherUndergroundStationTests
     public async Task SlowerStationsHaveTheirOwnOfflineThreshold(int minutesOld, StationStatus expected)
     {
         var options = Options();
+        var http = Working();
         var time = new FixedTime(TestData.Now.AddMinutes(minutesOld));
         var service = new StationService(
-            [new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, Working(), options)],
+            new StationDirectory([new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, http, options)], http, options),
             new WeatherCache(),
             options,
             time,
@@ -240,7 +253,7 @@ public class WeatherUndergroundStationTests
         cache.Set($"last-good:station:{Id}:current", new StationReading { ObservedAt = TestData.Now, TemperatureF = 50 }, TimeSpan.FromHours(1));
         var http = new StubHttp(_ => new HttpResponseMessage(HttpStatusCode.TooManyRequests));
         var service = new StationService(
-            [new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, http, options)],
+            new StationDirectory([new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, http, options)], http, options),
             cache,
             options,
             new FixedTime(TestData.Now),

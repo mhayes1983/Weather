@@ -299,6 +299,40 @@ tbody tr:last-child td {
     min-width: 0;
 }
 
+.station-lookup {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 16px;
+}
+
+.station-lookup label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.station-lookup input {
+    width: 11em;
+    padding: 6px 8px;
+    font: inherit;
+    color: inherit;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.station-lookup-message {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.station-lookup-message.is-error {
+    color: var(--error);
+}
+
 .station-star {
     padding: 2px 8px;
     font-size: 1.2rem;

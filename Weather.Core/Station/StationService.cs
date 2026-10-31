@@ -5,7 +5,7 @@ using Weather.Core.Models;
 namespace Weather.Core.Station;
 
 public sealed class StationService(
-    IEnumerable<IWeatherStation> stations,
+    StationDirectory directory,
     WeatherCache cache,
     IOptions<WeatherOptions> options,
     TimeProvider timeProvider,
@@ -13,15 +13,12 @@ public sealed class StationService(
 {
     private static readonly TimeSpan LastGoodDuration = TimeSpan.FromHours(24);
 
-    // Registration order, with the home station first.
-    public IReadOnlyList<StationSummary> Stations { get; } =
-        stations.Select(station => new StationSummary(station.Id, station.Name)).ToList();
+    public IReadOnlyList<StationSummary> Stations => directory.Stations;
 
-    /// <summary>Returns null when the ID isn't a configured station.</summary>
+    /// <summary>Returns null when the ID is badly formed.</summary>
     public async Task<StationReport?> GetReportAsync(string? id = null)
     {
-        var station = stations.FirstOrDefault(station =>
-            string.Equals(station.Id, id ?? AmbientWeatherStation.HomeId, StringComparison.OrdinalIgnoreCase));
+        var station = directory.Find(id);
         if (station is null)
         {
             return null;

@@ -48,7 +48,7 @@ public sealed class WeatherUndergroundStation(
 
         return new StationReading
         {
-            StationName = Name,
+            StationName = string.IsNullOrWhiteSpace(station.Name) ? Text(observation, "neighborhood") ?? Name : station.Name,
             ObservedAt = observation.GetProperty("obsTimeUtc").GetDateTimeOffset(),
             TemperatureF = temperature,
             FeelsLikeF = temperature switch
@@ -121,6 +121,11 @@ public sealed class WeatherUndergroundStation(
         var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
         return await client.GetStringAsync(url, cancellationToken);
     }
+
+    private static string? Text(JsonElement data, string name) =>
+        data.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String && value.GetString() is { Length: > 0 } text
+            ? text
+            : null;
 
     private static double? Number(JsonElement data, string name) =>
         data.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetDouble() : null;

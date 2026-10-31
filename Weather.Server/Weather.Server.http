@@ -10,6 +10,11 @@ Accept: application/json
 
 ###
 
+GET {{Weather.Server_HostAddress}}/api/stations/lookup?q=04086
+Accept: application/json
+
+###
+
 GET {{Weather.Server_HostAddress}}/api/stations
 Accept: application/json
 
