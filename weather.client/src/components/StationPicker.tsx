@@ -5,11 +5,13 @@ interface StationPickerProps {
     stations: StationSummary[];
     selected: string;
     defaultStation: string;
+    canRemove: boolean;
     onChange: (id: string) => void;
     onDefaultChange: (id: string) => void;
+    onRemove: () => void;
 }
 
-function StationPicker({ stations, selected, defaultStation, onChange, onDefaultChange }: StationPickerProps) {
+function StationPicker({ stations, selected, defaultStation, canRemove, onChange, onDefaultChange, onRemove }: StationPickerProps) {
     const isDefault = selected === defaultStation;
 
     // The home station is the fallback, so it can't be turned off.
@@ -47,6 +49,10 @@ function StationPicker({ stations, selected, defaultStation, onChange, onDefault
             >
                 <span aria-hidden="true">{isDefault ? '★' : '☆'}</span>
             </button>
+            {canRemove &&
+                <button type="button" aria-label="Remove this station" title="Remove this station" onClick={onRemove}>
+                    <span aria-hidden="true">✕</span>
+                </button>}
         </div>
     );
 }

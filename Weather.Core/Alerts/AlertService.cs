@@ -6,18 +6,17 @@ using Weather.Core.Station;
 namespace Weather.Core.Alerts;
 
 public sealed class AlertService(
-    IEnumerable<IWeatherStation> stations,
+    StationDirectory directory,
     StationLocator locator,
     NwsAlerts alerts,
     WeatherCache cache,
     IOptions<WeatherOptions> options,
     ILogger<AlertService> logger)
 {
-    /// <summary>Returns null when the ID isn't a configured station.</summary>
+    /// <summary>Returns null when the ID is badly formed.</summary>
     public async Task<AlertReport?> GetAsync(string? stationId = null)
     {
-        var station = stations.FirstOrDefault(station =>
-            string.Equals(station.Id, stationId ?? AmbientWeatherStation.HomeId, StringComparison.OrdinalIgnoreCase));
+        var station = directory.Find(stationId);
         if (station is null)
         {
             return null;

@@ -47,10 +47,10 @@ public class AlertTests
         var time = new FixedTime(TestData.Now);
         cache ??= new WeatherCache();
         return new AlertService(
-            [
+            new StationDirectory([
                 new AmbientWeatherStation(http, options, time),
                 new WeatherUndergroundStation(new WeatherStationOptions { Id = Id, Name = "Test" }, http, options),
-            ],
+            ], http, options),
             new StationLocator(cache),
             new NwsAlerts(http, time),
             cache,
@@ -147,11 +147,20 @@ public class AlertTests
     }
 
     [Fact]
-    public async Task UnknownStationIsRejected()
+    public async Task LookedUpStationsWork()
+    {
+        var report = (await Service(StubHttp.Json(Respond)).GetAsync("KLOOKUP1"))!;
+
+        Assert.Equal(SourceStatus.Ok, report.Status);
+        Assert.Equal("KLOOKUP1", report.StationName);
+    }
+
+    [Fact]
+    public async Task MalformedStationIsRejected()
     {
         var http = StubHttp.Json(Respond);
 
-        Assert.Null(await Service(http).GetAsync("KOTHER1"));
+        Assert.Null(await Service(http).GetAsync("not valid!"));
         Assert.Empty(http.Requests);
     }
 

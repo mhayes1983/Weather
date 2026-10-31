@@ -16,6 +16,8 @@ public enum StationHistoryRange
 
 public sealed record StationSummary(string Id, string Name);
 
+public sealed record StationMatch(string Id, string Name, double? DistanceMi);
+
 public sealed record StationReading
 {
     public string? StationName { get; init; }

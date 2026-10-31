@@ -7,7 +7,8 @@ namespace Weather.Core.Station;
 public sealed class WeatherUndergroundStation(
     WeatherStationOptions station,
     IHttpClientFactory httpClientFactory,
-    IOptions<WeatherOptions> options) : IWeatherStation
+    IOptions<WeatherOptions> options,
+    bool lookedUp = false) : IWeatherStation
 {
     private const string BaseUrl = "https://api.weather.com/v2/pws/observations";
     private const double WindChillBelowF = 50;
@@ -48,7 +49,8 @@ public sealed class WeatherUndergroundStation(
 
         return new StationReading
         {
-            StationName = Name,
+            // The neighbourhood can be private, so a configured station never shows it.
+            StationName = lookedUp ? Text(observation, "neighborhood") ?? Name : Name,
             ObservedAt = observation.GetProperty("obsTimeUtc").GetDateTimeOffset(),
             TemperatureF = temperature,
             FeelsLikeF = temperature switch
@@ -121,6 +123,11 @@ public sealed class WeatherUndergroundStation(
         var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
         return await client.GetStringAsync(url, cancellationToken);
     }
+
+    private static string? Text(JsonElement data, string name) =>
+        data.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String && value.GetString() is { Length: > 0 } text
+            ? text
+            : null;
 
     private static double? Number(JsonElement data, string name) =>
         data.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetDouble() : null;

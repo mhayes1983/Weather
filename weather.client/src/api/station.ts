@@ -52,6 +52,22 @@ export interface StationReport {
     historyMessage: string | null;
 }
 
+export interface StationMatch {
+    id: string;
+    name: string;
+    distanceMi: number | null;
+}
+
+export async function lookUpStation(query: string, signal: AbortSignal): Promise<StationMatch> {
+    const response = await fetch(`/api/stations/lookup?q=${encodeURIComponent(query)}`, { signal });
+    if (!response.ok) {
+        const problem = await response.json().catch(() => null) as { detail?: string } | null;
+        throw new Error(problem?.detail ?? 'The station lookup failed.');
+    }
+
+    return await response.json() as StationMatch;
+}
+
 export async function fetchStations(signal: AbortSignal): Promise<StationSummary[]> {
     const response = await fetch('/api/stations', { signal });
     if (!response.ok) {

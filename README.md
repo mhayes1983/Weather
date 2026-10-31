@@ -13,6 +13,7 @@ It opens on Topsham, ME (04086) and works with any US ZIP code. It shows current
 - Side-by-side highs from each source for the next 16 days
 - Orange for 6°F or more above average, blue for 6°F or more below
 - Average high for the period, from the nearest climate station
+- Find a station by ZIP code or ID and keep it in that browser
 - Star a station to make it your default in that browser
 - °F/°C toggle
 - Auto, Light and Dark themes, with Auto following the device
@@ -80,7 +81,7 @@ Each push to `master` builds a container image and publishes it to `ghcr.io/mhay
 3. Replace the three key placeholders with your Weather Underground and Ambient Weather keys, on the NAS only.
 4. Open `http://<nas-ip>:8085`.
 
-To update, redeploy the app, which pulls the latest image. The site serves plain HTTP, so keep it on your own network and use a VPN such as Tailscale for outside access.
+To update, redeploy the app, which pulls the latest image. The site serves plain HTTP, and it accepts any Weather Underground station ID, which uses your shared API limit. Keep it on your own network and use a VPN such as Tailscale for outside access.
 
 ## Daily Forecast
 
@@ -103,6 +104,8 @@ The Radar page shows NOAA/NWS base reflectivity over an OpenStreetMap map, with 
 The station page has a dropdown for other Weather Underground stations, listed under `Stations` in `Weather.Server/appsettings.json`. Each entry has a case-sensitive `Id` and a `Name`. They use your Weather Underground key, and your own station stays on Ambient Weather, which updates faster and reports more.
 
 Other stations are fetched only while selected, and results are cached so they don't use up the key's limits, reported as 1,500 calls a day and 30 a minute. Readings a station doesn't report are left out, and its charts cover the current day rather than the last 24 hours.
+
+Type a ZIP code or Weather Underground station ID into **Find a station** to add one. A ZIP code picks the closest station that has reported in the last hour and is sending a temperature. Added stations stay in that browser's dropdown, and the ✕ button removes one. The list holds 20 stations, and when it's full you need to remove one before adding another.
 
 Select a station and click its star to make it your default. It then opens on every visit to the site in that browser, and it's saved only in that browser, with no accounts or server storage. Clicking the star again goes back to the home station.
 
@@ -169,7 +172,7 @@ The `zip` value is optional and defaults to Topsham. All temperatures are in °F
 
 `GET /api/daily-forecast?station=KMESCARB25`
 
-Returns the station's 16-day forecast. The `station` value is optional and defaults to your home station. It returns 404 for a station that isn't configured.
+Returns the station's 16-day forecast. The `station` value is optional and defaults to your home station. It returns 404 for a badly formed station ID.
 
 `GET /api/daily-forecast/2026-11-02?station=KMESCARB25`
 
@@ -177,7 +180,11 @@ Returns one day's hourly forecast, description, sun and moon data, and the previ
 
 `GET /api/alerts?station=KMESCARB25`
 
-Returns the station's active alerts, most severe first. The `station` value is optional and defaults to your home station. It returns 404 for a station that isn't configured.
+Returns the station's active alerts, most severe first. The `station` value is optional and defaults to your home station. It returns 404 for a badly formed station ID.
+
+`GET /api/stations/lookup?q=04086`
+
+Finds a station by ZIP code or ID. It returns 400 for a badly formed value, 404 when nothing has reported in the last hour, and 503 when Weather Underground can't be reached or no key is set.
 
 `GET /api/stations`
 
@@ -185,7 +192,7 @@ Lists the stations for the dropdown, with your home station first.
 
 `GET /api/station?id=KMESCARB25`
 
-Returns a station's current readings and history. The `id` value is optional and defaults to your home station. All temperatures are in °F. It returns 404 for a station that isn't configured.
+Returns a station's current readings and history. The `id` value is optional and defaults to your home station. All temperatures are in °F. It returns 404 for a badly formed station ID.
 
 ## Planned
 

@@ -22,4 +22,11 @@
     <ProjectReference Include="..\Weather.Core\Weather.Core.csproj" />
   </ItemGroup>
 
+  <!-- Linked rather than referenced, so testing doesn't build the client or need the server's files unlocked. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <Using Include="Microsoft.AspNetCore.Http" />
+    <Compile Include="..\Weather.Server\Controllers\StationController.cs" Link="Linked\StationController.cs" />
+  </ItemGroup>
+
 </Project>

@@ -13,7 +13,7 @@ public class AlertsController(AlertService alerts) : ControllerBase
     {
         var report = await alerts.GetAsync(string.IsNullOrWhiteSpace(station) ? null : station.Trim());
         return report is null
-            ? Problem("That station isn't configured.", statusCode: StatusCodes.Status404NotFound)
+            ? Problem("That isn't a valid station ID.", statusCode: StatusCodes.Status404NotFound)
             : report;
     }
 }

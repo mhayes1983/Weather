@@ -7,7 +7,7 @@ using Weather.Core.Station;
 namespace Weather.Core.DailyForecast;
 
 public sealed class DailyForecastService(
-    IEnumerable<IWeatherStation> stations,
+    StationDirectory directory,
     StationLocator locator,
     OpenMeteoOutlook outlook,
     NwsDescriptions descriptions,
@@ -24,10 +24,10 @@ public sealed class DailyForecastService(
 
     private TimeSpan ErrorRetryDuration => TimeSpan.FromMinutes(options.Value.ErrorRetryMinutes);
 
-    /// <summary>Returns null when the ID isn't a configured station.</summary>
+    /// <summary>Returns null when the ID is badly formed.</summary>
     public async Task<DailyForecastReport?> GetAsync(string? stationId = null)
     {
-        if (FindStation(stationId) is not { } station)
+        if (directory.Find(stationId) is not { } station)
         {
             return null;
         }
@@ -46,11 +46,11 @@ public sealed class DailyForecastService(
             forecast is null ? [] : RemainingDays(forecast));
     }
 
-    /// <summary>Returns null when the station isn't configured or the day can't be opened.</summary>
+    /// <summary>Returns null when the ID is badly formed or the day can't be opened.</summary>
     /// <exception cref="ForecastUnavailableException">The forecast couldn't be loaded.</exception>
     public async Task<ForecastDayDetail?> GetDayAsync(DateOnly date, string? stationId = null)
     {
-        if (FindStation(stationId) is not { } station)
+        if (directory.Find(stationId) is not { } station)
         {
             return null;
         }
@@ -89,10 +89,6 @@ public sealed class DailyForecastService(
             openable.LastOrDefault(other => other.Date < date)?.Date,
             openable.FirstOrDefault(other => other.Date > date)?.Date);
     }
-
-    private IWeatherStation? FindStation(string? id) =>
-        stations.FirstOrDefault(station =>
-            string.Equals(station.Id, id ?? AmbientWeatherStation.HomeId, StringComparison.OrdinalIgnoreCase));
 
     private DateTimeOffset LocalNow(Outlook forecast) =>
         TimeZoneInfo.ConvertTime(
