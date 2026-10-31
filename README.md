@@ -8,6 +8,7 @@ It opens on Topsham, ME (04086) and works with any US ZIP code. It shows current
 
 - Station page with current conditions and 24-hour charts, refreshed every minute
 - Active National Weather Service alerts for the selected station, with a page listing them all
+- Zoomable radar map of Maine and the Northeast, with a two-hour loop
 - Daily Forecast page for the selected station, with hourly detail, descriptions, and sun and moon times
 - Side-by-side highs from each source for the next 16 days
 - Orange for 6°F or more above average, blue for 6°F or more below
@@ -90,6 +91,10 @@ The forecast comes from [Open-Meteo](https://open-meteo.com/), written descripti
 Active National Weather Service watches, warnings and advisories for the selected station appear at the top of the Station page, collapsed and most severe first. Up to three show there, and **View all alerts** opens the full list. They use the same station location as the Daily Forecast and need no key.
 
 The page only updates while it's open and alerts are cached for two minutes, so don't rely on it for safety warnings. If the check fails, the page says so rather than showing no alerts.
+
+## Radar
+
+The Radar page shows NOAA/NWS base reflectivity over an OpenStreetMap map, with Maine and Northeast buttons and a two-hour loop. The browser loads the radar and map images directly from those services, so it needs no key and no server code. It shows precipitation only, and snow can look weaker than it is.
 
 ## Other weather stations
 

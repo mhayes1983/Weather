@@ -1,13 +1,13 @@
 # Weather
 
-The home page (`/`) shows live readings and 24-hour charts from an Ambient Weather station. `/daily` shows the selected station's 16-day forecast, and `/daily/YYYY-MM-DD` shows one day's hourly detail. `/forecast` compares daily forecast highs from several sources in one 16-day table, highlighting days well above or below average. Default location is Topsham, ME (04086); any US ZIP works. The home page can also show other Weather Underground stations from a configured list. There is no database: station history comes from each station's source on each fetch.
+The home page (`/`) shows live readings and 24-hour charts from an Ambient Weather station. `/daily` shows the selected station's 16-day forecast, and `/daily/YYYY-MM-DD` shows one day's hourly detail. `/radar` shows a zoomable radar map. `/forecast` compares daily forecast highs from several sources in one 16-day table, highlighting days well above or below average. Default location is Topsham, ME (04086); any US ZIP works. The home page can also show other Weather Underground stations from a configured list. There is no database: station history comes from each station's source on each fetch.
 
 ## Layout
 
 - `Weather.Core`: all logic. Must stay free of ASP.NET so a future Android app can reuse it.
 - `Weather.Core.Tests`: xUnit tests. HTTP is stubbed through `TestSupport.cs`; tests never call real services.
 - `Weather.Server`: thin API (`GET /api/forecast?zip=`, `GET /api/alerts?station=`, `GET /api/stations`, `GET /api/station?id=`, `GET /api/daily-forecast?station=`, `GET /api/daily-forecast/{date}?station=`). Also serves the built client.
-- `weather.client`: React + TypeScript + Vite. No UI or state libraries.
+- `weather.client`: React + TypeScript + Vite. No UI or state libraries, apart from Leaflet for the radar map, which loads only on that page.
 
 ## Commands
 
@@ -69,6 +69,7 @@ The client needs no changes; columns come from the API.
 - **NWS alerts:** `/alerts/active?point=` with `status=actual&message_type=alert,update`. `limit` returns 400 on that endpoint. Times are in the alert area's local time, so they're shown as issued. Severity can be missing. `expires` is when the message lapses, not when the event ends, so it's never shown as an end time or used to hide an alert.
 - **NWS descriptions:** about 7 days, so later days have none. A night period starting after midnight belongs to the previous date.
 - **USNO moon data:** the moon doesn't rise or set every day, so either time can be missing. The `tz` value is for that date, with `dst=false`.
+- **Radar:** the browser calls NOAA's `conus_bref_qcd` WMS and OpenStreetMap's tiles directly, so there's no server code. `GetCapabilities` lists about 60 scans over two hours, and the page uses every fifth one. OpenStreetMap's tile policy requires its attribution to stay visible and suits light use only.
 - **AccuWeather:** removed on purpose. Its API has no lasting free tier and its website blocks automated requests. Don't scrape it, or Weather Underground's pages.
 
 ## Later work

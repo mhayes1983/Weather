@@ -536,6 +536,42 @@ a.daily-row:focus-visible {
     color: var(--error);
 }
 
+.radar-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.radar-map {
+    height: min(70vh, 640px);
+    min-height: 340px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    isolation: isolate;
+}
+
+.radar-slider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.radar-slider input {
+    flex: 1;
+    min-width: 0;
+}
+
+.radar-legend {
+    display: block;
+    width: 100%;
+    max-width: 500px;
+    background: #fff;
+    border-radius: 4px;
+}
+
 .back-link {
     margin: 0 0 12px;
 }

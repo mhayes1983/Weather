@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { lazy, Suspense, useEffect, useState } from 'react';
 import NavBar from './components/NavBar';
 import AlertsPage from './pages/AlertsPage';
 import DailyForecastPage from './pages/DailyForecastPage';
@@ -9,12 +9,16 @@ import type { Unit } from './temperature';
 import { forecastDate, useRoute, type Route } from './useRoute';
 import './App.css';
 
+// Leaflet is large, so it only loads when the radar page opens.
+const RadarPage = lazy(() => import('./pages/RadarPage'));
+
 const homeStation = 'home';
 
 const titles: Partial<Record<Route, string>> = {
     '/': 'Weather Station',
     '/alerts': 'Weather Alerts',
     '/forecast': 'Forecast Comparison',
+    '/radar': 'Weather Radar',
 };
 
 function App() {
@@ -38,6 +42,7 @@ function App() {
         <>
             <NavBar route={route} onNavigate={navigate} />
             {route === '/' && <StationPage selected={station} onStationChange={setStation} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
+            {route === '/radar' && <Suspense fallback={<main><p>Loading radar…</p></main>}><RadarPage /></Suspense>}
             {route === '/alerts' && <AlertsPage station={station} onNavigate={navigate} />}
             {route === '/daily' && <DailyForecastPage station={station} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
             {date && <ForecastDayPage date={date} station={station} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
