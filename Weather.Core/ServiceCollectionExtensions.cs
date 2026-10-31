@@ -6,6 +6,7 @@ using Weather.Core.Climate;
 using Weather.Core.Locations;
 using Weather.Core.Models;
 using Weather.Core.Sources;
+using Weather.Core.Station;
 
 namespace Weather.Core;
 
@@ -19,8 +20,22 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<LocationResolver>();
         services.AddSingleton<IClimateNormals, AcisClimateNormals>();
         services.AddSingleton<ForecastTableService>();
+        services.AddSingleton<IWeatherStation, AmbientWeatherStation>();
+        services.AddSingleton<StationService>();
 
-        // Logging is off for this client because Weather Underground keys travel in the URL.
+        // The home station comes first in the dropdown, then the configured stations in order.
+        var stations = (configuration.Get<WeatherOptions>()?.Stations ?? [])
+            .Where(station => !string.IsNullOrWhiteSpace(station.Id)
+                && !string.Equals(station.Id, AmbientWeatherStation.HomeId, StringComparison.OrdinalIgnoreCase))
+            .DistinctBy(station => station.Id, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var station in stations)
+        {
+            services.AddSingleton<IWeatherStation>(provider =>
+                ActivatorUtilities.CreateInstance<WeatherUndergroundStation>(provider, station));
+        }
+
+        // Logging is off for this client because Weather Underground and Ambient Weather keys travel in the URL.
         services.AddHttpClient(WeatherHttp.ClientName, (provider, client) =>
         {
             var options = provider.GetRequiredService<IOptions<WeatherOptions>>().Value;

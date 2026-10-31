@@ -1,5 +1,5 @@
 # Paste into TrueNAS: Apps > Discover Apps > Install via YAML.
-# Replace the key placeholder on the NAS only. Don't commit a real key.
+# Replace the key placeholders on the NAS only. Don't commit a real key.
 services:
   weather:
     image: ghcr.io/mhayes1983/weather:latest
@@ -9,3 +9,9 @@ services:
       - "8085:8080"
     environment:
       Weather__WeatherUnderground__ApiKey: "YOUR_KEY"
+      Weather__AmbientWeather__ApiKey: "YOUR_AMBIENT_API_KEY"
+      Weather__AmbientWeather__ApplicationKey: "YOUR_AMBIENT_APPLICATION_KEY"
+      # The dropdown's stations are in appsettings.json. These lines replace entries
+      # by position without a rebuild. Weather Underground station IDs are case sensitive.
+      # Weather__Stations__0__Id: "KMESCARB25"
+      # Weather__Stations__0__Name: "Scarborough, ME"

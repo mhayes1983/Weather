@@ -4,3 +4,18 @@ GET {{Weather.Server_HostAddress}}/api/forecast?zip=04086
 Accept: application/json
 
 ###
+
+GET {{Weather.Server_HostAddress}}/api/stations
+Accept: application/json
+
+###
+
+GET {{Weather.Server_HostAddress}}/api/station
+Accept: application/json
+
+###
+
+GET {{Weather.Server_HostAddress}}/api/station?id=KMESCARB25
+Accept: application/json
+
+###
