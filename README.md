@@ -75,7 +75,7 @@ These are in the `Weather` section of `Weather.Server/appsettings.json`:
 | `BelowAverageF` | 6 | Degrees below average that turn a cell blue |
 | `ForecastDays` | 16 | Number of rows in the table |
 | `SourceTimeoutSeconds` | 15 | How long to wait for each source |
-| `FreeSourceCacheMinutes` | 30 | How long to keep results from sources without a key |
+| `FreeSourceCacheMinutes` | 60 | How long to keep results from sources without a key |
 | `ErrorRetryMinutes` | 5 | How long to wait before retrying a failed source |
 | `WeatherUnderground:CacheMinutes` | 60 | How long to keep Weather Underground results |
 
