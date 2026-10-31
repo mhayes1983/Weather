@@ -30,7 +30,7 @@
     border-radius: 0;
 }
 
-/* The links are centred, so below this width the switch takes its own row. */
+/* The links are centred, so below this width the switch joins them and wraps with them. */
 @media (max-width: 960px) {
     .theme-toggle {
         position: static;
@@ -339,12 +339,12 @@ tbody tr:last-child td {
     line-height: 1.3;
 }
 
-.station-star[aria-pressed='true'] {
-    color: #b8860b;
+.station-star-on {
+    color: var(--star);
 }
 
-.station-star:disabled {
-    opacity: 1;
+.station-star[aria-disabled='true'] {
+    cursor: default;
 }
 
 .station-picker select {
