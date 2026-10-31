@@ -30,6 +30,8 @@ public sealed class WeatherCache : IDisposable
     public void Set<T>(string key, T value, TimeSpan ttl) =>
         _cache.Set(key, value, new MemoryCacheEntryOptions { Size = 1, AbsoluteExpirationRelativeToNow = ttl });
 
+    public void Remove(string key) => _cache.Remove(key);
+
     public void Dispose() => _cache.Dispose();
 
     private async Task<object?> LoadAsync<T>(string key, Func<Task<(T Value, TimeSpan Ttl)>> factory)

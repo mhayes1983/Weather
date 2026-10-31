@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Weather.Core.DailyForecast;
@@ -85,10 +86,15 @@ public class DailyForecastTests
         options.WeatherUnderground.ApiKey = key;
     });
 
-    private static DailyForecastService Service(StubHttp http, WeatherCache? cache = null, string? key = "secret-wu")
+    private static DailyForecastService Service(
+        StubHttp http,
+        WeatherCache? cache = null,
+        string? key = "secret-wu",
+        DateTimeOffset? now = null,
+        ILogger<DailyForecastService>? logger = null)
     {
         var options = Options(key);
-        var time = new FixedTime(TestData.Now);
+        var time = new FixedTime(now ?? TestData.Now);
         cache ??= new WeatherCache();
         return new DailyForecastService(
             [
@@ -102,7 +108,7 @@ public class DailyForecastTests
             cache,
             options,
             time,
-            NullLogger<DailyForecastService>.Instance);
+            logger ?? NullLogger<DailyForecastService>.Instance);
     }
 
     private static StubHttp Failing(Func<string, bool> fails) =>
@@ -317,6 +323,75 @@ public class DailyForecastTests
     }
 
     [Fact]
+    public async Task DaysThatHavePassedAreDropped()
+    {
+        // 00:10 in New York on Oct 31, with a forecast fetched the day before.
+        var service = Service(StubHttp.Json(Respond), now: new DateTimeOffset(2026, 10, 31, 4, 10, 0, TimeSpan.Zero));
+
+        var report = (await service.GetAsync())!;
+        var tomorrow = (await service.GetDayAsync(Tomorrow))!;
+
+        Assert.Equal(Tomorrow, report.Today);
+        Assert.Equal(Tomorrow, report.Days[0].Date);
+        Assert.Null(await service.GetDayAsync(Today));
+        Assert.Null(tomorrow.PreviousDate);
+    }
+
+    [Fact]
+    public async Task ForecastSurvivesLaterFailures()
+    {
+        var failing = false;
+        var http = new StubHttp(request =>
+        {
+            var url = request.RequestUri!.ToString();
+            return failing && url.Contains("open-meteo")
+                ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Respond(url)) };
+        });
+        var cache = new WeatherCache();
+        var service = Service(http, cache);
+
+        await service.GetAsync();
+        failing = true;
+        cache.Remove("outlook:home");
+        var report = (await service.GetAsync())!;
+
+        Assert.Equal(SourceStatus.Error, report.Status);
+        Assert.Equal("Showing last good data. Source returned HTTP 500", report.Message);
+        Assert.Equal(3, report.Days.Count);
+    }
+
+    [Fact]
+    public async Task DayPageReportsAForecastFailure()
+    {
+        var service = Service(Failing(url => url.Contains("open-meteo")));
+
+        var exception = await Assert.ThrowsAsync<ForecastUnavailableException>(() => service.GetDayAsync(Today));
+
+        Assert.Equal("Source returned HTTP 500", exception.Message);
+    }
+
+    [Fact]
+    public async Task DayPageReportsAMissingKey()
+    {
+        var service = Service(StubHttp.Json(Respond), key: null);
+
+        await Assert.ThrowsAsync<ForecastUnavailableException>(() => service.GetDayAsync(Today, Id));
+    }
+
+    [Fact]
+    public async Task LogsNeverContainCoordinates()
+    {
+        var logger = new CapturingLogger();
+        var http = Failing(url => url.Contains("gridpoints") || url.Contains("usno"));
+
+        await Service(http, logger: logger).GetDayAsync(Today);
+
+        Assert.NotEmpty(logger.Messages);
+        Assert.DoesNotContain(logger.Messages, message => message.Contains("43.9") || message.Contains("69.9"));
+    }
+
+    [Fact]
     public async Task ForecastFailureIsReported()
     {
         var report = (await Service(Failing(url => url.Contains("open-meteo"))).GetAsync())!;
@@ -359,5 +434,22 @@ public class DailyForecastTests
         Assert.DoesNotContain("Private Road", json);
         Assert.DoesNotContain("42.36", json);
         Assert.DoesNotContain("71.05", json);
+    }
+
+    private sealed class CapturingLogger : ILogger<DailyForecastService>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) =>
+            Messages.Add(formatter(state, exception));
     }
 }

@@ -63,7 +63,10 @@ function ForecastDayPage({ date, station, unit, onUnitChange, onNavigate }: Fore
         const controller = new AbortController();
 
         fetchForecastDay(date, station, controller.signal)
-            .then(setLoaded)
+            .then(data => {
+                setLoaded(data);
+                setFailure(undefined);
+            })
             .catch((reason: Error) => {
                 if (!controller.signal.aborted) {
                     setFailure({ date, message: reason.message });

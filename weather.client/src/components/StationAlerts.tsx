@@ -14,7 +14,7 @@ function StationAlerts({ station, onNavigate }: StationAlertsProps) {
     const { report, failed } = useAlerts(station);
     const alerts = report?.alerts ?? [];
 
-    if (failed) {
+    if (failed || report?.status === 'NeedsKey') {
         return <p className="alerts-unavailable">Alerts unavailable. There may be active alerts for this location.</p>;
     }
 

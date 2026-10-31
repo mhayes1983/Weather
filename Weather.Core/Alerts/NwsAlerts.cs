@@ -37,7 +37,7 @@ public sealed class NwsAlerts(IHttpClientFactory httpClientFactory, TimeProvider
         Text(properties, "description"),
         Text(properties, "instruction"),
         Text(properties, "onset") ?? Text(properties, "effective"),
-        Text(properties, "ends") ?? Text(properties, "expires"));
+        Text(properties, "ends"));
 
     private static int SeverityRank(string severity)
     {

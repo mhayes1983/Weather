@@ -47,7 +47,7 @@ function DailyForecastPage({ station, unit, onUnitChange, onNavigate }: DailyFor
         return fahrenheit === null ? '—' : `${displayTemperature(fahrenheit, unit)}°`;
     }
 
-    function dayContent(day: ForecastDay, index: number) {
+    function dayContent(day: ForecastDay) {
         const low = day.lowF ?? day.highF ?? coldest;
         const high = day.highF ?? day.lowF ?? coldest;
         const direction = compass(day.windDirectionDegrees);
@@ -55,7 +55,7 @@ function DailyForecastPage({ station, unit, onUnitChange, onNavigate }: DailyFor
         return (
             <>
                 <span className="daily-date">
-                    {index === 0 ? 'Today' : formatDate(day.date, { weekday: 'short', month: 'numeric', day: 'numeric' })}
+                    {day.date === report?.today ? 'Today' : formatDate(day.date, { weekday: 'short', month: 'numeric', day: 'numeric' })}
                 </span>
                 <span className="daily-icon" aria-hidden="true">{weatherIcon(day.icon)}</span>
                 <span className="daily-conditions">{day.conditions}</span>
@@ -100,11 +100,11 @@ function DailyForecastPage({ station, unit, onUnitChange, onNavigate }: DailyFor
             {days.length > 0 &&
                 <>
                     <ol className="daily-list">
-                        {days.map((day, index) =>
+                        {days.map(day =>
                             <li key={day.date}>
                                 {day.hasHourly
-                                    ? <RouteLink className="daily-row" route={`/daily/${day.date}`} onNavigate={onNavigate}>{dayContent(day, index)}</RouteLink>
-                                    : <div className="daily-row">{dayContent(day, index)}</div>}
+                                    ? <RouteLink className="daily-row" route={`/daily/${day.date}`} onNavigate={onNavigate}>{dayContent(day)}</RouteLink>
+                                    : <div className="daily-row">{dayContent(day)}</div>}
                             </li>
                         )}
                     </ol>

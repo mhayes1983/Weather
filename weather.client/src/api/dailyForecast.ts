@@ -43,6 +43,7 @@ export interface DailyForecastReport {
     stationName: string;
     status: SourceStatus;
     message: string | null;
+    today: string | null;
     days: ForecastDay[];
 }
 

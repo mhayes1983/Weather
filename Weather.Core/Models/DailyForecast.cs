@@ -38,6 +38,7 @@ public sealed record DailyForecastReport(
     string StationName,
     SourceStatus Status,
     string? Message,
+    DateOnly? Today,
     IReadOnlyList<ForecastDay> Days);
 
 public sealed record ForecastDayDetail(

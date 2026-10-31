@@ -41,11 +41,11 @@ public class AlertTests
     private static string Respond(string url) =>
         url.Contains("/alerts/active") ? Alerts : StationLocation;
 
-    private static AlertService Service(StubHttp http, string? key = "secret-wu")
+    private static AlertService Service(StubHttp http, string? key = "secret-wu", WeatherCache? cache = null)
     {
         var options = TestData.Options(settings => settings.WeatherUnderground.ApiKey = key);
         var time = new FixedTime(TestData.Now);
-        var cache = new WeatherCache();
+        cache ??= new WeatherCache();
         return new AlertService(
             [
                 new AmbientWeatherStation(http, options, time),
@@ -82,12 +82,24 @@ public class AlertTests
     }
 
     [Fact]
-    public async Task FallsBackToEffectiveAndExpiresTimes()
+    public async Task OpenEndedAlertsHaveNoEndTime()
     {
         var warning = (await Service(StubHttp.Json(Respond)).GetAsync())!.Alerts[0];
 
         Assert.Equal("2026-10-30T10:00:00-04:00", warning.Starts);
-        Assert.Equal("2026-10-31T02:00:00-04:00", warning.Ends);
+        Assert.Null(warning.Ends);
+    }
+
+    [Fact]
+    public async Task AlertsPastTheirMessageExpiryStayListed()
+    {
+        var http = StubHttp.Json(_ => """
+            {"features":[{"properties":{"id":"flood","event":"Flood Warning","severity":"Severe","ends":null,"expires":"2026-10-30T01:00:00-04:00"}}]}
+            """);
+
+        var report = (await Service(http).GetAsync())!;
+
+        Assert.Equal("flood", Assert.Single(report.Alerts).Id);
     }
 
     [Fact]
@@ -161,6 +173,25 @@ public class AlertTests
 
         Assert.Equal(SourceStatus.Error, report.Status);
         Assert.Equal("Source returned HTTP 503", report.Message);
+        Assert.Empty(report.Alerts);
+    }
+
+    [Fact]
+    public async Task FailureAfterSuccessDoesNotShowOldAlerts()
+    {
+        var failing = false;
+        var http = new StubHttp(_ => failing
+            ? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+            : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Alerts) });
+        var cache = new WeatherCache();
+        var service = Service(http, cache: cache);
+
+        Assert.NotEmpty((await service.GetAsync())!.Alerts);
+        failing = true;
+        cache.Remove("alerts:home");
+        var report = (await service.GetAsync())!;
+
+        Assert.Equal(SourceStatus.Error, report.Status);
         Assert.Empty(report.Alerts);
     }
 

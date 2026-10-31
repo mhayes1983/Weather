@@ -163,7 +163,7 @@ Returns the station's 16-day forecast. The `station` value is optional and defau
 
 `GET /api/daily-forecast/2026-11-02?station=KMESCARB25`
 
-Returns one day's hourly forecast, description, sun and moon data, and the previous and next days that can be opened. It returns 404 when that day isn't in the forecast or has no hourly data. Times are the station's local time.
+Returns one day's hourly forecast, description, sun and moon data, and the previous and next days that can be opened. It returns 404 when that day isn't in the forecast or has no hourly data, and 503 when the forecast can't be loaded. Times are the station's local time.
 
 `GET /api/alerts?station=KMESCARB25`
 

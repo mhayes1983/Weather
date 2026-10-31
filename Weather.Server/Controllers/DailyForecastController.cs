@@ -20,9 +20,16 @@ public class DailyForecastController(DailyForecastService forecasts) : Controlle
     [HttpGet("{date}")]
     public async Task<ActionResult<ForecastDayDetail>> GetDay(DateOnly date, [FromQuery] string? station)
     {
-        var detail = await forecasts.GetDayAsync(date, string.IsNullOrWhiteSpace(station) ? null : station.Trim());
-        return detail is null
-            ? Problem("That day isn't available.", statusCode: StatusCodes.Status404NotFound)
-            : detail;
+        try
+        {
+            var detail = await forecasts.GetDayAsync(date, string.IsNullOrWhiteSpace(station) ? null : station.Trim());
+            return detail is null
+                ? Problem("That day isn't available.", statusCode: StatusCodes.Status404NotFound)
+                : detail;
+        }
+        catch (ForecastUnavailableException exception)
+        {
+            return Problem(exception.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
     }
 }
