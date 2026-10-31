@@ -1,4 +1,5 @@
 ﻿import { lazy, Suspense, useEffect, useState } from 'react';
+import ErrorBoundary from './components/ErrorBoundary';
 import NavBar from './components/NavBar';
 import AlertsPage from './pages/AlertsPage';
 import DailyForecastPage from './pages/DailyForecastPage';
@@ -42,7 +43,10 @@ function App() {
         <>
             <NavBar route={route} onNavigate={navigate} />
             {route === '/' && <StationPage selected={station} onStationChange={setStation} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
-            {route === '/radar' && <Suspense fallback={<main><p>Loading radar…</p></main>}><RadarPage /></Suspense>}
+            {route === '/radar' &&
+                <ErrorBoundary message="The radar page couldn't be loaded.">
+                    <Suspense fallback={<main><p>Loading radar…</p></main>}><RadarPage /></Suspense>
+                </ErrorBoundary>}
             {route === '/alerts' && <AlertsPage station={station} onNavigate={navigate} />}
             {route === '/daily' && <DailyForecastPage station={station} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
             {date && <ForecastDayPage date={date} station={station} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
