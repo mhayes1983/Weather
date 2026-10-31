@@ -6,17 +6,17 @@ import StationPicker from '../components/StationPicker';
 import UnitToggle from '../components/UnitToggle';
 import { displayStationTemperature, type Unit } from '../temperature';
 
-const homeStation = 'home';
 const refreshMs = 60_000;
 
 interface StationPageProps {
+    selected: string;
+    onStationChange: (id: string) => void;
     unit: Unit;
     onUnitChange: (unit: Unit) => void;
 }
 
-function StationPage({ unit, onUnitChange }: StationPageProps) {
+function StationPage({ selected, onStationChange, unit, onUnitChange }: StationPageProps) {
     const [stations, setStations] = useState<StationSummary[]>([]);
-    const [selected, setSelected] = useState(homeStation);
     const [report, setReport] = useState<StationReport>();
     const [error, setError] = useState<string>();
 
@@ -69,7 +69,7 @@ function StationPage({ unit, onUnitChange }: StationPageProps) {
         // Clearing the report stops old readings appearing under the new station.
         setReport(undefined);
         setError(undefined);
-        setSelected(id);
+        onStationChange(id);
     }
 
     const current = report?.current;

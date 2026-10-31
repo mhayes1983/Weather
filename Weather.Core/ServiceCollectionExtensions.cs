@@ -24,7 +24,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<StationService>();
 
         // The home station comes first in the dropdown, then the configured stations in order.
-        foreach (var station in configuration.Get<WeatherOptions>()?.Stations.Where(station => !string.IsNullOrWhiteSpace(station.Id)) ?? [])
+        var stations = (configuration.Get<WeatherOptions>()?.Stations ?? [])
+            .Where(station => !string.IsNullOrWhiteSpace(station.Id)
+                && !string.Equals(station.Id, AmbientWeatherStation.HomeId, StringComparison.OrdinalIgnoreCase))
+            .DistinctBy(station => station.Id, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var station in stations)
         {
             services.AddSingleton<IWeatherStation>(provider =>
                 ActivatorUtilities.CreateInstance<WeatherUndergroundStation>(provider, station));

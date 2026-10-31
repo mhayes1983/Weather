@@ -16,6 +16,8 @@ public interface IWeatherStation
 
     TimeSpan HistoryCacheDuration { get; }
 
+    TimeSpan OfflineAfter { get; }
+
     bool HasKeys { get; }
 
     Task<StationReading> GetCurrentAsync(CancellationToken cancellationToken);

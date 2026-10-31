@@ -25,6 +25,8 @@ public sealed class WeatherUndergroundStation(
 
     public TimeSpan HistoryCacheDuration => TimeSpan.FromMinutes(options.Value.WeatherUndergroundStations.HistoryCacheMinutes);
 
+    public TimeSpan OfflineAfter => TimeSpan.FromMinutes(options.Value.WeatherUndergroundStations.OfflineAfterMinutes);
+
     public bool HasKeys => !string.IsNullOrWhiteSpace(options.Value.WeatherUnderground.ApiKey);
 
     public async Task<StationReading> GetCurrentAsync(CancellationToken cancellationToken)
@@ -98,7 +100,7 @@ public sealed class WeatherUndergroundStation(
 
     private async Task<string> GetAsync(string path, CancellationToken cancellationToken)
     {
-        var url = $"{BaseUrl}/{path}?stationId={Uri.EscapeDataString(station.Id)}&format=json&units=e&apiKey={Uri.EscapeDataString(options.Value.WeatherUnderground.ApiKey!)}";
+        var url = $"{BaseUrl}/{path}?stationId={Uri.EscapeDataString(station.Id)}&format=json&units=e&numericPrecision=decimal&apiKey={Uri.EscapeDataString(options.Value.WeatherUnderground.ApiKey!)}";
 
         var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
         return await client.GetStringAsync(url, cancellationToken);

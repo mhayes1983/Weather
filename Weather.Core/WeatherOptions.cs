@@ -30,6 +30,7 @@ public sealed class WeatherUndergroundStationOptions
 {
     public int CurrentCacheMinutes { get; set; } = 5;
     public int HistoryCacheMinutes { get; set; } = 15;
+    public int OfflineAfterMinutes { get; set; } = 30;
 }
 
 public sealed class AmbientWeatherOptions

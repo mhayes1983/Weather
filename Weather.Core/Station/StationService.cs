@@ -37,7 +37,7 @@ public sealed class StationService(
         var history = await GetAsync(station, "history", station.HistoryCacheDuration, station.GetHistoryAsync);
 
         var offline = current is { Message: null, Value: { } reading }
-            && now - reading.ObservedAt > TimeSpan.FromMinutes(options.Value.AmbientWeather.OfflineAfterMinutes);
+            && now - reading.ObservedAt > station.OfflineAfter;
         var status = current.Message is not null ? StationStatus.Error
             : offline ? StationStatus.Offline
             : StationStatus.Ok;

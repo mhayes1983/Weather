@@ -1,5 +1,7 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Weather.Core.Models;
@@ -91,6 +93,7 @@ public class WeatherUndergroundStationTests
         Assert.Equal(0.25, reading.DailyRainIn);
         Assert.Null(reading.IndoorTemperatureF);
         Assert.Contains($"stationId={Id}", http.Requests[0].RequestUri!.Query);
+        Assert.Contains("numericPrecision=decimal", http.Requests[0].RequestUri!.Query);
     }
 
     [Theory]
@@ -120,8 +123,11 @@ public class WeatherUndergroundStationTests
     [Fact]
     public async Task HistoryIsOldestFirstWithMidpointPressure()
     {
-        var history = await Station(Working()).GetHistoryAsync(default);
+        var http = Working();
 
+        var history = await Station(http).GetHistoryAsync(default);
+
+        Assert.Contains("numericPrecision=decimal", http.Requests[0].RequestUri!.Query);
         Assert.Equal([58, 59], history.Select(point => point.TemperatureF));
         Assert.Null(history[0].PressureInHg);
         Assert.Equal(30.1, history[1].PressureInHg!.Value, 5);
@@ -205,6 +211,72 @@ public class WeatherUndergroundStationTests
 
         Assert.Equal(StationStatus.NeedsKey, report.Status);
         Assert.DoesNotContain(http.Requests, request => request.RequestUri!.Host == "api.weather.com");
+    }
+
+    [Theory]
+    [InlineData(20, StationStatus.Ok)]
+    [InlineData(31, StationStatus.Offline)]
+    public async Task SlowerStationsHaveTheirOwnOfflineThreshold(int minutesOld, StationStatus expected)
+    {
+        var options = Options();
+        var time = new FixedTime(TestData.Now.AddMinutes(minutesOld));
+        var service = new StationService(
+            [new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, Working(), options)],
+            new WeatherCache(),
+            options,
+            time,
+            NullLogger<StationService>.Instance);
+
+        var report = (await service.GetReportAsync(Id))!;
+
+        Assert.Equal(expected, report.Status);
+    }
+
+    [Fact]
+    public async Task FailureFallsBackToLastGoodData()
+    {
+        var options = Options();
+        var cache = new WeatherCache();
+        cache.Set($"last-good:station:{Id}:current", new StationReading { ObservedAt = TestData.Now, TemperatureF = 50 }, TimeSpan.FromHours(1));
+        var http = new StubHttp(_ => new HttpResponseMessage(HttpStatusCode.TooManyRequests));
+        var service = new StationService(
+            [new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, http, options)],
+            cache,
+            options,
+            new FixedTime(TestData.Now),
+            NullLogger<StationService>.Instance);
+
+        var report = (await service.GetReportAsync(Id))!;
+
+        Assert.Equal(StationStatus.Error, report.Status);
+        Assert.Equal(50, report.Current!.TemperatureF);
+        Assert.Equal("Showing last good data. Source returned HTTP 429", report.Message);
+    }
+
+    [Fact]
+    public void RegistrationListsHomeFirstAndSkipsBadEntries()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Stations:0:Id"] = "KFIRST1",
+                ["Stations:1:Id"] = " ",
+                ["Stations:2:Id"] = "home",
+                ["Stations:3:Id"] = "KSECOND2",
+                ["Stations:3:Name"] = "Second",
+                ["Stations:4:Id"] = "kfirst1",
+            })
+            .Build();
+        using var provider = new ServiceCollection()
+            .AddLogging()
+            .AddWeatherCore(configuration)
+            .BuildServiceProvider();
+
+        var stations = provider.GetRequiredService<StationService>().Stations;
+
+        Assert.Equal(
+            [new StationSummary("home", "Home station"), new StationSummary("KFIRST1", "KFIRST1"), new StationSummary("KSECOND2", "Second")],
+            stations);
     }
 
     [Fact]

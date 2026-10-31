@@ -6,9 +6,12 @@ import type { Unit } from './temperature';
 import { useRoute } from './useRoute';
 import './App.css';
 
+const homeStation = 'home';
+
 function App() {
     const [route, navigate] = useRoute();
     const [unit, setUnit] = useState<Unit>('F');
+    const [station, setStation] = useState(homeStation);
     const [forecastOpened, setForecastOpened] = useState(route === '/forecast');
 
     // The forecast loads on first visit, then stays mounted to keep its ZIP and columns.
@@ -23,7 +26,7 @@ function App() {
     return (
         <>
             <NavBar route={route} onNavigate={navigate} />
-            {route === '/' && <StationPage unit={unit} onUnitChange={setUnit} />}
+            {route === '/' && <StationPage selected={station} onStationChange={setStation} unit={unit} onUnitChange={setUnit} />}
             {forecastOpened && <ForecastPage hidden={route !== '/forecast'} unit={unit} onUnitChange={setUnit} />}
         </>
     );

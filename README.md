@@ -110,10 +110,11 @@ These are in the `Weather` section of `Weather.Server/appsettings.json`:
 | `AmbientWeather:CurrentCacheSeconds` | 60 | How long to keep current station readings |
 | `AmbientWeather:HistoryCacheMinutes` | 5 | How long to keep the 24-hour station history |
 | `AmbientWeather:Name` | Home station | Name of your station in the dropdown |
-| `AmbientWeather:OfflineAfterMinutes` | 15 | Age of the latest reading before any station shows as offline |
+| `AmbientWeather:OfflineAfterMinutes` | 15 | Age of the latest reading before your station shows as offline |
 | `AmbientWeather:RequestSpacingMilliseconds` | 1100 | Minimum gap between Ambient Weather requests |
 | `WeatherUndergroundStations:CurrentCacheMinutes` | 5 | How long to keep another station's current readings |
 | `WeatherUndergroundStations:HistoryCacheMinutes` | 15 | How long to keep another station's history |
+| `WeatherUndergroundStations:OfflineAfterMinutes` | 30 | Age of the latest reading before another station shows as offline |
 | `Stations` | See file | Weather Underground stations in the dropdown |
 
 The website's default ZIP code is set separately, in `weather.client/src/App.tsx`.
@@ -140,6 +141,14 @@ To add a forecast source, implement `IForecastSource` in `Weather.Core/Sources` 
 `GET /api/forecast?zip=04086`
 
 The `zip` value is optional and defaults to Topsham. All temperatures are in °F. It returns 400 for a badly formatted ZIP code and 404 for one that doesn't exist.
+
+`GET /api/stations`
+
+Lists the stations for the dropdown, with your home station first.
+
+`GET /api/station?id=KMESCARB25`
+
+Returns a station's current readings and history. The `id` value is optional and defaults to your home station. All temperatures are in °F. It returns 404 for a station that isn't configured.
 
 ## Planned
 

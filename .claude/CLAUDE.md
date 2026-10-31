@@ -1,6 +1,6 @@
 # Weather
 
-The home page (`/`) shows live readings and 24-hour charts from an Ambient Weather station. `/forecast` compares daily forecast highs from several sources in one 16-day table, highlighting days well above or below average. Default location is Topsham, ME (04086); any US ZIP works. There is no database: station history comes from Ambient Weather on each fetch.
+The home page (`/`) shows live readings and 24-hour charts from an Ambient Weather station. `/forecast` compares daily forecast highs from several sources in one 16-day table, highlighting days well above or below average. Default location is Topsham, ME (04086); any US ZIP works. The home page can also show other Weather Underground stations from a configured list. There is no database: station history comes from each station's source on each fetch.
 
 ## Layout
 
