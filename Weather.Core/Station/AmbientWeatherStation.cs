@@ -39,6 +39,15 @@ public sealed class AmbientWeatherStation(
     public bool HasKeys =>
         !string.IsNullOrWhiteSpace(Settings.ApiKey) && !string.IsNullOrWhiteSpace(Settings.ApplicationKey);
 
+    // Forecasts use the configured location, so Ambient's street address and coordinates are never read.
+    public bool CanLocate => true;
+
+    public Task<GeoPoint> GetCoordinatesAsync(CancellationToken cancellationToken)
+    {
+        var location = options.Value.DefaultLocation;
+        return Task.FromResult(new GeoPoint(location.Latitude, location.Longitude));
+    }
+
     public async Task<StationReading> GetCurrentAsync(CancellationToken cancellationToken)
     {
         using var document = JsonDocument.Parse(await GetAsync(DevicesUrl, null, cancellationToken));

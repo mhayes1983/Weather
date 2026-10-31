@@ -2,7 +2,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Weather.Core.Alerts;
 using Weather.Core.Climate;
+using Weather.Core.DailyForecast;
 using Weather.Core.Locations;
 using Weather.Core.Models;
 using Weather.Core.Sources;
@@ -22,6 +24,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ForecastTableService>();
         services.AddSingleton<IWeatherStation, AmbientWeatherStation>();
         services.AddSingleton<StationService>();
+        services.AddSingleton<StationLocator>();
+        services.AddSingleton<NwsAlerts>();
+        services.AddSingleton<AlertService>();
+        services.AddSingleton<OpenMeteoOutlook>();
+        services.AddSingleton<NwsDescriptions>();
+        services.AddSingleton<UsnoMoon>();
+        services.AddSingleton<DailyForecastService>();
 
         // The home station comes first in the dropdown, then the configured stations in order.
         var stations = (configuration.Get<WeatherOptions>()?.Stations ?? [])

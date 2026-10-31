@@ -7,6 +7,8 @@ It opens on Topsham, ME (04086) and works with any US ZIP code. It shows current
 ## Features
 
 - Station page with current conditions and 24-hour charts, refreshed every minute
+- Active National Weather Service alerts for the selected station, with a page listing them all
+- Daily Forecast page for the selected station, with hourly detail, descriptions, and sun and moon times
 - Side-by-side highs from each source for the next 16 days
 - Orange for 6°F or more above average, blue for 6°F or more below
 - Average high for the period, from the nearest climate station
@@ -77,6 +79,18 @@ Each push to `master` builds a container image and publishes it to `ghcr.io/mhay
 
 To update, redeploy the app, which pulls the latest image. The site serves plain HTTP, so keep it on your own network and use a VPN such as Tailscale for outside access.
 
+## Daily Forecast
+
+Shows 16 days for the station selected on the Station page, with its hourly forecast one click away. Your home station uses `DefaultLocation`, and other stations use the coordinates Weather Underground reports for them.
+
+The forecast comes from [Open-Meteo](https://open-meteo.com/), written descriptions from the [National Weather Service](https://www.weather.gov/documentation/services-web-api) for about 7 days, and moon data from the [U.S. Naval Observatory](https://aa.usno.navy.mil/data/api). None of them need a key.
+
+## Weather alerts
+
+Active National Weather Service watches, warnings and advisories for the selected station appear at the top of the Station page, collapsed and most severe first. Up to three show there, and **View all alerts** opens the full list. They use the same station location as the Daily Forecast and need no key.
+
+The page only updates while it's open and alerts are cached for two minutes, so don't rely on it for safety warnings. If the check fails, the page says so rather than showing no alerts.
+
 ## Other weather stations
 
 The station page has a dropdown for other Weather Underground stations, listed under `Stations` in `Weather.Server/appsettings.json`. Each entry has a case-sensitive `Id` and a `Name`. They use your Weather Underground key, and your own station stays on Ambient Weather, which updates faster and reports more.
@@ -105,6 +119,7 @@ These are in the `Weather` section of `Weather.Server/appsettings.json`:
 | `SourceTimeoutSeconds` | 15 | How long to wait for each source |
 | `FreeSourceCacheMinutes` | 60 | How long to keep results from sources without a key |
 | `ErrorRetryMinutes` | 5 | How long to wait before retrying a failed source |
+| `AlertCacheMinutes` | 2 | How long to keep a station's alerts |
 | `WeatherUnderground:CacheMinutes` | 60 | How long to keep Weather Underground results |
 | `AmbientWeather:MacAddress` | None | Station to show, if the account has more than one. Otherwise the first is used |
 | `AmbientWeather:CurrentCacheSeconds` | 60 | How long to keep current station readings |
@@ -142,6 +157,18 @@ To add a forecast source, implement `IForecastSource` in `Weather.Core/Sources` 
 
 The `zip` value is optional and defaults to Topsham. All temperatures are in °F. It returns 400 for a badly formatted ZIP code and 404 for one that doesn't exist.
 
+`GET /api/daily-forecast?station=KMESCARB25`
+
+Returns the station's 16-day forecast. The `station` value is optional and defaults to your home station. It returns 404 for a station that isn't configured.
+
+`GET /api/daily-forecast/2026-11-02?station=KMESCARB25`
+
+Returns one day's hourly forecast, description, sun and moon data, and the previous and next days that can be opened. It returns 404 when that day isn't in the forecast or has no hourly data, and 503 when the forecast can't be loaded. Times are the station's local time.
+
+`GET /api/alerts?station=KMESCARB25`
+
+Returns the station's active alerts, most severe first. The `station` value is optional and defaults to your home station. It returns 404 for a station that isn't configured.
+
 `GET /api/stations`
 
 Lists the stations for the dropdown, with your home station first.
@@ -153,8 +180,7 @@ Returns a station's current readings and history. The `id` value is optional and
 ## Planned
 
 - Android app
-- 5 or more day forecast
-- Hourly forecast
+- Winter weather page (snow, ice, wind, and alerts)
 
 ## Data use
 

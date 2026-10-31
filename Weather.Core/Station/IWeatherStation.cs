@@ -20,6 +20,10 @@ public interface IWeatherStation
 
     bool HasKeys { get; }
 
+    bool CanLocate { get; }
+
+    Task<GeoPoint> GetCoordinatesAsync(CancellationToken cancellationToken);
+
     Task<StationReading> GetCurrentAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyList<StationHistoryPoint>> GetHistoryAsync(CancellationToken cancellationToken);

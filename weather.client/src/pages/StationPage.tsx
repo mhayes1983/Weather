@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { fetchStation, fetchStations, type StationReport, type StationSummary } from '../api/station';
 import CurrentConditions from '../components/CurrentConditions';
 import StationChart from '../components/StationChart';
+import StationAlerts from '../components/StationAlerts';
 import StationPicker from '../components/StationPicker';
 import UnitToggle from '../components/UnitToggle';
 import { displayStationTemperature, type Unit } from '../temperature';
+import type { Route } from '../useRoute';
 
 const refreshMs = 60_000;
 
@@ -13,9 +15,10 @@ interface StationPageProps {
     onStationChange: (id: string) => void;
     unit: Unit;
     onUnitChange: (unit: Unit) => void;
+    onNavigate: (route: Route) => void;
 }
 
-function StationPage({ selected, onStationChange, unit, onUnitChange }: StationPageProps) {
+function StationPage({ selected, onStationChange, unit, onUnitChange, onNavigate }: StationPageProps) {
     const [stations, setStations] = useState<StationSummary[]>([]);
     const [report, setReport] = useState<StationReport>();
     const [error, setError] = useState<string>();
@@ -83,6 +86,8 @@ function StationPage({ selected, onStationChange, unit, onUnitChange }: StationP
                 <h1>{current?.stationName ?? 'Weather Station'}</h1>
                 {current && <p className="location">Updated {new Date(current.observedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
             </header>
+
+            <StationAlerts station={selected} onNavigate={onNavigate} />
 
             <div className="controls">
                 {stations.length > 1 && <StationPicker stations={stations} selected={selected} onChange={handleStationChange} />}

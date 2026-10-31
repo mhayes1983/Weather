@@ -25,7 +25,7 @@ public sealed class NwsSource(
 
         var forecastUrl = await cache.GetOrCreateAsync(
             $"nws-grid:{location.Zip}",
-            async () => (await GetForecastUrlAsync(client, location, cancellationToken), GridCacheDuration));
+            async () => (await GetForecastUrlAsync(client, location.Latitude, location.Longitude, cancellationToken), GridCacheDuration));
 
         using var document = JsonDocument.Parse(await client.GetStringAsync(forecastUrl, cancellationToken));
 
@@ -43,13 +43,13 @@ public sealed class NwsSource(
         return SourceResult.Ok(results, timeProvider.GetUtcNow());
     }
 
-    private static async Task<string> GetForecastUrlAsync(
-        HttpClient client, ForecastLocation location, CancellationToken cancellationToken)
+    internal static async Task<string> GetForecastUrlAsync(
+        HttpClient client, double latitude, double longitude, CancellationToken cancellationToken)
     {
         // NWS redirects requests with more than four decimal places.
         var url = string.Create(
             CultureInfo.InvariantCulture,
-            $"https://api.weather.gov/points/{location.Latitude:0.####},{location.Longitude:0.####}");
+            $"https://api.weather.gov/points/{latitude:0.####},{longitude:0.####}");
 
         using var document = JsonDocument.Parse(await client.GetStringAsync(url, cancellationToken));
         return document.RootElement.GetProperty("properties").GetProperty("forecast").GetString()!;

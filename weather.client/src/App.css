@@ -389,3 +389,198 @@ tbody tr:last-child td {
     font-weight: 400;
     opacity: 0.75;
 }
+
+.daily-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.daily-list li:not(:last-child) {
+    border-bottom: 1px solid var(--border);
+}
+
+.daily-row {
+    display: grid;
+    grid-template-columns: 5.5em 2em minmax(7em, 1.4fr) 6.5em 2.5em minmax(80px, 1.6fr) 2.5em 6.5em;
+    gap: 4px 10px;
+    align-items: center;
+    padding: 8px 12px;
+    color: inherit;
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+}
+
+a.daily-row:hover,
+a.daily-row:focus-visible {
+    background: var(--surface);
+}
+
+.daily-date {
+    font-weight: 600;
+    color: var(--text-strong);
+}
+
+.daily-icon {
+    font-size: 1.3rem;
+    line-height: 1;
+}
+
+.daily-low {
+    text-align: right;
+}
+
+.daily-high {
+    font-weight: 600;
+    color: var(--text-strong);
+}
+
+.daily-wind {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.daily-range {
+    position: relative;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+}
+
+.daily-range span {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    min-width: 4px;
+    background: linear-gradient(90deg, var(--chart-1), var(--chart-2));
+    border-radius: 3px;
+}
+
+@media (max-width: 720px) {
+    .daily-row {
+        grid-template-columns: 5.5em 2em 1fr 2.5em 2.5em;
+        grid-template-areas:
+            'date icon conditions low high'
+            'date icon rain wind wind';
+    }
+
+    .daily-date { grid-area: date; }
+    .daily-icon { grid-area: icon; }
+    .daily-conditions { grid-area: conditions; }
+    .daily-rain { grid-area: rain; }
+    .daily-low { grid-area: low; }
+    .daily-high { grid-area: high; text-align: right; }
+    .daily-wind { grid-area: wind; }
+    .daily-range { display: none; }
+}
+
+.station-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 16px 0;
+}
+
+.alert-panel {
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 5px solid var(--border);
+    border-radius: 6px;
+}
+
+.alert-panel summary {
+    color: var(--text-strong);
+    cursor: pointer;
+}
+
+.alert-until {
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+.alert-extreme,
+.alert-severe {
+    border-left-color: var(--error);
+}
+
+.alert-moderate {
+    border-left-color: #f79a55;
+}
+
+.alert-minor {
+    border-left-color: #ffe873;
+}
+
+.alert-body {
+    margin-top: 8px;
+}
+
+.alert-body p {
+    margin: 0 0 8px;
+}
+
+.alert-body p:last-child {
+    margin-bottom: 0;
+}
+
+.alert-text {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.alerts-unavailable {
+    margin: 16px 0;
+    color: var(--error);
+}
+
+.back-link {
+    margin: 0 0 12px;
+}
+
+.day-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 0 12px;
+    font-weight: 600;
+}
+
+.day-summary {
+    margin: 0;
+}
+
+.day-sections {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.day-sections p {
+    margin: 0;
+}
+
+.collapsible-card summary {
+    cursor: pointer;
+}
+
+.collapsible-card summary h2 {
+    display: inline;
+    margin: 0;
+}
+
+.collapsible-card[open] summary {
+    margin-bottom: 6px;
+}
+
+.hourly-table tbody th {
+    font-weight: 500;
+    text-align: left;
+}
+
+.hourly-table .hourly-conditions {
+    text-align: left;
+}
