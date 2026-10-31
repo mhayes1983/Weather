@@ -1,4 +1,5 @@
 import RouteLink from './RouteLink';
+import ThemeToggle from './ThemeToggle';
 import type { Route } from '../useRoute';
 
 interface NavBarProps {
@@ -30,6 +31,7 @@ function NavBar({ route, onNavigate }: NavBarProps) {
                     {link.label}
                 </RouteLink>
             )}
+            <ThemeToggle />
         </nav>
     );
 }

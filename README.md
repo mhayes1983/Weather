@@ -14,6 +14,7 @@ It opens on Topsham, ME (04086) and works with any US ZIP code. It shows current
 - Orange for 6°F or more above average, blue for 6°F or more below
 - Average high for the period, from the nearest climate station
 - °F/°C toggle
+- Auto, Light and Dark themes, with Auto following the device
 - ZIP code search
 - Usable on a phone
 

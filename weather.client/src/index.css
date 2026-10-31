@@ -14,8 +14,12 @@
   background: var(--bg);
 }
 
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --text: #b4b8c0;
     --text-strong: #f3f4f6;
     --bg: #16171d;
@@ -25,6 +29,18 @@
     --chart-1: #7cc7f2;
     --chart-2: #f79a55;
   }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --text: #b4b8c0;
+  --text-strong: #f3f4f6;
+  --bg: #16171d;
+  --surface: #1f2028;
+  --border: #2e303a;
+  --error: #ff8a80;
+  --chart-1: #7cc7f2;
+  --chart-2: #f79a55;
 }
 
 body {
