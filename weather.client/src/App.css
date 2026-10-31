@@ -1,11 +1,41 @@
 ﻿.nav-bar {
+    position: relative;
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     justify-content: center;
     gap: 4px 20px;
     padding: 10px 16px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
+}
+
+.theme-toggle {
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    font-size: 0.85rem;
+    transform: translateY(-50%);
+}
+
+.theme-toggle button {
+    padding: 3px 10px;
+}
+
+.theme-toggle button:not(:first-child) {
+    margin-left: -1px;
+}
+
+.theme-toggle button:not(:first-child, :last-child) {
+    border-radius: 0;
+}
+
+/* The links are centred, so below this width the switch joins them and wraps with them. */
+@media (max-width: 960px) {
+    .theme-toggle {
+        position: static;
+        transform: none;
+    }
 }
 
 .nav-bar a {
