@@ -151,11 +151,12 @@ Run the tests:
 dotnet test Weather.Core.Tests/Weather.Core.Tests.csproj
 ```
 
-Build and lint the website from `weather.client`:
+Build, lint and test the website from `weather.client`:
 
 ```bash
 npm run build
 npm run lint
+npm test
 ```
 
 To add a forecast source, implement `IForecastSource` in `Weather.Core/Sources` and register it in `ServiceCollectionExtensions.cs`. The new column then appears in the table automatically.

@@ -22,6 +22,7 @@ From `weather.client`:
 ```bash
 npm run build
 npm run lint
+npm test
 ```
 
 The app runs at https://localhost:54777. If the build reports locked files, Visual Studio or another `Weather.Server` process is still running; that isn't a code error.
@@ -42,7 +43,7 @@ Runs on TrueNAS as a Docker custom app (`deploy/truenas-compose.yaml`). `.github
 - **Forecast and alert locations stay in Core.** `StationLocator` supplies them through `IWeatherStation.GetCoordinatesAsync`, using `DefaultLocation` for the home station. `/api/daily-forecast` and `/api/alerts` return the station's configured name, never coordinates or a neighbourhood.
 - **Alerts never show last good data.** An old alert could be wrong, so a failed check says alerts are unavailable, which must never look like "no alerts". NWS and USNO only add detail, so their failures hide a section rather than the page.
 - **The home station stays on Ambient Weather.** Weather Underground is only for the other stations in `Stations`. It updates less often, reports less and has a shared quota.
-- **Colours follow the device by default.** Auto sets no attribute on `<html>`, so `index.css` uses `prefers-color-scheme`. Light and Dark set `data-theme`, and the choice is saved in that browser's `localStorage`. Any new colour needs defining for both themes.
+- **Colours follow the device by default.** Auto sets no attribute on `<html>`, so `index.css` uses `prefers-color-scheme`. Light and Dark set `data-theme`, and the choice is saved in that browser's `localStorage`. Any new colour needs defining for both themes, and dark values live in two blocks of `index.css` that must stay identical.
 - **A browser's default station stays in that browser.** It's saved in `localStorage` and sets which station every page starts on, with no accounts or server storage. The home station is the fallback, including when a saved station is no longer configured.
 - **Keys go in .NET user-secrets**, never in `appsettings.json`, the repo or chat.
 - **All caching is in memory.** Don't add a database or disk storage for forecasts.
@@ -71,7 +72,7 @@ The client needs no changes; columns come from the API.
 - **NWS alerts:** `/alerts/active?point=` with `status=actual&message_type=alert,update`. `limit` returns 400 on that endpoint. Times are in the alert area's local time, so they're shown as issued. Severity can be missing. `expires` is when the message lapses, not when the event ends, so it's never shown as an end time or used to hide an alert.
 - **NWS descriptions:** about 7 days, so later days have none. A night period starting after midnight belongs to the previous date.
 - **USNO moon data:** the moon doesn't rise or set every day, so either time can be missing. The `tz` value is for that date, with `dst=false`.
-- **Radar:** the browser calls NOAA's `conus_bref_qcd` WMS and OpenStreetMap's tiles directly, so there's no server code. `GetCapabilities` lists about 60 scans over two hours, and the page uses every fifth one. OpenStreetMap's tile policy requires its attribution to stay visible and suits light use only.
+- **Radar:** the browser calls NOAA's `conus_bref_qcd` WMS and OpenStreetMap's tiles directly, so there's no server code. `GetCapabilities` lists about 60 scans over two hours, and the page uses the first scan of each ten-minute slot plus the newest, so frames stay stable as scans arrive. OpenStreetMap's tile policy requires its attribution to stay visible and suits light use only.
 - **AccuWeather:** removed on purpose. Its API has no lasting free tier and its website blocks automated requests. Don't scrape it, or Weather Underground's pages.
 
 ## Later work
