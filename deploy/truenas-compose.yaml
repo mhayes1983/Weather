@@ -1,0 +1,11 @@
+# Paste into TrueNAS: Apps > Discover Apps > Install via YAML.
+# Replace the key placeholder on the NAS only. Don't commit a real key.
+services:
+  weather:
+    image: ghcr.io/mhayes1983/weather:latest
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "8085:8080"
+    environment:
+      Weather__WeatherUnderground__ApiKey: "YOUR_KEY"

@@ -55,6 +55,17 @@ You'll need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and [Node.j
 
 You can also open `Weather.slnx` in Visual Studio and run `Weather.Server`.
 
+## Hosting on TrueNAS
+
+Each push to `master` builds a container image and publishes it to `ghcr.io/mhayes1983/weather:latest`.
+
+1. If the GitHub package is private, make it public or add `ghcr.io` credentials under Apps > Configuration > Manage Container Registries on the NAS.
+2. In TrueNAS, go to Apps > Discover Apps > Install via YAML and paste `deploy/truenas-compose.yaml`.
+3. Replace `YOUR_KEY` with your Weather Underground key, on the NAS only.
+4. Open `http://<nas-ip>:8085`.
+
+To update, redeploy the app, which pulls the latest image. The site serves plain HTTP, so keep it on your own network and use a VPN such as Tailscale for outside access.
+
 ## Project structure
 
 | Folder | Purpose |
