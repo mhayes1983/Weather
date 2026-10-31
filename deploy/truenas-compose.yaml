@@ -11,3 +11,7 @@ services:
       Weather__WeatherUnderground__ApiKey: "YOUR_KEY"
       Weather__AmbientWeather__ApiKey: "YOUR_AMBIENT_API_KEY"
       Weather__AmbientWeather__ApplicationKey: "YOUR_AMBIENT_APPLICATION_KEY"
+      # The dropdown's stations are in appsettings.json. These lines replace entries
+      # by position without a rebuild. Weather Underground station IDs are case sensitive.
+      # Weather__Stations__0__Id: "KMESCARB25"
+      # Weather__Stations__0__Name: "Scarborough, ME"

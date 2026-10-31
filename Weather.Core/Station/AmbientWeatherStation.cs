@@ -9,9 +9,11 @@ public sealed class AmbientWeatherStation(
     IOptions<WeatherOptions> options,
     TimeProvider timeProvider) : IWeatherStation
 {
+    public const string HomeId = "home";
+
     private const string DevicesUrl = "https://rt.ambientweather.net/v1/devices";
     private const int HistoryPoints = 288;
-    private static readonly TimeSpan HistoryRange = TimeSpan.FromHours(24);
+    private static readonly TimeSpan HistoryWindow = TimeSpan.FromHours(24);
 
     // Ambient allows one request a second per key, so calls run one at a time.
     private readonly SemaphoreSlim _requestGate = new(1, 1);
@@ -19,6 +21,18 @@ public sealed class AmbientWeatherStation(
     private string? _macAddress;
 
     private AmbientWeatherOptions Settings => options.Value.AmbientWeather;
+
+    public string Id => HomeId;
+
+    public string Name => Settings.Name;
+
+    public string Source => "AmbientWeather.net";
+
+    public StationHistoryRange HistoryRange => StationHistoryRange.Last24Hours;
+
+    public TimeSpan CurrentCacheDuration => TimeSpan.FromSeconds(Settings.CurrentCacheSeconds);
+
+    public TimeSpan HistoryCacheDuration => TimeSpan.FromMinutes(Settings.HistoryCacheMinutes);
 
     public bool HasKeys =>
         !string.IsNullOrWhiteSpace(Settings.ApiKey) && !string.IsNullOrWhiteSpace(Settings.ApplicationKey);
@@ -76,7 +90,7 @@ public sealed class AmbientWeatherStation(
             $"&limit={HistoryPoints}",
             cancellationToken));
 
-        var since = timeProvider.GetUtcNow() - HistoryRange;
+        var since = timeProvider.GetUtcNow() - HistoryWindow;
         return document.RootElement.EnumerateArray()
             .Select(data => new StationHistoryPoint(
                 ObservedAt(data),

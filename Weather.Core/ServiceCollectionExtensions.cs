@@ -23,6 +23,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IWeatherStation, AmbientWeatherStation>();
         services.AddSingleton<StationService>();
 
+        // The home station comes first in the dropdown, then the configured stations in order.
+        foreach (var station in configuration.Get<WeatherOptions>()?.Stations.Where(station => !string.IsNullOrWhiteSpace(station.Id)) ?? [])
+        {
+            services.AddSingleton<IWeatherStation>(provider =>
+                ActivatorUtilities.CreateInstance<WeatherUndergroundStation>(provider, station));
+        }
+
         // Logging is off for this client because Weather Underground and Ambient Weather keys travel in the URL.
         services.AddHttpClient(WeatherHttp.ClientName, (provider, client) =>
         {

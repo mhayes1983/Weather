@@ -73,6 +73,11 @@ function CurrentConditions({ reading, unit }: CurrentConditionsProps) {
         },
     ];
 
+    // Stations report different readings, so anything a station lacks is left out.
+    const visibleCards = cards
+        .map(card => ({ ...card, rows: card.rows.filter(([, value]) => value !== missing) }))
+        .filter(card => card.rows.length > 0);
+
     return (
         <>
             <p className="station-temperature">
@@ -81,7 +86,7 @@ function CurrentConditions({ reading, unit }: CurrentConditionsProps) {
             </p>
 
             <div className="station-cards">
-                {cards.map(card =>
+                {visibleCards.map(card =>
                     <section key={card.title} className="station-card">
                         <h2>{card.title}</h2>
                         <dl>

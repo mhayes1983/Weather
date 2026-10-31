@@ -6,6 +6,7 @@ export interface ChartSeries {
 
 interface StationChartProps {
     title: string;
+    range: string;
     unit: string;
     times: string[];
     series: ChartSeries[];
@@ -22,15 +23,15 @@ const bottom = 22;
 const maxGapMs = 30 * 60 * 1000;
 const hourMs = 60 * 60 * 1000;
 
-function StationChart({ title, unit, times, series, zeroBased = false, digits = 0 }: StationChartProps) {
+function StationChart({ title, range, unit, times, series, zeroBased = false, digits = 0 }: StationChartProps) {
     const timestamps = times.map(time => Date.parse(time));
     const values = series.flatMap(line => line.values).filter(value => value !== null);
 
     if (values.length === 0) {
         return (
             <section className="station-chart">
-                <h2>{title}</h2>
-                <p>No data yet.</p>
+                <h2>{title} <span className="chart-range">{range}</span></h2>
+                <p>This station does not report this.</p>
             </section>
         );
     }
@@ -83,8 +84,8 @@ function StationChart({ title, unit, times, series, zeroBased = false, digits = 
 
     return (
         <section className="station-chart">
-            <h2>{title}</h2>
-            <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}, last 24 hours. ${summary}`}>
+            <h2>{title} <span className="chart-range">{range}</span></h2>
+            <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}, ${range}. ${summary}`}>
                 {valueTicks.map(tick =>
                     <g key={tick}>
                         <line className="chart-grid" x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} />

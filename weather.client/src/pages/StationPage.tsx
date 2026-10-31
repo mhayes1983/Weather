@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { fetchStation, type StationReport } from '../api/station';
+import { fetchStation, fetchStations, type StationReport, type StationSummary } from '../api/station';
 import CurrentConditions from '../components/CurrentConditions';
 import StationChart from '../components/StationChart';
+import StationPicker from '../components/StationPicker';
 import UnitToggle from '../components/UnitToggle';
 import { displayStationTemperature, type Unit } from '../temperature';
 
+const homeStation = 'home';
 const refreshMs = 60_000;
 
 interface StationPageProps {
@@ -13,14 +15,28 @@ interface StationPageProps {
 }
 
 function StationPage({ unit, onUnitChange }: StationPageProps) {
+    const [stations, setStations] = useState<StationSummary[]>([]);
+    const [selected, setSelected] = useState(homeStation);
     const [report, setReport] = useState<StationReport>();
     const [error, setError] = useState<string>();
 
     useEffect(() => {
         const controller = new AbortController();
 
+        fetchStations(controller.signal)
+            .then(setStations)
+            .catch(() => {
+                // The page still works for the home station without the list.
+            });
+
+        return () => controller.abort();
+    }, []);
+
+    useEffect(() => {
+        const controller = new AbortController();
+
         function load() {
-            fetchStation(controller.signal)
+            fetchStation(selected, controller.signal)
                 .then(data => {
                     setReport(data);
                     setError(undefined);
@@ -47,11 +63,19 @@ function StationPage({ unit, onUnitChange }: StationPageProps) {
             window.clearInterval(timer);
             document.removeEventListener('visibilitychange', loadIfVisible);
         };
-    }, []);
+    }, [selected]);
+
+    function handleStationChange(id: string) {
+        // Clearing the report stops old readings appearing under the new station.
+        setReport(undefined);
+        setError(undefined);
+        setSelected(id);
+    }
 
     const current = report?.current;
     const history = report?.history ?? [];
     const times = history.map(point => point.time);
+    const range = report?.historyRange === 'Today' ? 'today' : 'last 24 hours';
 
     return (
         <main>
@@ -61,22 +85,24 @@ function StationPage({ unit, onUnitChange }: StationPageProps) {
             </header>
 
             <div className="controls">
+                {stations.length > 1 && <StationPicker stations={stations} selected={selected} onChange={handleStationChange} />}
                 <UnitToggle unit={unit} onChange={onUnitChange} />
             </div>
 
             {error && <p className="error" role="alert">{error}</p>}
             {!report && !error && <p>Loading station…</p>}
-            {report?.status === 'NeedsKey' && <p className="error" role="alert">Add your Ambient Weather keys to see station data.</p>}
+            {report?.status === 'NeedsKey' && <p className="error" role="alert">Add your {report.source} key to see station data.</p>}
             {report && report.status !== 'Ok' && report.status !== 'NeedsKey' && <p className="error" role="alert">{report.message}</p>}
             {current?.batteryLow && <p className="error" role="alert">The outdoor sensor's battery is low.</p>}
 
             {current && <CurrentConditions reading={current} unit={unit} />}
 
-            {report?.historyMessage && <p className="error" role="alert">24-hour history: {report.historyMessage}</p>}
+            {report?.historyMessage && <p className="error" role="alert">History: {report.historyMessage}</p>}
             {history.length > 0 &&
                 <div className="station-charts">
                     <StationChart
                         title="Temperature"
+                        range={range}
                         unit={`°${unit}`}
                         times={times}
                         digits={1}
@@ -88,6 +114,7 @@ function StationPage({ unit, onUnitChange }: StationPageProps) {
                     />
                     <StationChart
                         title="Wind"
+                        range={range}
                         unit="mph"
                         times={times}
                         zeroBased
@@ -98,6 +125,7 @@ function StationPage({ unit, onUnitChange }: StationPageProps) {
                     />
                     <StationChart
                         title="Pressure"
+                        range={range}
                         unit="inHg"
                         times={times}
                         digits={2}
@@ -105,6 +133,7 @@ function StationPage({ unit, onUnitChange }: StationPageProps) {
                     />
                     <StationChart
                         title="Rain rate"
+                        range={range}
                         unit="in/hr"
                         times={times}
                         zeroBased
@@ -115,7 +144,7 @@ function StationPage({ unit, onUnitChange }: StationPageProps) {
 
             {current &&
                 <footer className="attribution">
-                    Station data from <a href="https://ambientweather.net/">AmbientWeather.net</a>
+                    Station data from {report?.source}
                 </footer>}
         </main>
     );

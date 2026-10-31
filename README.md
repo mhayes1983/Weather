@@ -77,6 +77,12 @@ Each push to `master` builds a container image and publishes it to `ghcr.io/mhay
 
 To update, redeploy the app, which pulls the latest image. The site serves plain HTTP, so keep it on your own network and use a VPN such as Tailscale for outside access.
 
+## Other weather stations
+
+The station page has a dropdown for other Weather Underground stations, listed under `Stations` in `Weather.Server/appsettings.json`. Each entry has a case-sensitive `Id` and a `Name`. They use your Weather Underground key, and your own station stays on Ambient Weather, which updates faster and reports more.
+
+Other stations are fetched only while selected, and results are cached so they don't use up the key's limits, reported as 1,500 calls a day and 30 a minute. Readings a station doesn't report are left out, and its charts cover the current day rather than the last 24 hours.
+
 ## Project structure
 
 | Folder | Purpose |
@@ -103,8 +109,12 @@ These are in the `Weather` section of `Weather.Server/appsettings.json`:
 | `AmbientWeather:MacAddress` | None | Station to show, if the account has more than one. Otherwise the first is used |
 | `AmbientWeather:CurrentCacheSeconds` | 60 | How long to keep current station readings |
 | `AmbientWeather:HistoryCacheMinutes` | 5 | How long to keep the 24-hour station history |
-| `AmbientWeather:OfflineAfterMinutes` | 15 | Age of the latest reading before the station shows as offline |
+| `AmbientWeather:Name` | Home station | Name of your station in the dropdown |
+| `AmbientWeather:OfflineAfterMinutes` | 15 | Age of the latest reading before any station shows as offline |
 | `AmbientWeather:RequestSpacingMilliseconds` | 1100 | Minimum gap between Ambient Weather requests |
+| `WeatherUndergroundStations:CurrentCacheMinutes` | 5 | How long to keep another station's current readings |
+| `WeatherUndergroundStations:HistoryCacheMinutes` | 15 | How long to keep another station's history |
+| `Stations` | See file | Weather Underground stations in the dropdown |
 
 The website's default ZIP code is set separately, in `weather.client/src/App.tsx`.
 
@@ -134,8 +144,8 @@ The `zip` value is optional and defaults to Topsham. All temperatures are in °F
 ## Planned
 
 - Android app
-- Personal weather station data
-- A free replacement for the AccuWeather column
+- 5 or more day forecast
+- Hourly forecast
 
 ## Data use
 

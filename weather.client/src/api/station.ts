@@ -1,4 +1,5 @@
 export type StationStatus = 'Ok' | 'Offline' | 'NeedsKey' | 'Error';
+export type StationHistoryRange = 'Last24Hours' | 'Today';
 
 export interface StationReading {
     stationName: string | null;
@@ -35,17 +36,33 @@ export interface StationHistoryPoint {
     rainRateInPerHour: number | null;
 }
 
+export interface StationSummary {
+    id: string;
+    name: string;
+}
+
 export interface StationReport {
     status: StationStatus;
     message: string | null;
     generatedAt: string;
+    source: string;
     current: StationReading | null;
     history: StationHistoryPoint[];
+    historyRange: StationHistoryRange;
     historyMessage: string | null;
 }
 
-export async function fetchStation(signal: AbortSignal): Promise<StationReport> {
-    const response = await fetch('/api/station', { signal });
+export async function fetchStations(signal: AbortSignal): Promise<StationSummary[]> {
+    const response = await fetch('/api/stations', { signal });
+    if (!response.ok) {
+        throw new Error('The station list could not be loaded.');
+    }
+
+    return await response.json() as StationSummary[];
+}
+
+export async function fetchStation(id: string, signal: AbortSignal): Promise<StationReport> {
+    const response = await fetch(`/api/station?id=${encodeURIComponent(id)}`, { signal });
     if (!response.ok) {
         throw new Error('The station data could not be loaded.');
     }

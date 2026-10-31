@@ -261,6 +261,22 @@ tbody tr:last-child td {
     opacity: 0.75;
 }
 
+.station-picker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.station-picker select {
+    max-width: 100%;
+    padding: 6px 8px;
+    font: inherit;
+    color: inherit;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
 .station-temperature {
     display: flex;
     flex-wrap: wrap;
@@ -366,4 +382,10 @@ tbody tr:last-child td {
     width: 12px;
     height: 3px;
     border-radius: 2px;
+}
+
+.chart-range {
+    font-size: 0.8rem;
+    font-weight: 400;
+    opacity: 0.75;
 }

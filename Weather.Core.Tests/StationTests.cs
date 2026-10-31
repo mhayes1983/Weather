@@ -73,7 +73,7 @@ public class StationTests
         var options = Keys();
         var time = new FixedTime(now ?? TestData.Now);
         return new StationService(
-            new AmbientWeatherStation(http, options, time),
+            [new AmbientWeatherStation(http, options, time)],
             cache ?? new WeatherCache(),
             options,
             time,
@@ -150,7 +150,7 @@ public class StationTests
     [Fact]
     public async Task EmptyDeviceListIsAnError()
     {
-        var report = await Service(StubHttp.Json(_ => "[]")).GetReportAsync();
+        var report = (await Service(StubHttp.Json(_ => "[]")).GetReportAsync())!;
 
         Assert.Equal(StationStatus.Error, report.Status);
         Assert.Null(report.Current);
@@ -169,7 +169,7 @@ public class StationTests
         });
         var time = new FixedTime(TestData.Now);
         var service = new StationService(
-            new AmbientWeatherStation(http, options, time),
+            [new AmbientWeatherStation(http, options, time)],
             new WeatherCache(),
             options,
             time,
@@ -177,14 +177,14 @@ public class StationTests
 
         var report = await service.GetReportAsync();
 
-        Assert.Equal(StationStatus.NeedsKey, report.Status);
+        Assert.Equal(StationStatus.NeedsKey, report!.Status);
         Assert.Empty(http.Requests);
     }
 
     [Fact]
     public async Task HealthyStationIsOk()
     {
-        var report = await Service(Working()).GetReportAsync();
+        var report = (await Service(Working()).GetReportAsync())!;
 
         Assert.Equal(StationStatus.Ok, report.Status);
         Assert.Null(report.Message);
@@ -195,7 +195,7 @@ public class StationTests
     [Fact]
     public async Task OldReadingIsOffline()
     {
-        var report = await Service(Working(), now: TestData.Now.AddMinutes(16)).GetReportAsync();
+        var report = (await Service(Working(), now: TestData.Now.AddMinutes(16)).GetReportAsync())!;
 
         Assert.Equal(StationStatus.Offline, report.Status);
         Assert.NotNull(report.Current);
@@ -205,9 +205,9 @@ public class StationTests
     public async Task FailureFallsBackToLastGoodData()
     {
         var cache = new WeatherCache();
-        cache.Set("last-good:station:current", new StationReading { ObservedAt = TestData.Now, TemperatureF = 50 }, TimeSpan.FromHours(1));
+        cache.Set("last-good:station:home:current", new StationReading { ObservedAt = TestData.Now, TemperatureF = 50 }, TimeSpan.FromHours(1));
 
-        var report = await Service(Failing(), cache).GetReportAsync();
+        var report = (await Service(Failing(), cache).GetReportAsync())!;
 
         Assert.Equal(StationStatus.Error, report.Status);
         Assert.Equal(50, report.Current!.TemperatureF);
@@ -217,7 +217,7 @@ public class StationTests
     [Fact]
     public async Task HistoryFailureKeepsCurrentReadings()
     {
-        var report = await Service(Failing(url => url.Contains("limit="))).GetReportAsync();
+        var report = (await Service(Failing(url => url.Contains("limit="))).GetReportAsync())!;
 
         Assert.Equal(StationStatus.Ok, report.Status);
         Assert.NotNull(report.Current);

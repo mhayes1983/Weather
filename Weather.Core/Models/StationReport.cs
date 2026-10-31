@@ -8,6 +8,14 @@ public enum StationStatus
     Error,
 }
 
+public enum StationHistoryRange
+{
+    Last24Hours,
+    Today,
+}
+
+public sealed record StationSummary(string Id, string Name);
+
 public sealed record StationReading
 {
     public string? StationName { get; init; }
@@ -47,6 +55,8 @@ public sealed record StationReport(
     StationStatus Status,
     string? Message,
     DateTimeOffset GeneratedAt,
+    string Source,
     StationReading? Current,
     IReadOnlyList<StationHistoryPoint> History,
+    StationHistoryRange HistoryRange,
     string? HistoryMessage);
