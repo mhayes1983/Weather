@@ -8,7 +8,7 @@ import DailyForecastPage from './pages/DailyForecastPage';
 import ForecastDayPage from './pages/ForecastDayPage';
 import ForecastPage from './pages/ForecastPage';
 import StationPage from './pages/StationPage';
-import { addSavedStation, loadSavedStations, removeSavedStation } from './savedStations';
+import { addSavedStation, loadSavedStations, removeSavedStation, watchSavedStations } from './savedStations';
 import type { Unit } from './temperature';
 import { forecastDate, useRoute, type Route } from './useRoute';
 import './App.css';
@@ -62,6 +62,8 @@ function App() {
         return () => controller.abort();
     }, []);
 
+    useEffect(() => watchSavedStations(setSavedStations), []);
+
     useEffect(() => {
         document.title = titles[route] ?? 'Daily Forecast';
     }, [route]);
@@ -72,11 +74,11 @@ function App() {
     }
 
     function handleStationSaved(saved: StationSummary) {
-        setSavedStations(addSavedStation(saved));
+        setSavedStations(addSavedStation(savedStations, saved));
     }
 
     function handleStationRemoved(id: string) {
-        setSavedStations(removeSavedStation(id));
+        setSavedStations(removeSavedStation(savedStations, id));
 
         const nextDefault = defaultStation === id ? homeStation : defaultStation;
         if (nextDefault !== defaultStation) {

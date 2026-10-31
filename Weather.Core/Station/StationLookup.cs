@@ -1,4 +1,6 @@
+using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Weather.Core.Locations;
 using Weather.Core.Models;
@@ -7,10 +9,12 @@ namespace Weather.Core.Station;
 
 public sealed class StationLookup(
     StationDirectory directory,
+    StationService stations,
     IHttpClientFactory httpClientFactory,
     WeatherCache cache,
     IOptions<WeatherOptions> options,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    ILogger<StationLookup> logger)
 {
     private const string NearEndpoint = "https://api.weather.com/v3/location/near";
     private static readonly TimeSpan NearCacheDuration = TimeSpan.FromHours(1);
@@ -37,8 +41,9 @@ public sealed class StationLookup(
                     async () => (await FindNearAsync(query, timeout.Token), NearCacheDuration))
                 : await FindByIdAsync(query, timeout.Token);
         }
-        catch (Exception exception) when (exception is HttpRequestException or OperationCanceledException or JsonException)
+        catch (Exception exception)
         {
+            logger.LogWarning("Station lookup failed: {Error}", exception.GetType().Name);
             throw new StationLookupUnavailableException($"Station lookup failed. {SourceFailure.Describe(exception)}");
         }
     }
@@ -53,7 +58,7 @@ public sealed class StationLookup(
 
         try
         {
-            var reading = await station.GetCurrentAsync(cancellationToken);
+            var reading = await stations.GetCurrentAsync(station, cancellationToken);
             return new StationMatch(station.Id, reading.StationName ?? station.Id, null);
         }
         catch (StationNoDataException)
@@ -89,15 +94,20 @@ public sealed class StationLookup(
         var ids = location.GetProperty("stationId");
         var names = location.GetProperty("stationName");
         var distances = location.GetProperty("distanceMi");
+        var count = Math.Min(ids.GetArrayLength(), Math.Min(names.GetArrayLength(), distances.GetArrayLength()));
 
         // Results are nearest first. updateTimeUtc doesn't show when a station last
         // reported, so only its own latest reading can say whether it's usable.
-        for (var i = 0; i < ids.GetArrayLength(); i++)
+        for (var i = 0; i < count; i++)
         {
-            var id = ids[i].GetString()!;
-            if (await IsReportingAsync(id, cancellationToken))
+            // A missing ID would otherwise mean the home station.
+            if (ids[i].ValueKind == JsonValueKind.String
+                && directory.Find(ids[i].GetString()) is { } station
+                && await IsReportingAsync(station, cancellationToken))
             {
-                return new StationMatch(id, names[i].GetString() ?? id, distances[i].GetDouble());
+                var name = directory.IsConfigured(station.Id) ? station.Name : Text(names[i]) ?? station.Id;
+                var distance = distances[i].ValueKind == JsonValueKind.Number ? distances[i].GetDouble() : (double?)null;
+                return new StationMatch(station.Id, name, distance);
             }
         }
 
@@ -105,22 +115,30 @@ public sealed class StationLookup(
     }
 
     // Some stations only send a reading or two, which leaves a nearly empty page.
-    private async Task<bool> IsReportingAsync(string id, CancellationToken cancellationToken)
+    private async Task<bool> IsReportingAsync(IWeatherStation station, CancellationToken cancellationToken)
     {
-        if (directory.Find(id) is not { } station)
-        {
-            return false;
-        }
-
         try
         {
-            var reading = await station.GetCurrentAsync(cancellationToken);
+            var reading = await stations.GetCurrentAsync(station, cancellationToken);
             return reading.TemperatureF is not null
                 && timeProvider.GetUtcNow() - reading.ObservedAt <= RecentReport;
         }
-        catch (StationNoDataException)
+        catch (Exception exception) when (IsThisStationsFault(exception))
         {
             return false;
         }
     }
+
+    // Anything else, such as a bad key or the shared quota, would fail for every station too.
+    private static bool IsThisStationsFault(Exception exception) => exception switch
+    {
+        StationNoDataException or JsonException or KeyNotFoundException or InvalidOperationException
+            or FormatException or IndexOutOfRangeException => true,
+        HttpRequestException { StatusCode: HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests } => false,
+        HttpRequestException { StatusCode: { } status } => (int)status is >= 400 and < 500,
+        _ => false,
+    };
+
+    private static string? Text(JsonElement value) =>
+        value.ValueKind == JsonValueKind.String && value.GetString() is { Length: > 0 } text ? text : null;
 }

@@ -50,6 +50,16 @@ public sealed class StationService(
             history.Message);
     }
 
+    /// <summary>The latest reading, from the same cache as the station's page.</summary>
+    /// <exception cref="Exception">The failure that stopped the reading being fetched.</exception>
+    public async Task<StationReading> GetCurrentAsync(IWeatherStation station, CancellationToken cancellationToken)
+    {
+        var current = await GetAsync(station, "current", station.CurrentCacheDuration, station.GetCurrentAsync)
+            .WaitAsync(cancellationToken);
+
+        return current.Failure is null ? current.Value! : throw current.Failure;
+    }
+
     private Task<Fetched<T>> GetAsync<T>(
         IWeatherStation station,
         string name,
@@ -67,7 +77,7 @@ public sealed class StationService(
                 {
                     var value = await fetch(timeout.Token);
                     cache.Set(lastGoodKey, value, LastGoodDuration);
-                    return (new Fetched<T>(value, null), ttl);
+                    return (new Fetched<T>(value, null, null), ttl);
                 }
                 catch (Exception exception)
                 {
@@ -75,11 +85,11 @@ public sealed class StationService(
 
                     var message = SourceFailure.Describe(exception);
                     var fetched = cache.TryGet<T>(lastGoodKey, out var lastGood)
-                        ? new Fetched<T>(lastGood, $"Showing last good data. {message}")
-                        : new Fetched<T>(null, message);
+                        ? new Fetched<T>(lastGood, $"Showing last good data. {message}", exception)
+                        : new Fetched<T>(null, message, exception);
                     return (fetched, TimeSpan.FromMinutes(options.Value.ErrorRetryMinutes));
                 }
             });
 
-    private sealed record Fetched<T>(T? Value, string? Message);
+    private sealed record Fetched<T>(T? Value, string? Message, Exception? Failure);
 }

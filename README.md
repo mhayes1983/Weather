@@ -105,7 +105,7 @@ The station page has a dropdown for other Weather Underground stations, listed u
 
 Other stations are fetched only while selected, and results are cached so they don't use up the key's limits, reported as 1,500 calls a day and 30 a minute. Readings a station doesn't report are left out, and its charts cover the current day rather than the last 24 hours.
 
-Type a ZIP code or Weather Underground station ID into **Find a station** to add one. A ZIP code picks the closest station that has reported in the last hour and is sending a temperature. Added stations stay in that browser's dropdown, and the ✕ button removes one.
+Type a ZIP code or Weather Underground station ID into **Find a station** to add one. A ZIP code picks the closest station that has reported in the last hour and is sending a temperature. Added stations stay in that browser's dropdown, and the ✕ button removes one. The list holds 20 stations, and when it's full you need to remove one before adding another.
 
 Select a station and click its star to make it your default. It then opens on every visit to the site in that browser, and it's saved only in that browser, with no accounts or server storage. Clicking the star again goes back to the home station.
 

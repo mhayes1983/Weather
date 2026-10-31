@@ -32,7 +32,8 @@ This review runs without the conversation that started it, so gather the context
 5. Check input handling and sensitive data:
    - No keys in the repo, including `appsettings.json` and `deploy/`.
    - No URLs logged from the `weather` HTTP client.
-   - `/api/station` exposes no keys, MAC address, street address, coordinates or neighbourhood, and accepts only configured station IDs.
+   - `/api/station` exposes no keys, MAC address, street address or coordinates. Configured stations use their configured name, and only a looked-up station shows WU's public neighbourhood.
+   - Any well-formed station ID is accepted, so the site must stay on a private network unless a limit is added.
 6. Check this repo's rules:
    - `Weather.Core` stays free of ASP.NET.
    - Temperatures stay in °F in Core and the API, and highlighting is decided in Core.

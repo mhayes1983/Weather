@@ -174,11 +174,19 @@ public class WeatherUndergroundStationTests
     {
         var options = Options();
         var http = StubHttp.Json(_ => Current().Replace("Private Road", "Harpswell"));
-        var station = new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, http, options);
+        var station = new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, http, options, lookedUp: true);
 
         var reading = await station.GetCurrentAsync(default);
 
         Assert.Equal("Harpswell", reading.StationName);
+    }
+
+    [Fact]
+    public async Task ConfiguredStationsWithoutANameShowTheirId()
+    {
+        var reading = await Station(Working(), name: null).GetCurrentAsync(default);
+
+        Assert.Equal(Id, reading.StationName);
     }
 
     [Fact]

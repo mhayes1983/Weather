@@ -7,7 +7,8 @@ namespace Weather.Core.Station;
 public sealed class WeatherUndergroundStation(
     WeatherStationOptions station,
     IHttpClientFactory httpClientFactory,
-    IOptions<WeatherOptions> options) : IWeatherStation
+    IOptions<WeatherOptions> options,
+    bool lookedUp = false) : IWeatherStation
 {
     private const string BaseUrl = "https://api.weather.com/v2/pws/observations";
     private const double WindChillBelowF = 50;
@@ -48,7 +49,8 @@ public sealed class WeatherUndergroundStation(
 
         return new StationReading
         {
-            StationName = string.IsNullOrWhiteSpace(station.Name) ? Text(observation, "neighborhood") ?? Name : station.Name,
+            // The neighbourhood can be private, so a configured station never shows it.
+            StationName = lookedUp ? Text(observation, "neighborhood") ?? Name : Name,
             ObservedAt = observation.GetProperty("obsTimeUtc").GetDateTimeOffset(),
             TemperatureF = temperature,
             FeelsLikeF = temperature switch

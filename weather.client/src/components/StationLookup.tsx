@@ -1,21 +1,33 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { lookUpStation, type StationMatch } from '../api/station';
+import { maxSavedStations } from '../savedStations';
 
 interface StationLookupProps {
+    ready: boolean;
+    full: boolean;
     onFound: (match: StationMatch) => void;
 }
 
-function StationLookup({ onFound }: StationLookupProps) {
+function StationLookup({ ready, full, onFound }: StationLookupProps) {
     const controller = useRef<AbortController>(null);
+    const latestOnFound = useRef(onFound);
     const [query, setQuery] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ text: string; failed: boolean }>();
+
+    // A lookup can take a while, so its result uses the page as it is when it finishes.
+    useEffect(() => {
+        latestOnFound.current = onFound;
+    });
+
+    // Leaving the page cancels the lookup, so it can't change the station on another page.
+    useEffect(() => () => controller.current?.abort(), []);
 
     function handleSubmit(event: FormEvent) {
         event.preventDefault();
 
         const trimmed = query.trim();
-        if (!trimmed) {
+        if (!trimmed || !ready || full) {
             return;
         }
 
@@ -28,7 +40,11 @@ function StationLookup({ onFound }: StationLookupProps) {
 
         lookUpStation(trimmed, request.signal)
             .then(match => {
-                onFound(match);
+                if (request.signal.aborted) {
+                    return;
+                }
+
+                latestOnFound.current(match);
                 setQuery('');
                 setMessage({
                     text: match.distanceMi === null
@@ -55,13 +71,18 @@ function StationLookup({ onFound }: StationLookupProps) {
                     placeholder="ZIP or station ID"
                     autoComplete="off"
                     spellCheck={false}
+                    disabled={full}
                     onChange={event => setQuery(event.target.value)}
                 />
             </label>
-            <button type="submit" disabled={loading || !query.trim()}>{loading ? 'Finding…' : 'Add'}</button>
+            <button type="submit" disabled={loading || !ready || full || !query.trim()}>{loading ? 'Finding…' : 'Add'}</button>
             {message &&
                 <p className={`station-lookup-message${message.failed ? ' is-error' : ''}`} role={message.failed ? 'alert' : 'status'}>
                     {message.text}
+                </p>}
+            {full &&
+                <p className="station-lookup-message" role="status">
+                    Your list is full at {maxSavedStations} stations. Remove one to add another.
                 </p>}
         </form>
     );

@@ -35,7 +35,7 @@ public sealed partial class StationDirectory(
         }
 
         return IsValidId(id)
-            ? new WeatherUndergroundStation(new WeatherStationOptions { Id = id }, httpClientFactory, options)
+            ? new WeatherUndergroundStation(new WeatherStationOptions { Id = id }, httpClientFactory, options, lookedUp: true)
             : null;
     }
 
