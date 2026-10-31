@@ -95,6 +95,7 @@ public class DailyForecastTests
                 new AmbientWeatherStation(http, options, time),
                 new WeatherUndergroundStation(new WeatherStationOptions { Id = Id, Name = "Test" }, http, options),
             ],
+            new StationLocator(cache),
             new OpenMeteoOutlook(http, options),
             new NwsDescriptions(http, cache),
             new UsnoMoon(http),

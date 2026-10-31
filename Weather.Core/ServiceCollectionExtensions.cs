@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Weather.Core.Alerts;
 using Weather.Core.Climate;
 using Weather.Core.DailyForecast;
 using Weather.Core.Locations;
@@ -23,6 +24,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ForecastTableService>();
         services.AddSingleton<IWeatherStation, AmbientWeatherStation>();
         services.AddSingleton<StationService>();
+        services.AddSingleton<StationLocator>();
+        services.AddSingleton<NwsAlerts>();
+        services.AddSingleton<AlertService>();
         services.AddSingleton<OpenMeteoOutlook>();
         services.AddSingleton<NwsDescriptions>();
         services.AddSingleton<UsnoMoon>();

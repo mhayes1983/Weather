@@ -6,6 +6,10 @@ interface NavBarProps {
     onNavigate: (route: Route) => void;
 }
 
+function isCurrent(link: Route, route: Route) {
+    return route === link || route.startsWith(`${link}/`) || (link === '/' && route === '/alerts');
+}
+
 const links: { route: Route; label: string }[] = [
     { route: '/', label: 'Station' },
     { route: '/daily', label: 'Daily Forecast' },
@@ -20,7 +24,7 @@ function NavBar({ route, onNavigate }: NavBarProps) {
                     key={link.route}
                     route={link.route}
                     onNavigate={onNavigate}
-                    aria-current={route === link.route || route.startsWith(`${link.route}/`) ? 'page' : undefined}
+                    aria-current={isCurrent(link.route, route) ? 'page' : undefined}
                 >
                     {link.label}
                 </RouteLink>

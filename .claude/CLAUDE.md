@@ -6,7 +6,7 @@ The home page (`/`) shows live readings and 24-hour charts from an Ambient Weath
 
 - `Weather.Core`: all logic. Must stay free of ASP.NET so a future Android app can reuse it.
 - `Weather.Core.Tests`: xUnit tests. HTTP is stubbed through `TestSupport.cs`; tests never call real services.
-- `Weather.Server`: thin API (`GET /api/forecast?zip=`, `GET /api/stations`, `GET /api/station?id=`, `GET /api/daily-forecast?station=`, `GET /api/daily-forecast/{date}?station=`). Also serves the built client.
+- `Weather.Server`: thin API (`GET /api/forecast?zip=`, `GET /api/alerts?station=`, `GET /api/stations`, `GET /api/station?id=`, `GET /api/daily-forecast?station=`, `GET /api/daily-forecast/{date}?station=`). Also serves the built client.
 - `weather.client`: React + TypeScript + Vite. No UI or state libraries.
 
 ## Commands
@@ -39,7 +39,8 @@ Runs on TrueNAS as a Docker custom app (`deploy/truenas-compose.yaml`). `.github
 - **Default column order is registration order** in `ServiceCollectionExtensions.cs`. Users can hide and drag columns; that's client state and resets on reload.
 - **Don't log URLs from the `weather` HTTP client.** Weather Underground's and Ambient Weather's keys travel in the query string, which is why that client's logging is off.
 - **Station data stays separate from forecasts.** It's observed, so it uses `IWeatherStation` and `StationService` in `Weather.Core/Station`, not `IForecastSource`. `/api/station` must never expose keys, the MAC address, the street address, coordinates or a neighbourhood, and it only accepts configured station IDs.
-- **Daily Forecast locations stay in Core.** `IWeatherStation.GetCoordinatesAsync` supplies them, using `DefaultLocation` for the home station. `/api/daily-forecast` returns the station's configured name, never coordinates or a neighbourhood. NWS and USNO only add detail, so their failures hide a section rather than the page.
+- **Forecast and alert locations stay in Core.** `StationLocator` supplies them through `IWeatherStation.GetCoordinatesAsync`, using `DefaultLocation` for the home station. `/api/daily-forecast` and `/api/alerts` return the station's configured name, never coordinates or a neighbourhood.
+- **Alerts never show last good data.** An old alert could be wrong, so a failed check says alerts are unavailable, which must never look like "no alerts". NWS and USNO only add detail, so their failures hide a section rather than the page.
 - **The home station stays on Ambient Weather.** Weather Underground is only for the other stations in `Stations`. It updates less often, reports less and has a shared quota.
 - **Keys go in .NET user-secrets**, never in `appsettings.json`, the repo or chat.
 - **All caching is in memory.** Don't add a database or disk storage for forecasts.
@@ -65,6 +66,7 @@ The client needs no changes; columns come from the API.
 - **Ambient Weather:** needs both an `apiKey` and an `applicationKey`. It allows 1 request a second per key and returns 429 above that, so `AmbientWeatherStation` runs calls one at a time with a gap. History comes in 5-minute steps and can lag by up to 10 minutes. `hourlyrainin` is a rate in in/hr, not an hourly total.
 - **Weather Underground stations:** the PWS key reads any station ID, through `/v2/pws/observations/current` and `/all/1day`. Limits are reported as 1,500 calls a day and 30 a minute, shared with the WU forecast column, which is why results are cached for 5 and 15 minutes and nothing polls in the background. A station silent for an hour returns an empty body. History covers the current local day, not 24 hours. Many stations have no UV or solar readings, and some have no rain gauge.
 - **Open-Meteo Daily Forecast:** `timezone=auto` applies today's UTC offset to the whole range, so `OpenMeteoOutlook` corrects times after a clock change. Daily totals still follow that fixed offset, so they can be an hour out on those days.
+- **NWS alerts:** `/alerts/active?point=` with `status=actual&message_type=alert,update`. `limit` returns 400 on that endpoint. Times are in the alert area's local time, so they're shown as issued. Severity can be missing.
 - **NWS descriptions:** about 7 days, so later days have none. A night period starting after midnight belongs to the previous date.
 - **USNO moon data:** the moon doesn't rise or set every day, so either time can be missing. The `tz` value is for that date, with `dst=false`.
 - **AccuWeather:** removed on purpose. Its API has no lasting free tier and its website blocks automated requests. Don't scrape it, or Weather Underground's pages.

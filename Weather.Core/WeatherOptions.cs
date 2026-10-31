@@ -13,6 +13,7 @@ public sealed class WeatherOptions
     public int SourceTimeoutSeconds { get; set; } = 15;
     public int FreeSourceCacheMinutes { get; set; } = 60;
     public int ErrorRetryMinutes { get; set; } = 5;
+    public int AlertCacheMinutes { get; set; } = 2;
     public string UserAgent { get; set; } = "WeatherTable/1.0 (personal forecast comparison)";
     public KeyedSourceOptions WeatherUnderground { get; set; } = new() { ForecastDays = 5, CacheMinutes = 60 };
     public AmbientWeatherOptions AmbientWeather { get; set; } = new();

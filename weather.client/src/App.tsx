@@ -1,14 +1,21 @@
 ﻿import { useEffect, useState } from 'react';
 import NavBar from './components/NavBar';
+import AlertsPage from './pages/AlertsPage';
 import DailyForecastPage from './pages/DailyForecastPage';
 import ForecastDayPage from './pages/ForecastDayPage';
 import ForecastPage from './pages/ForecastPage';
 import StationPage from './pages/StationPage';
 import type { Unit } from './temperature';
-import { forecastDate, useRoute } from './useRoute';
+import { forecastDate, useRoute, type Route } from './useRoute';
 import './App.css';
 
 const homeStation = 'home';
+
+const titles: Partial<Record<Route, string>> = {
+    '/': 'Weather Station',
+    '/alerts': 'Weather Alerts',
+    '/forecast': 'Forecast Comparison',
+};
 
 function App() {
     const [route, navigate] = useRoute();
@@ -24,13 +31,14 @@ function App() {
     const date = forecastDate(route);
 
     useEffect(() => {
-        document.title = route === '/' ? 'Weather Station' : route === '/forecast' ? 'Forecast Comparison' : 'Daily Forecast';
+        document.title = titles[route] ?? 'Daily Forecast';
     }, [route]);
 
     return (
         <>
             <NavBar route={route} onNavigate={navigate} />
-            {route === '/' && <StationPage selected={station} onStationChange={setStation} unit={unit} onUnitChange={setUnit} />}
+            {route === '/' && <StationPage selected={station} onStationChange={setStation} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
+            {route === '/alerts' && <AlertsPage station={station} onNavigate={navigate} />}
             {route === '/daily' && <DailyForecastPage station={station} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
             {date && <ForecastDayPage date={date} station={station} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
             {forecastOpened && <ForecastPage hidden={route !== '/forecast'} unit={unit} onUnitChange={setUnit} />}

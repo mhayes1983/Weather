@@ -8,6 +8,7 @@ namespace Weather.Core.DailyForecast;
 
 public sealed class DailyForecastService(
     IEnumerable<IWeatherStation> stations,
+    StationLocator locator,
     OpenMeteoOutlook outlook,
     NwsDescriptions descriptions,
     UsnoMoon moon,
@@ -17,7 +18,6 @@ public sealed class DailyForecastService(
     ILogger<DailyForecastService> logger)
 {
     private static readonly TimeSpan LastGoodDuration = TimeSpan.FromHours(24);
-    private static readonly TimeSpan LocationCacheDuration = TimeSpan.FromDays(30);
     private static readonly TimeSpan MoonCacheDuration = TimeSpan.FromHours(24);
 
     private TimeSpan ForecastCacheDuration => TimeSpan.FromMinutes(options.Value.FreeSourceCacheMinutes);
@@ -104,9 +104,7 @@ public sealed class DailyForecastService(
                 using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(options.Value.SourceTimeoutSeconds));
                 try
                 {
-                    var location = await cache.GetOrCreateAsync(
-                        $"station-location:{station.Id}",
-                        async () => (await station.GetCoordinatesAsync(timeout.Token), LocationCacheDuration));
+                    var location = await locator.GetAsync(station, timeout.Token);
                     var fetched = new Fetched(await outlook.GetAsync(location, timeout.Token), location, null);
 
                     cache.Set(lastGoodKey, fetched, LastGoodDuration);
