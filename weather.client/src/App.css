@@ -291,13 +291,30 @@ tbody tr:last-child td {
     opacity: 0.75;
 }
 
-.station-picker {
+.station-picker,
+.station-picker label {
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
+}
+
+.station-star {
+    padding: 2px 8px;
+    font-size: 1.2rem;
+    line-height: 1.3;
+}
+
+.station-star-on {
+    color: var(--star);
+}
+
+.station-star[aria-disabled='true'] {
+    cursor: default;
 }
 
 .station-picker select {
+    min-width: 0;
     max-width: 100%;
     padding: 6px 8px;
     font: inherit;

@@ -44,6 +44,7 @@ Runs on TrueNAS as a Docker custom app (`deploy/truenas-compose.yaml`). `.github
 - **Alerts never show last good data.** An old alert could be wrong, so a failed check says alerts are unavailable, which must never look like "no alerts". NWS and USNO only add detail, so their failures hide a section rather than the page.
 - **The home station stays on Ambient Weather.** Weather Underground is only for the other stations in `Stations`. It updates less often, reports less and has a shared quota.
 - **Colours follow the device by default.** Auto sets no attribute on `<html>`, so `index.css` uses `prefers-color-scheme`. Light and Dark set `data-theme`, and the choice is saved in that browser's `localStorage`. Any new colour needs defining for both themes, and dark values live in two blocks of `index.css` that must stay identical.
+- **A browser's default station stays in that browser.** It's saved in `localStorage` and sets which station every page starts on, with no accounts or server storage. The home station is the fallback, including when a saved station is no longer configured.
 - **Keys go in .NET user-secrets**, never in `appsettings.json`, the repo or chat.
 - **All caching is in memory.** Don't add a database or disk storage for forecasts.
 

@@ -7,6 +7,7 @@
   --error: #b3261e;
   --chart-1: #1f6fb2;
   --chart-2: #d9651a;
+  --star: #8a6200;
 
   font: 16px/1.45 system-ui, 'Segoe UI', Roboto, sans-serif;
   color-scheme: light dark;
@@ -29,6 +30,7 @@
     --error: #ff8a80;
     --chart-1: #7cc7f2;
     --chart-2: #f79a55;
+    --star: #b8860b;
   }
 }
 
@@ -43,6 +45,7 @@
   --error: #ff8a80;
   --chart-1: #7cc7f2;
   --chart-2: #f79a55;
+  --star: #b8860b;
 }
 
 body {

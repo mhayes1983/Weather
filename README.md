@@ -13,6 +13,7 @@ It opens on Topsham, ME (04086) and works with any US ZIP code. It shows current
 - Side-by-side highs from each source for the next 16 days
 - Orange for 6°F or more above average, blue for 6°F or more below
 - Average high for the period, from the nearest climate station
+- Star a station to make it your default in that browser
 - °F/°C toggle
 - Auto, Light and Dark themes, with Auto following the device
 - ZIP code search
@@ -102,6 +103,8 @@ The Radar page shows NOAA/NWS base reflectivity over an OpenStreetMap map, with 
 The station page has a dropdown for other Weather Underground stations, listed under `Stations` in `Weather.Server/appsettings.json`. Each entry has a case-sensitive `Id` and a `Name`. They use your Weather Underground key, and your own station stays on Ambient Weather, which updates faster and reports more.
 
 Other stations are fetched only while selected, and results are cached so they don't use up the key's limits, reported as 1,500 calls a day and 30 a minute. Readings a station doesn't report are left out, and its charts cover the current day rather than the last 24 hours.
+
+Select a station and click its star to make it your default. It then opens on every visit to the site in that browser, and it's saved only in that browser, with no accounts or server storage. Clicking the star again goes back to the home station.
 
 ## Project structure
 
