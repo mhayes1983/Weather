@@ -111,13 +111,7 @@ public sealed class ForecastTableService(
         catch (Exception exception)
         {
             logger.LogWarning("{Column} failed for {Zip}: {Error}", source.Column.Id, location.Zip, exception.GetType().Name);
-            return SourceResult.Error(exception switch
-            {
-                OperationCanceledException => "Timed out",
-                HttpRequestException { StatusCode: { } status } => $"Source returned HTTP {(int)status}",
-                HttpRequestException => "Source could not be reached",
-                _ => "Source data could not be read",
-            });
+            return SourceResult.Error(SourceFailure.Describe(exception));
         }
     }
 

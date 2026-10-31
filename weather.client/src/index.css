@@ -5,6 +5,8 @@
   --surface: #f6f6f8;
   --border: #e0dfe4;
   --error: #b3261e;
+  --chart-1: #1f6fb2;
+  --chart-2: #d9651a;
 
   font: 16px/1.45 system-ui, 'Segoe UI', Roboto, sans-serif;
   color-scheme: light dark;
@@ -20,6 +22,8 @@
     --surface: #1f2028;
     --border: #2e303a;
     --error: #ff8a80;
+    --chart-1: #7cc7f2;
+    --chart-2: #f79a55;
   }
 }
 

@@ -6,6 +6,7 @@ using Weather.Core.Climate;
 using Weather.Core.Locations;
 using Weather.Core.Models;
 using Weather.Core.Sources;
+using Weather.Core.Station;
 
 namespace Weather.Core;
 
@@ -19,8 +20,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<LocationResolver>();
         services.AddSingleton<IClimateNormals, AcisClimateNormals>();
         services.AddSingleton<ForecastTableService>();
+        services.AddSingleton<IWeatherStation, AmbientWeatherStation>();
+        services.AddSingleton<StationService>();
 
-        // Logging is off for this client because Weather Underground keys travel in the URL.
+        // Logging is off for this client because Weather Underground and Ambient Weather keys travel in the URL.
         services.AddHttpClient(WeatherHttp.ClientName, (provider, client) =>
         {
             var options = provider.GetRequiredService<IOptions<WeatherOptions>>().Value;

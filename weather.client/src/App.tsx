@@ -1,96 +1,31 @@
 ﻿import { useEffect, useState } from 'react';
-import { fetchForecast, type ForecastTable as ForecastData } from './api/forecast';
-import ColumnFilters from './components/ColumnFilters';
-import ForecastTable from './components/ForecastTable';
-import Legend from './components/Legend';
-import UnitToggle from './components/UnitToggle';
-import ZipForm from './components/ZipForm';
-import { moveColumn, orderColumns } from './columns';
-import { displayTemperature, type Unit } from './temperature';
+import NavBar from './components/NavBar';
+import ForecastPage from './pages/ForecastPage';
+import StationPage from './pages/StationPage';
+import type { Unit } from './temperature';
+import { useRoute } from './useRoute';
 import './App.css';
 
-const defaultZip = '04086';
-
 function App() {
-    const [zip, setZip] = useState(defaultZip);
-    const [forecast, setForecast] = useState<ForecastData>();
-    const [error, setError] = useState<string>();
-    const [loading, setLoading] = useState(true);
+    const [route, navigate] = useRoute();
     const [unit, setUnit] = useState<Unit>('F');
-    const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
-    const [columnOrder, setColumnOrder] = useState<string[]>([]);
+    const [forecastOpened, setForecastOpened] = useState(route === '/forecast');
+
+    // The forecast loads on first visit, then stays mounted to keep its ZIP and columns.
+    if (route === '/forecast' && !forecastOpened) {
+        setForecastOpened(true);
+    }
 
     useEffect(() => {
-        const controller = new AbortController();
-
-        fetchForecast(zip, controller.signal)
-            .then(data => {
-                setForecast(data);
-                setError(undefined);
-                setLoading(false);
-            })
-            .catch((reason: Error) => {
-                if (!controller.signal.aborted) {
-                    setError(reason.message);
-                    setLoading(false);
-                }
-            });
-
-        return () => controller.abort();
-    }, [zip]);
-
-    function handleZipSubmit(nextZip: string) {
-        if (nextZip !== zip) {
-            setLoading(true);
-            setZip(nextZip);
-        }
-    }
-
-    function handleToggleColumn(id: string) {
-        setHiddenColumns(hidden => hidden.includes(id)
-            ? hidden.filter(other => other !== id)
-            : [...hidden, id]);
-    }
-
-    function handleMoveColumn(id: string, before: string | null) {
-        setColumnOrder(moveColumn(columns.map(column => column.id), id, before));
-    }
-
-    const average = forecast?.averageHigh;
-    const columns = orderColumns(forecast?.columns ?? [], columnOrder);
-    const visibleColumns = columns.filter(column => !hiddenColumns.includes(column.id));
+        document.title = route === '/forecast' ? 'Forecast Comparison' : 'Weather Station';
+    }, [route]);
 
     return (
-        <main>
-            <header>
-                <h1>Forecast Comparison</h1>
-                {forecast && <p className="location">{forecast.location.place}, {forecast.location.state} {forecast.location.zip}</p>}
-            </header>
-
-            <div className="controls">
-                <ZipForm initialZip={defaultZip} loading={loading} onSubmit={handleZipSubmit} />
-                <UnitToggle unit={unit} onChange={setUnit} />
-            </div>
-
-            {error && <p className="error" role="alert">{error}</p>}
-            {!forecast && loading && <p>Loading forecast…</p>}
-
-            {forecast &&
-                <>
-                    <p className="average">
-                        {average
-                            ? <>Average High <strong>{displayTemperature(average.startF, unit)} → {displayTemperature(average.endF, unit)}</strong> <span className="station">{average.station}</span></>
-                            : forecast.averageMessage}
-                    </p>
-                    <ColumnFilters columns={forecast.columns} hidden={hiddenColumns} onToggle={handleToggleColumn} />
-                    <ForecastTable columns={visibleColumns} rows={forecast.rows} unit={unit} onMoveColumn={handleMoveColumn} />
-                    <Legend aboveAverageF={forecast.aboveAverageF} belowAverageF={forecast.belowAverageF} />
-                </>}
-
-            <footer className="attribution">
-                Weather data by <a href="https://open-meteo.com/">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>)
-            </footer>
-        </main>
+        <>
+            <NavBar route={route} onNavigate={navigate} />
+            {route === '/' && <StationPage unit={unit} onUnitChange={setUnit} />}
+            {forecastOpened && <ForecastPage hidden={route !== '/forecast'} unit={unit} onUnitChange={setUnit} />}
+        </>
     );
 }
 

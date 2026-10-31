@@ -1,11 +1,12 @@
 # Weather
 
-Compares daily high temperatures from several forecast sources in one 16-day table. Days well above or below average are highlighted.
+Shows live readings from an Ambient Weather station on the home page, and compares daily high temperatures from several forecast sources in one 16-day table. Days well above or below average are highlighted.
 
 It opens on Topsham, ME (04086) and works with any US ZIP code. It shows current forecasts only, so there is no database.
 
 ## Features
 
+- Station page with current conditions and 24-hour charts, refreshed every minute
 - Side-by-side highs from each source for the next 16 days
 - Orange for 6°F or more above average, blue for 6°F or more below
 - Average high for the period, from the nearest climate station
@@ -47,7 +48,17 @@ You'll need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and [Node.j
    dotnet user-secrets set "Weather:WeatherUnderground:ApiKey" "YOUR_KEY" --project Weather.Server
    ```
 
-3. Start the app, then open https://localhost:54777.
+3. Create an API key and an application key on your [AmbientWeather.net account page](https://ambientweather.net/account), then add them. Without both, the station page asks for keys and the forecast table still works.
+
+   ```bash
+   dotnet user-secrets set "Weather:AmbientWeather:ApiKey" "YOUR_API_KEY" --project Weather.Server
+   ```
+
+   ```bash
+   dotnet user-secrets set "Weather:AmbientWeather:ApplicationKey" "YOUR_APPLICATION_KEY" --project Weather.Server
+   ```
+
+4. Start the app, then open https://localhost:54777.
 
    ```bash
    dotnet run --project Weather.Server --launch-profile https
@@ -61,7 +72,7 @@ Each push to `master` builds a container image and publishes it to `ghcr.io/mhay
 
 1. If the GitHub package is private, make it public or add `ghcr.io` credentials under Apps > Configuration > Manage Container Registries on the NAS.
 2. In TrueNAS, go to Apps > Discover Apps > Install via YAML and paste `deploy/truenas-compose.yaml`.
-3. Replace `YOUR_KEY` with your Weather Underground key, on the NAS only.
+3. Replace the three key placeholders with your Weather Underground and Ambient Weather keys, on the NAS only.
 4. Open `http://<nas-ip>:8085`.
 
 To update, redeploy the app, which pulls the latest image. The site serves plain HTTP, so keep it on your own network and use a VPN such as Tailscale for outside access.
@@ -89,6 +100,11 @@ These are in the `Weather` section of `Weather.Server/appsettings.json`:
 | `FreeSourceCacheMinutes` | 60 | How long to keep results from sources without a key |
 | `ErrorRetryMinutes` | 5 | How long to wait before retrying a failed source |
 | `WeatherUnderground:CacheMinutes` | 60 | How long to keep Weather Underground results |
+| `AmbientWeather:MacAddress` | None | Station to show, if the account has more than one. Otherwise the first is used |
+| `AmbientWeather:CurrentCacheSeconds` | 60 | How long to keep current station readings |
+| `AmbientWeather:HistoryCacheMinutes` | 5 | How long to keep the 24-hour station history |
+| `AmbientWeather:OfflineAfterMinutes` | 15 | Age of the latest reading before the station shows as offline |
+| `AmbientWeather:RequestSpacingMilliseconds` | 1100 | Minimum gap between Ambient Weather requests |
 
 The website's default ZIP code is set separately, in `weather.client/src/App.tsx`.
 
