@@ -18,6 +18,7 @@
   color-scheme: light;
 }
 
+/* CSS can't share these values, so keep this block and the forced Dark block below the same. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     --text: #b4b8c0;
@@ -31,6 +32,7 @@
   }
 }
 
+/* Keep these values the same as the prefers-color-scheme block above. */
 :root[data-theme='dark'] {
   color-scheme: dark;
   --text: #b4b8c0;
