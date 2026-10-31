@@ -46,10 +46,11 @@ function App() {
         const controller = new AbortController();
         fetchStations(controller.signal)
             .then(stations => {
-                if (!stations.some(other => other.id === saved)) {
+                // A newer choice made while this was loading stays.
+                if (!stations.some(other => other.id === saved) && loadDefaultStation() === saved) {
                     saveDefaultStation(homeStation);
                     setDefaultStation(homeStation);
-                    setStation(homeStation);
+                    setStation(current => current === saved ? homeStation : current);
                 }
             })
             .catch(() => {

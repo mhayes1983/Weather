@@ -13,11 +13,19 @@ function StationPicker({ stations, selected, defaultStation, onChange, onDefault
     const isDefault = selected === defaultStation;
 
     // The home station is the fallback, so it can't be turned off.
+    const locked = isDefault && selected === homeStation;
+
     const label = !isDefault
         ? 'Make this my default station'
-        : selected === homeStation
+        : locked
             ? 'This is your default station'
             : 'Remove as default station';
+
+    function handleStarClick() {
+        if (!locked) {
+            onDefaultChange(isDefault ? homeStation : selected);
+        }
+    }
 
     return (
         <div className="station-picker">
@@ -31,12 +39,11 @@ function StationPicker({ stations, selected, defaultStation, onChange, onDefault
             </label>
             <button
                 type="button"
-                className="station-star"
-                aria-pressed={isDefault}
+                className={isDefault ? 'station-star station-star-on' : 'station-star'}
                 aria-label={label}
+                aria-disabled={locked}
                 title={label}
-                disabled={isDefault && selected === homeStation}
-                onClick={() => onDefaultChange(isDefault ? homeStation : selected)}
+                onClick={handleStarClick}
             >
                 <span aria-hidden="true">{isDefault ? '★' : '☆'}</span>
             </button>
