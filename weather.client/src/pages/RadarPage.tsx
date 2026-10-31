@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { fetchRadarTimes, radarLayer, radarLegend, radarService, selectFrames } from '../api/radar';
+import { fetchRadarTimes, radarLayer, radarLegend, radarService } from '../api/radar';
+import { selectFrames } from '../api/radarFrames';
 
 const refreshMs = 120_000;
 const frameMs = 700;
@@ -28,11 +29,13 @@ function RadarPage() {
     const [shown, setShown] = useState<string>();
     const [playing, setPlaying] = useState(false);
     const [timesFailed, setTimesFailed] = useState(false);
-    const [tilesFailed, setTilesFailed] = useState(false);
+    const [failedTiles, setFailedTiles] = useState<{ key: string; tile: HTMLElement }[]>([]);
 
     // The newest frame shows unless the user or the loop has picked another.
-    const current = selected && frames.includes(selected) ? selected : frames.at(-1);
+    const newest = frames.at(-1);
+    const current = selected && frames.includes(selected) ? selected : newest;
     const key = current ?? latestKey;
+    const tilesFailed = failedTiles.some(failed => failed.key === shown);
 
     useEffect(() => {
         const loadedLayers = layers.current;
@@ -64,6 +67,11 @@ function RadarPage() {
                 .catch(() => {
                     if (!controller.signal.aborted) {
                         setTimesFailed(true);
+
+                        // Browsers reuse images with an unchanged URL, so this asks for the
+                        // current time, which NOAA answers with its nearest scan.
+                        const latest = { layers: radarLayer, time: new Date().toISOString() };
+                        layers.current.get(latestKey)?.setParams(latest);
                     }
                 });
         }
@@ -100,8 +108,9 @@ function RadarPage() {
                 attribution: 'Radar: <a href="https://www.weather.gov/">NOAA/NWS</a>',
                 ...(current ? { time: current } : {}),
             });
-            layer.on('tileerror', () => setTilesFailed(true));
-            layer.on('tileload', () => setTilesFailed(false));
+            layer.on('tileerror', ({ tile }) => setFailedTiles(failed => [...failed, { key, tile }]));
+            layer.on('tileunload', ({ tile }) => setFailedTiles(failed =>
+                failed.some(other => other.tile === tile) ? failed.filter(other => other.tile !== tile) : failed));
             layer.addTo(radarMap);
             loadedLayers.set(key, layer);
         }
@@ -161,7 +170,7 @@ function RadarPage() {
             <header>
                 <h1>Weather Radar</h1>
                 <p className="location">
-                    {current ? `${formatFrame(current)}${current === frames.at(-1) ? ' (latest)' : ''}` : 'Latest scan'}
+                    {current ? `${formatFrame(current)}${current === newest && !timesFailed ? ' (latest)' : ''}` : 'Latest scan'}
                 </p>
             </header>
 
@@ -177,11 +186,16 @@ function RadarPage() {
                 {frames.length > 1 &&
                     <div className="radar-buttons">
                         <button type="button" onClick={() => setPlaying(!playing)}>{playing ? 'Pause' : 'Play'}</button>
-                        <button type="button" disabled={current === frames.at(-1)} onClick={handleShowLatest}>Latest</button>
+                        <button type="button" disabled={current === newest} onClick={handleShowLatest}>Latest</button>
                     </div>}
             </div>
 
-            {timesFailed && <p className="error" role="alert">The radar loop is unavailable, so only the latest scan is shown.</p>}
+            {timesFailed &&
+                <p className="error" role="alert">
+                    {newest
+                        ? `Radar times couldn't be refreshed, so the newest scan here is from ${formatFrame(newest)}.`
+                        : 'The radar loop is unavailable, so only the latest scan is shown.'}
+                </p>}
             {tilesFailed && <p className="error" role="alert">Some radar images couldn't be loaded.</p>}
 
             <div ref={mapElement} className="radar-map" role="application" aria-label="Zoomable weather radar map" />
