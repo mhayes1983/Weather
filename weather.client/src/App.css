@@ -96,6 +96,36 @@ button:disabled {
     opacity: 0.75;
 }
 
+.column-filters {
+    margin: 0 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.column-filters summary {
+    padding: 6px 12px;
+    color: var(--text-strong);
+    cursor: pointer;
+}
+
+.column-filter-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    padding: 4px 12px 10px;
+}
+
+.column-filter-list label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.column-filter-list input {
+    margin: 0;
+}
+
 .table-scroll {
     overflow-x: auto;
     border: 1px solid var(--border);
@@ -126,6 +156,28 @@ thead th {
 tbody tr:last-child th,
 tbody tr:last-child td {
     border-bottom: 0;
+}
+
+.column-header {
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.column-header.column-dragging {
+    cursor: grabbing;
+}
+
+.column-dragging {
+    opacity: 0.45;
+}
+
+.drop-before {
+    box-shadow: inset 3px 0 0 var(--text-strong);
+}
+
+.drop-after {
+    box-shadow: inset -3px 0 0 var(--text-strong);
 }
 
 .date-column {

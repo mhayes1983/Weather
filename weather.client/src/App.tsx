@@ -1,9 +1,11 @@
 ﻿import { useEffect, useState } from 'react';
 import { fetchForecast, type ForecastTable as ForecastData } from './api/forecast';
+import ColumnFilters from './components/ColumnFilters';
 import ForecastTable from './components/ForecastTable';
 import Legend from './components/Legend';
 import UnitToggle from './components/UnitToggle';
 import ZipForm from './components/ZipForm';
+import { moveColumn, orderColumns } from './columns';
 import { displayTemperature, type Unit } from './temperature';
 import './App.css';
 
@@ -15,6 +17,8 @@ function App() {
     const [error, setError] = useState<string>();
     const [loading, setLoading] = useState(true);
     const [unit, setUnit] = useState<Unit>('F');
+    const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+    const [columnOrder, setColumnOrder] = useState<string[]>([]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -42,7 +46,19 @@ function App() {
         }
     }
 
+    function handleToggleColumn(id: string) {
+        setHiddenColumns(hidden => hidden.includes(id)
+            ? hidden.filter(other => other !== id)
+            : [...hidden, id]);
+    }
+
+    function handleMoveColumn(id: string, before: string | null) {
+        setColumnOrder(moveColumn(columns.map(column => column.id), id, before));
+    }
+
     const average = forecast?.averageHigh;
+    const columns = orderColumns(forecast?.columns ?? [], columnOrder);
+    const visibleColumns = columns.filter(column => !hiddenColumns.includes(column.id));
 
     return (
         <main>
@@ -66,7 +82,8 @@ function App() {
                             ? <>Average High <strong>{displayTemperature(average.startF, unit)} → {displayTemperature(average.endF, unit)}</strong> <span className="station">{average.station}</span></>
                             : forecast.averageMessage}
                     </p>
-                    <ForecastTable columns={forecast.columns} rows={forecast.rows} unit={unit} />
+                    <ColumnFilters columns={forecast.columns} hidden={hiddenColumns} onToggle={handleToggleColumn} />
+                    <ForecastTable columns={visibleColumns} rows={forecast.rows} unit={unit} onMoveColumn={handleMoveColumn} />
                     <Legend aboveAverageF={forecast.aboveAverageF} belowAverageF={forecast.belowAverageF} />
                 </>}
 

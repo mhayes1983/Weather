@@ -32,7 +32,7 @@ The app runs at https://localhost:54777. If the build reports locked files, Visu
 - **Highlighting is decided in Core** (`AnomalyClassifier`), always in °F, so changing units never changes colours. Thresholds are settings, currently 6° either way.
 - **One bad source must never break the table.** Sources throw on failure; `ForecastTableService` turns that into a column error, or last good data if it has any.
 - **Sources don't take the request's cancellation token.** Results are shared through `WeatherCache`, so each source gets its own timeout.
-- **Column order is registration order** in `ServiceCollectionExtensions.cs`.
+- **Default column order is registration order** in `ServiceCollectionExtensions.cs`. Users can hide and drag columns; that's client state and resets on reload.
 - **Don't log URLs from the `weather` HTTP client.** Weather Underground's key travels in the query string, which is why that client's logging is off.
 - **Keys go in .NET user-secrets**, never in `appsettings.json`, the repo or chat.
 - **All caching is in memory.** Don't add a database or disk storage for forecasts.
