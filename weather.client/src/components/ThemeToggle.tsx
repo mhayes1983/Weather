@@ -1,5 +1,9 @@
-import { useState } from 'react';
-import { applyTheme, loadTheme, saveTheme, type Theme } from '../theme';
+import type { Theme } from '../theme';
+
+interface ThemeToggleProps {
+    theme: Theme;
+    onChange: (theme: Theme) => void;
+}
 
 const themes: { value: Theme; label: string }[] = [
     { value: 'auto', label: 'Auto' },
@@ -7,15 +11,7 @@ const themes: { value: Theme; label: string }[] = [
     { value: 'dark', label: 'Dark' },
 ];
 
-function ThemeToggle() {
-    const [theme, setTheme] = useState(loadTheme);
-
-    function handleChange(next: Theme) {
-        setTheme(next);
-        applyTheme(next);
-        saveTheme(next);
-    }
-
+function ThemeToggle({ theme, onChange }: ThemeToggleProps) {
     return (
         <div className="unit-toggle theme-toggle" role="group" aria-label="Colour theme">
             {themes.map(option =>
@@ -23,7 +19,7 @@ function ThemeToggle() {
                     key={option.value}
                     type="button"
                     aria-pressed={theme === option.value}
-                    onClick={() => handleChange(option.value)}
+                    onClick={() => onChange(option.value)}
                 >
                     {option.label}
                 </button>

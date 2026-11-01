@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 
-export type Route = '/' | '/alerts' | '/forecast' | '/radar' | '/daily' | `/daily/${string}`;
+const fixedRoutes = ['/alerts', '/forecast', '/radar', '/daily', '/help', '/terms', '/privacy'] as const;
+
+export type Route = '/' | (typeof fixedRoutes)[number] | `/daily/${string}`;
 
 function currentRoute(): Route {
     const path = window.location.pathname;
-    if (path === '/alerts' || path === '/forecast' || path === '/radar' || path === '/daily') {
-        return path;
+    const fixed = fixedRoutes.find(route => route === path);
+    if (fixed) {
+        return fixed;
     }
 
     return /^\/daily\/\d{4}-\d{2}-\d{2}$/.test(path) ? path as Route : '/';

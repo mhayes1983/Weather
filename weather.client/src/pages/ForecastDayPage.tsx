@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { fetchForecastDay, type ForecastDayDetail } from '../api/dailyForecast';
+import { fetchForecastDay, type ForecastDayDetail, type PeriodPrecip } from '../api/dailyForecast';
 import CollapsibleCard from '../components/CollapsibleCard';
 import RouteLink from '../components/RouteLink';
-import UnitToggle from '../components/UnitToggle';
 import { formatDate, formatTime } from '../localTime';
+import { precipSummary, snowAmount } from '../precipitation';
 import { displayTemperature, type Unit } from '../temperature';
 import type { Route } from '../useRoute';
 import { weatherIcon } from '../weatherIcons';
@@ -13,7 +13,6 @@ interface ForecastDayPageProps {
     date: string;
     station: string;
     unit: Unit;
-    onUnitChange: (unit: Unit) => void;
     onNavigate: (route: Route) => void;
 }
 
@@ -24,6 +23,17 @@ type CardName = 'day' | 'night' | 'sun' | 'moon';
 
 function presentRows(rows: [string, string | null][]): [string, string][] {
     return rows.filter((row): row is [string, string] => row[1] !== null);
+}
+
+function PeriodDetails({ description, precip }: { description: string; precip: PeriodPrecip | null }) {
+    const summary = precip && precipSummary(precip.chancePercent, precip.amountIn, precip.snowIn);
+
+    return (
+        <>
+            <p>{description}</p>
+            {summary && <p className="period-precip">{summary}</p>}
+        </>
+    );
 }
 
 function shortDate(date: string) {
@@ -49,7 +59,7 @@ function initialCards(): Record<CardName, boolean> {
     return { day: true, night: true, sun: large, moon: large };
 }
 
-function ForecastDayPage({ date, station, unit, onUnitChange, onNavigate }: ForecastDayPageProps) {
+function ForecastDayPage({ date, station, unit, onNavigate }: ForecastDayPageProps) {
     const [loaded, setLoaded] = useState<ForecastDayDetail>();
     const [failure, setFailure] = useState<{ date: string; message: string }>();
     const [openCards, setOpenCards] = useState(initialCards);
@@ -93,6 +103,8 @@ function ForecastDayPage({ date, station, unit, onUnitChange, onNavigate }: Fore
 
     const day = detail?.day;
     const moon = detail?.moon;
+    const daySummary = day ? precipSummary(day.precipChancePercent, day.precipIn, day.snowIn) : null;
+    const hasSnow = detail?.hours.some(hour => snowAmount(hour.snowIn) !== null) ?? false;
     const sunRows = presentRows([
         ['Sunrise', day?.sunrise ? formatTime(day.sunrise) : null],
         ['Sunset', day?.sunset ? formatTime(day.sunset) : null],
@@ -129,9 +141,9 @@ function ForecastDayPage({ date, station, unit, onUnitChange, onNavigate }: Fore
                     <p className="day-summary">
                         <span aria-hidden="true">{weatherIcon(detail.day.icon)}</span> {detail.day.conditions}
                         {' · '}High {temperature(detail.day.highF)}, low {temperature(detail.day.lowF)}
+                        {daySummary && <> · {daySummary}</>}
                         {detail.day.uvIndex !== null && <> · UV {Math.round(detail.day.uvIndex)}</>}
                     </p>
-                    <UnitToggle unit={unit} onChange={onUnitChange} />
                 </div>}
 
             {error && <p className="error" role="alert">{error}</p>}
@@ -143,11 +155,11 @@ function ForecastDayPage({ date, station, unit, onUnitChange, onNavigate }: Fore
                         <div className="day-sections">
                             {detail.dayDescription &&
                                 <CollapsibleCard title="Day" {...cardProps('day')}>
-                                    <p>{detail.dayDescription}</p>
+                                    <PeriodDetails description={detail.dayDescription} precip={detail.dayPrecip} />
                                 </CollapsibleCard>}
                             {detail.nightDescription &&
                                 <CollapsibleCard title="Night" {...cardProps('night')}>
-                                    <p>{detail.nightDescription}</p>
+                                    <PeriodDetails description={detail.nightDescription} precip={detail.nightPrecip} />
                                 </CollapsibleCard>}
                         </div>}
 
@@ -173,6 +185,7 @@ function ForecastDayPage({ date, station, unit, onUnitChange, onNavigate }: Fore
                                     <th scope="col">Feels Like</th>
                                     <th scope="col">Precip</th>
                                     <th scope="col">Amount</th>
+                                    {hasSnow && <th scope="col">Snow</th>}
                                     <th scope="col">Cloud Cover</th>
                                     <th scope="col">Dew Point</th>
                                     <th scope="col">Humidity</th>
@@ -191,6 +204,7 @@ function ForecastDayPage({ date, station, unit, onUnitChange, onNavigate }: Fore
                                         <td>{temperature(hour.feelsLikeF)}</td>
                                         <td>{percent(hour.precipChancePercent)}</td>
                                         <td>{hour.precipIn === null ? missing : `${hour.precipIn.toFixed(2)} in`}</td>
+                                        {hasSnow && <td>{snowAmount(hour.snowIn) ?? missing}</td>}
                                         <td>{percent(hour.cloudCoverPercent)}</td>
                                         <td>{temperature(hour.dewPointF)}</td>
                                         <td>{percent(hour.humidityPercent)}</td>

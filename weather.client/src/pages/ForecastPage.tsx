@@ -3,7 +3,6 @@ import { fetchForecast, type ForecastTable as ForecastData } from '../api/foreca
 import ColumnFilters from '../components/ColumnFilters';
 import ForecastTable from '../components/ForecastTable';
 import Legend from '../components/Legend';
-import UnitToggle from '../components/UnitToggle';
 import ZipForm from '../components/ZipForm';
 import { moveColumn, orderColumns } from '../columns';
 import { displayTemperature, type Unit } from '../temperature';
@@ -13,10 +12,9 @@ const defaultZip = '04086';
 interface ForecastPageProps {
     hidden: boolean;
     unit: Unit;
-    onUnitChange: (unit: Unit) => void;
 }
 
-function ForecastPage({ hidden, unit, onUnitChange }: ForecastPageProps) {
+function ForecastPage({ hidden, unit }: ForecastPageProps) {
     const [zip, setZip] = useState(defaultZip);
     const [forecast, setForecast] = useState<ForecastData>();
     const [error, setError] = useState<string>();
@@ -73,7 +71,6 @@ function ForecastPage({ hidden, unit, onUnitChange }: ForecastPageProps) {
 
             <div className="controls">
                 <ZipForm initialZip={defaultZip} loading={loading} onSubmit={handleZipSubmit} />
-                <UnitToggle unit={unit} onChange={onUnitChange} />
             </div>
 
             {error && <p className="error" role="alert">{error}</p>}

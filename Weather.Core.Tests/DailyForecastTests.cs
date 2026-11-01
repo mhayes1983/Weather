@@ -28,6 +28,7 @@ public class DailyForecastTests
                 "sunrise": ["2026-10-30T07:14", "2026-10-31T07:15", "2026-11-01T07:16"],
                 "sunset": ["2026-10-30T17:31", "2026-10-31T17:30", "2026-11-01T16:29"],
                 "precipitation_sum": [0, 0.17, 0],
+                "snowfall_sum": [0, 1.4, 0],
                 "precipitation_probability_max": [0, 68, 0],
                 "wind_speed_10m_max": [13.1, 8.1, 5],
                 "wind_direction_10m_dominant": [322, 247, 90],
@@ -41,6 +42,7 @@ public class DailyForecastTests
                 "apparent_temperature": [44.2, 45, 46, 38, null],
                 "precipitation_probability": [0, 1, 2, 3, null],
                 "precipitation": [0, 0, 0.01, 0, null],
+                "snowfall": [0, 0, 0.1, 0, null],
                 "cloud_cover": [7, 8, 9, 10, null],
                 "dew_point_2m": [22, 22, 23, 24, null],
                 "relative_humidity_2m": [34, 33, 32, 60, null],
@@ -137,6 +139,7 @@ public class DailyForecastTests
         Assert.Equal(29, day.LowF);
         Assert.Equal(68, day.PrecipChancePercent);
         Assert.Equal(0.17, day.PrecipIn);
+        Assert.Equal(1.4, day.SnowIn);
         Assert.Equal(247, day.WindDirectionDegrees);
         Assert.Equal("2026-10-31T07:15", day.Sunrise);
     }
@@ -173,6 +176,32 @@ public class DailyForecastTests
         Assert.Equal([true, true, false], report.Days.Select(day => day.HasHourly));
         Assert.Null(report.Days[2].LowF);
         Assert.Null(await service.GetDayAsync(DayAfter));
+    }
+
+    [Fact]
+    public async Task PeriodPrecipitationFollowsTheDescriptionsAndSkipsPastHours()
+    {
+        var body = Outlook
+            .Replace("""["2026-10-30T11:00", "2026-10-30T12:00", "2026-10-30T13:00", "2026-10-31T23:00", "2026-11-01T00:00"]""", """["2026-10-30T05:00", "2026-10-30T17:00", "2026-10-30T18:00", "2026-10-31T05:00", "2026-10-31T06:00"]""")
+            .Replace("[48.6, 49, 50, 40, null]", "[48.6, 49, 50, 40, 39]")
+            .Replace("[0, 1, 2, 3, null]", "[90, 20, 30, 40, 50]")
+            .Replace("[0, 0, 0.01, 0, null]", "[0.9, 0.1, 0.3, 0.4, 0.5]")
+            .Replace("[0, 0, 0.1, 0, null]", "[9, 1, 2, 2.5, 5]");
+        var http = StubHttp.Json(url => url.Contains("open-meteo") ? body : Respond(url));
+
+        var detail = (await Service(http).GetDayAsync(Today))!;
+
+        Assert.Equal(new PeriodPrecip(20, 0.1, 1), detail.DayPrecip);
+        Assert.Equal(new PeriodPrecip(40, 0.7, 4.5), detail.NightPrecip);
+    }
+
+    [Fact]
+    public async Task PeriodPrecipitationNeedsADescription()
+    {
+        var detail = (await Service(StubHttp.Json(Respond)).GetDayAsync(Tomorrow))!;
+
+        Assert.Null(detail.NightDescription);
+        Assert.Null(detail.NightPrecip);
     }
 
     [Fact]

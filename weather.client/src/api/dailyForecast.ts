@@ -8,6 +8,7 @@ export interface ForecastDay {
     lowF: number | null;
     precipChancePercent: number | null;
     precipIn: number | null;
+    snowIn: number | null;
     windMph: number | null;
     windDirectionDegrees: number | null;
     uvIndex: number | null;
@@ -24,12 +25,19 @@ export interface ForecastHour {
     feelsLikeF: number | null;
     precipChancePercent: number | null;
     precipIn: number | null;
+    snowIn: number | null;
     cloudCoverPercent: number | null;
     dewPointF: number | null;
     humidityPercent: number | null;
     windMph: number | null;
     windDirectionDegrees: number | null;
     pressureInHg: number | null;
+}
+
+export interface PeriodPrecip {
+    chancePercent: number | null;
+    amountIn: number | null;
+    snowIn: number | null;
 }
 
 export interface MoonInfo {
@@ -52,6 +60,8 @@ export interface ForecastDayDetail {
     day: ForecastDay;
     dayDescription: string | null;
     nightDescription: string | null;
+    dayPrecip: PeriodPrecip | null;
+    nightPrecip: PeriodPrecip | null;
     moon: MoonInfo | null;
     hours: ForecastHour[];
     previousDate: string | null;

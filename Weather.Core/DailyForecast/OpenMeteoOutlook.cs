@@ -15,8 +15,8 @@ public sealed class OpenMeteoOutlook(IHttpClientFactory httpClientFactory, IOpti
 {
     private const double HectopascalsPerInHg = 33.8639;
 
-    private const string DailyFields = "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant,uv_index_max";
-    private const string HourlyFields = "weather_code,is_day,temperature_2m,apparent_temperature,precipitation_probability,precipitation,cloud_cover,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,pressure_msl";
+    private const string DailyFields = "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant,uv_index_max";
+    private const string HourlyFields = "weather_code,is_day,temperature_2m,apparent_temperature,precipitation_probability,precipitation,snowfall,cloud_cover,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,pressure_msl";
 
     public async Task<Outlook> GetAsync(GeoPoint location, CancellationToken cancellationToken)
     {
@@ -58,6 +58,7 @@ public sealed class OpenMeteoOutlook(IHttpClientFactory httpClientFactory, IOpti
                 WholeNumber(daily, "temperature_2m_min", i),
                 WholeNumber(daily, "precipitation_probability_max", i),
                 Number(daily, "precipitation_sum", i),
+                Number(daily, "snowfall_sum", i),
                 Number(daily, "wind_speed_10m_max", i),
                 WholeNumber(daily, "wind_direction_10m_dominant", i),
                 Number(daily, "uv_index_max", i),
@@ -102,6 +103,7 @@ public sealed class OpenMeteoOutlook(IHttpClientFactory httpClientFactory, IOpti
                 WholeNumber(hourly, "apparent_temperature", i),
                 WholeNumber(hourly, "precipitation_probability", i),
                 Number(hourly, "precipitation", i),
+                Number(hourly, "snowfall", i),
                 WholeNumber(hourly, "cloud_cover", i),
                 WholeNumber(hourly, "dew_point_2m", i),
                 WholeNumber(hourly, "relative_humidity_2m", i),

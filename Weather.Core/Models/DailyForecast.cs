@@ -10,6 +10,7 @@ public sealed record ForecastDay(
     int? LowF,
     int? PrecipChancePercent,
     double? PrecipIn,
+    double? SnowIn,
     double? WindMph,
     int? WindDirectionDegrees,
     double? UvIndex,
@@ -25,12 +26,15 @@ public sealed record ForecastHour(
     int? FeelsLikeF,
     int? PrecipChancePercent,
     double? PrecipIn,
+    double? SnowIn,
     int? CloudCoverPercent,
     int? DewPointF,
     int? HumidityPercent,
     double? WindMph,
     int? WindDirectionDegrees,
     double? PressureInHg);
+
+public sealed record PeriodPrecip(int? ChancePercent, double? AmountIn, double? SnowIn);
 
 public sealed record MoonInfo(string? Phase, int? IlluminationPercent, string? Moonrise, string? Moonset);
 
@@ -46,6 +50,8 @@ public sealed record ForecastDayDetail(
     ForecastDay Day,
     string? DayDescription,
     string? NightDescription,
+    PeriodPrecip? DayPrecip,
+    PeriodPrecip? NightPrecip,
     MoonInfo? Moon,
     IReadOnlyList<ForecastHour> Hours,
     DateOnly? PreviousDate,

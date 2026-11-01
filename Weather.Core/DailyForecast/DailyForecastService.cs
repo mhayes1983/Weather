@@ -17,6 +17,10 @@ public sealed class DailyForecastService(
     TimeProvider timeProvider,
     ILogger<DailyForecastService> logger)
 {
+    // NWS day periods run from 6am to 6pm, and night periods from 6pm to 6am.
+    private const int DayStartHour = 6;
+    private const int NightStartHour = 18;
+
     private static readonly TimeSpan LastGoodDuration = TimeSpan.FromHours(24);
     private static readonly TimeSpan MoonCacheDuration = TimeSpan.FromHours(24);
 
@@ -79,13 +83,20 @@ public sealed class DailyForecastService(
 
         var description = descriptionsTask.Result?.GetValueOrDefault(date);
         var openable = days.Where(other => other.HasHourly).ToList();
+        var hours = RemainingHours(forecast, date);
+        var nextDate = date.AddDays(1);
+        var upcoming = hours.Concat(forecast.Hours.GetValueOrDefault(nextDate) ?? []).ToList();
+        var morning = PeriodStart(date, DayStartHour);
+        var evening = PeriodStart(date, NightStartHour);
         return new ForecastDayDetail(
             station.Name,
             day,
             description?.Day,
             description?.Night,
+            description?.Day is null ? null : Precipitation(upcoming, morning, evening),
+            description?.Night is null ? null : Precipitation(upcoming, evening, PeriodStart(nextDate, DayStartHour)),
             moonTask.Result,
-            RemainingHours(forecast, date),
+            hours,
             openable.LastOrDefault(other => other.Date < date)?.Date,
             openable.FirstOrDefault(other => other.Date > date)?.Date);
     }
@@ -112,6 +123,33 @@ public sealed class DailyForecastService(
         return forecast.Hours[date]
             .Where(hour => string.CompareOrdinal(hour.Time, 0, currentHour, 0, currentHour.Length) >= 0)
             .ToList();
+    }
+
+    private static string PeriodStart(DateOnly date, int hour) =>
+        string.Create(CultureInfo.InvariantCulture, $"{date:yyyy-MM-dd}T{hour:00}");
+
+    // Hour times start with this text, so they sort correctly against a period's limits.
+    private static PeriodPrecip? Precipitation(List<ForecastHour> hours, string start, string end)
+    {
+        var period = hours
+            .Where(hour => string.CompareOrdinal(hour.Time, start) >= 0 && string.CompareOrdinal(hour.Time, end) < 0)
+            .ToList();
+
+        if (period.Count == 0)
+        {
+            return null;
+        }
+
+        return new PeriodPrecip(
+            period.Max(hour => hour.PrecipChancePercent),
+            Total(period, hour => hour.PrecipIn),
+            Total(period, hour => hour.SnowIn));
+    }
+
+    private static double? Total(List<ForecastHour> hours, Func<ForecastHour, double?> amount)
+    {
+        var amounts = hours.Select(amount).OfType<double>().ToList();
+        return amounts.Count == 0 ? null : Math.Round(amounts.Sum(), 2);
     }
 
     private Task<Fetched> GetOutlookAsync(IWeatherStation station) =>
