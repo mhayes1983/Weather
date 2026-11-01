@@ -65,12 +65,14 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
     const history = report?.history ?? [];
     const times = history.map(point => point.time);
     const range = report?.historyRange === 'Today' ? 'today' : 'last 24 hours';
+    const maxGapMinutes = report?.historyMaxGapMinutes ?? 30;
 
     return (
         <main>
             <StationHeader {...stationControls}>
                 <h1>{current?.stationName ?? 'Weather Station'}</h1>
                 {current && <p className="location">Updated {new Date(current.observedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
+                {report?.modelled && <p className="location">Modelled estimate, not measured</p>}
             </StationHeader>
 
             <StationAlerts station={selected} onNavigate={onNavigate} />
@@ -81,7 +83,7 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
             {report && report.status !== 'Ok' && report.status !== 'NeedsKey' && <p className="error" role="alert">{report.message}</p>}
             {current?.batteryLow && <p className="error" role="alert">The outdoor sensor's battery is low.</p>}
 
-            {current && <CurrentConditions reading={current} unit={unit} />}
+            {current && <CurrentConditions reading={current} sky={report?.sky ?? null} unit={unit} />}
 
             {report?.historyMessage && <p className="error" role="alert">History: {report.historyMessage}</p>}
             {history.length > 0 &&
@@ -91,6 +93,7 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
                         range={range}
                         unit={`°${unit}`}
                         times={times}
+                        maxGapMinutes={maxGapMinutes}
                         digits={1}
                         series={[{
                             label: 'Temperature',
@@ -103,6 +106,7 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
                         range={range}
                         unit="mph"
                         times={times}
+                        maxGapMinutes={maxGapMinutes}
                         zeroBased
                         series={[
                             { label: 'Speed', colour: 'var(--chart-1)', values: history.map(point => point.windSpeedMph) },
@@ -114,6 +118,7 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
                         range={range}
                         unit="inHg"
                         times={times}
+                        maxGapMinutes={maxGapMinutes}
                         digits={2}
                         series={[{ label: 'Pressure', colour: 'var(--chart-1)', values: history.map(point => point.pressureInHg) }]}
                     />
@@ -122,6 +127,7 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
                         range={range}
                         unit="in/hr"
                         times={times}
+                        maxGapMinutes={maxGapMinutes}
                         zeroBased
                         digits={2}
                         series={[{ label: 'Rain rate', colour: 'var(--chart-1)', values: history.map(point => point.rainRateInPerHour) }]}
@@ -130,7 +136,9 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
 
             {current &&
                 <footer className="attribution">
-                    Station data from {report?.source}
+                    {report?.modelled
+                        ? <>Modelled data by <a href="https://open-meteo.com/">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>)</>
+                        : <>Station data from {report?.source}{report?.sky && <>. Sky conditions modelled by <a href="https://open-meteo.com/">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>)</>}</>}
                 </footer>}
         </main>
     );

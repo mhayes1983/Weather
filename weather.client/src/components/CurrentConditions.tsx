@@ -1,9 +1,11 @@
-import type { StationReading } from '../api/station';
+import type { CurrentSky, StationReading } from '../api/station';
 import { displayStationTemperature, type Unit } from '../temperature';
+import { weatherIcon } from '../weatherIcons';
 import { compass } from '../wind';
 
 interface CurrentConditionsProps {
     reading: StationReading;
+    sky: CurrentSky | null;
     unit: Unit;
 }
 
@@ -18,7 +20,7 @@ function measure(value: number | null, suffix: string, digits = 0): string {
     return value === null ? missing : `${value.toFixed(digits)}${suffix}`;
 }
 
-function CurrentConditions({ reading, unit }: CurrentConditionsProps) {
+function CurrentConditions({ reading, sky, unit }: CurrentConditionsProps) {
     function temperature(fahrenheit: number | null): string {
         return fahrenheit === null ? missing : `${displayStationTemperature(fahrenheit, unit).toFixed(1)}°${unit}`;
     }
@@ -78,6 +80,7 @@ function CurrentConditions({ reading, unit }: CurrentConditionsProps) {
         <>
             <p className="station-temperature">
                 <strong>{temperature(reading.temperatureF)}</strong>
+                {sky && <span className="station-sky"><span aria-hidden="true">{weatherIcon(sky.icon)}</span> {sky.conditions}</span>}
                 <span>Feels like {temperature(reading.feelsLikeF)}</span>
             </p>
 

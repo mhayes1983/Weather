@@ -1,6 +1,7 @@
 using System.Globalization;
-using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Weather.Core.Models;
 
 namespace Weather.Core.Climate;
@@ -12,7 +13,6 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
     private const string MissingValue = "M";
 
     private static readonly double[] SearchRadiiDegrees = [0.3, 0.75, 1.5, 3];
-    private static readonly object[] NormalHighElements = [new { name = "maxt", normal = "1" }];
     private static readonly TimeSpan NormalsCacheDuration = TimeSpan.FromHours(24);
     private static readonly TimeSpan StationCacheDuration = TimeSpan.FromDays(30);
 
@@ -35,15 +35,15 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
     {
         foreach (var radius in SearchRadiiDegrees)
         {
-            var body = new
+            var body = new JsonObject
             {
-                bbox = string.Create(
+                ["bbox"] = string.Create(
                     CultureInfo.InvariantCulture,
                     $"{location.Longitude - radius},{location.Latitude - radius},{location.Longitude + radius},{location.Latitude + radius}"),
-                sdate = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                edate = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                elems = NormalHighElements,
-                meta = "name,sids,ll",
+                ["sdate"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["edate"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["elems"] = NormalHighElements(),
+                ["meta"] = "name,sids,ll",
             };
 
             using var document = await PostAsync("MultiStnData", body, cancellationToken);
@@ -64,12 +64,12 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
     private async Task<ClimateNormals> GetNormalsAsync(
         AcisStation station, DateOnly start, DateOnly end, CancellationToken cancellationToken)
     {
-        var body = new
+        var body = new JsonObject
         {
-            sid = station.Id,
-            sdate = start.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            edate = end.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            elems = NormalHighElements,
+            ["sid"] = station.Id,
+            ["sdate"] = start.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            ["edate"] = end.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            ["elems"] = NormalHighElements(),
         };
 
         using var document = await PostAsync("StnData", body, cancellationToken);
@@ -85,10 +85,15 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
         return new ClimateNormals(station.Name, highs);
     }
 
-    private async Task<JsonDocument> PostAsync(string endpoint, object body, CancellationToken cancellationToken)
+    // A node can only belong to one parent, so each request builds its own.
+    private static JsonArray NormalHighElements() => [new JsonObject { ["name"] = "maxt", ["normal"] = "1" }];
+
+    // JsonObject needs no reflection, which trimming on Android would otherwise break.
+    private async Task<JsonDocument> PostAsync(string endpoint, JsonObject body, CancellationToken cancellationToken)
     {
         var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
-        using var response = await client.PostAsJsonAsync($"{BaseUrl}/{endpoint}", body, cancellationToken);
+        var content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync($"{BaseUrl}/{endpoint}", content, cancellationToken);
         response.EnsureSuccessStatusCode();
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
     }

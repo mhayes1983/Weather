@@ -14,6 +14,7 @@ public sealed class StationLookup(
     WeatherCache cache,
     IOptions<WeatherOptions> options,
     TimeProvider timeProvider,
+    LocationResolver locations,
     ILogger<StationLookup> logger)
 {
     private const string NearEndpoint = "https://api.weather.com/v3/location/near";
@@ -44,6 +45,27 @@ public sealed class StationLookup(
         catch (Exception exception)
         {
             logger.LogWarning("Station lookup failed: {Error}", exception.GetType().Name);
+            throw new StationLookupUnavailableException($"Station lookup failed. {SourceFailure.Describe(exception)}");
+        }
+    }
+
+    /// <summary>Makes no Weather Underground calls, so it needs no key. Returns null for an unknown ZIP.</summary>
+    /// <exception cref="StationLookupUnavailableException">The ZIP couldn't be checked.</exception>
+    public async Task<StationMatch?> FindOpenMeteoAsync(string zip)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(options.Value.SourceTimeoutSeconds));
+        try
+        {
+            var location = await locations.ResolveAsync(zip, timeout.Token);
+            return new StationMatch(directory.CreateOpenMeteo(zip).Id, $"{location.Place}, {location.State}", null);
+        }
+        catch (LocationNotFoundException)
+        {
+            return null;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning("Open-Meteo lookup failed: {Error}", exception.GetType().Name);
             throw new StationLookupUnavailableException($"Station lookup failed. {SourceFailure.Describe(exception)}");
         }
     }

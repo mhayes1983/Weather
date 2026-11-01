@@ -9,6 +9,7 @@ public sealed class StationService(
     WeatherCache cache,
     IOptions<WeatherOptions> options,
     TimeProvider timeProvider,
+    StationSky skies,
     ILogger<StationService> logger)
 {
     private static readonly TimeSpan LastGoodDuration = TimeSpan.FromHours(24);
@@ -39,6 +40,9 @@ public sealed class StationService(
             : offline ? StationStatus.Offline
             : StationStatus.Ok;
 
+        // A description of the sky now shouldn't sit beside readings that are hours old.
+        var sky = status == StationStatus.Ok ? await skies.GetAsync(station) : null;
+
         return new StationReport(
             status,
             offline ? "The station has stopped reporting." : current.Message,
@@ -47,7 +51,10 @@ public sealed class StationService(
             current.Value,
             history.Value ?? [],
             station.HistoryRange,
-            history.Message);
+            history.Message,
+            station.Modelled,
+            station.HistoryMaxGapMinutes,
+            sky);
     }
 
     /// <summary>The latest reading, from the same cache as the station's page.</summary>

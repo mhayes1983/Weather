@@ -21,7 +21,8 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <p>
                 The <RouteLink route="/" onNavigate={onNavigate}>Station</RouteLink> page shows current conditions and charts
                 of recent readings, and refreshes every minute. Charts cover the last 24 hours for the home station and the
-                current day for other stations.
+                current day for other stations. The description of the sky beside the temperature is modelled by Open-Meteo for
+                the station's area, so it can occasionally differ from what the station measures.
             </p>
             <p>
                 When the National Weather Service has active alerts for the station's area, they appear at the top of the
@@ -33,6 +34,7 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <ul>
                 <li>Use the <strong>Station</strong> list to switch stations.</li>
                 <li>To add one, enter a ZIP code or Weather Underground station ID under <strong>Find a station</strong>. A ZIP finds the nearest station that is reporting.</li>
+                <li>Or enter a ZIP code and press <strong>Use Open-Meteo for this ZIP</strong>. This shows modelled estimates for that area rather than readings from a station.</li>
                 <li>Added stations stay in your list, which holds up to 20. Select one and press <strong>✕</strong> to remove it.</li>
                 <li>Press the <strong>star</strong> to make the selected station your default, so every page starts there.</li>
             </ul>
@@ -72,10 +74,21 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 Open Settings from the gear icon in the top bar, or from the menu on small screens. Choose a colour theme (Auto
                 follows your device) and °F or °C. Your choices are saved in this browser.
             </p>
+            <p>
+                On small touch screens, swipe right on the page to open the menu and left to close it. The radar map, the
+                forecast table and other parts you can drag sideways don't open it.
+            </p>
+
+            <h2>Android app</h2>
+            <p>
+                The app works like this site, using your own keys. Setup asks for a ZIP code, then optional Weather Underground
+                and Ambient Weather keys, and which stations to include. Anything you skip uses Open-Meteo instead. To change
+                them later, open <strong>Data &amp; keys</strong> in Settings.
+            </p>
 
             <h2>Data sources</h2>
             <ul>
-                <li>Station readings: Ambient Weather and <a href="https://www.wunderground.com/">Weather Underground</a></li>
+                <li>Station readings: Ambient Weather and <a href="https://www.wunderground.com/">Weather Underground</a>, with modelled estimates from <a href="https://open-meteo.com/">Open-Meteo</a></li>
                 <li>Forecasts: <a href="https://open-meteo.com/">Open-Meteo</a> (ECMWF, GFS, GEM, ICON and WeatherNext models, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>), <a href="https://www.weather.gov/">National Weather Service</a>, Weather Underground and <a href="https://www.newscentermaine.com/">NewsCenter Maine</a></li>
                 <li>Alerts and radar: <a href="https://www.weather.gov/">National Weather Service</a> and NOAA</li>
                 <li>Average highs: <a href="https://www.rcc-acis.org/">ACIS</a></li>

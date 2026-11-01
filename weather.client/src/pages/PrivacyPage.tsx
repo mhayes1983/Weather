@@ -43,7 +43,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 passed on to these services:
             </p>
             <ul>
-                <li>Open-Meteo: forecasts</li>
+                <li>Open-Meteo: forecasts, and modelled conditions for a ZIP code or a station's location</li>
                 <li>National Weather Service: forecasts and alerts</li>
                 <li>Weather Underground: forecasts, station readings and station search</li>
                 <li>Ambient Weather: home station readings</li>
@@ -59,6 +59,18 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 from <a href="https://www.openstreetmap.org/">OpenStreetMap</a>. Like any website, those services can see your IP
                 address, and which map areas you view. Their own privacy policies apply. Other pages don't contact them.
             </p>
+
+            <h2>The Android app</h2>
+            <p>
+                The Android app has no server. It runs on your phone and contacts the data sources above directly, so they can
+                see your IP address, and it uses any Weather Underground and Ambient Weather keys you enter. It also calls NOAA
+                and OpenStreetMap for radar, as a browser does.
+            </p>
+            <ul>
+                <li>Your keys are encrypted with Android's secure storage, and aren't sent to us or included in Android backups.</li>
+                <li>Your ZIP code and chosen stations are saved on your phone, along with the preferences listed above.</li>
+                <li>Uninstalling the app removes all of this. You can also remove your keys from Data &amp; keys in Settings.</li>
+            </ul>
 
             <h2>Changes</h2>
             <p>

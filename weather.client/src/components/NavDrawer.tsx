@@ -1,6 +1,7 @@
 import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react';
 import { CloseIcon } from './icons';
 import RouteLink from './RouteLink';
+import { appName } from '../appBridge';
 import { isCurrent, legalLinks, navLinks } from '../navLinks';
 import type { Route } from '../useRoute';
 
@@ -67,7 +68,7 @@ function NavDrawer({ open, onClose, route, onNavigate, children }: NavDrawerProp
         <dialog ref={dialog} className="nav-drawer" aria-label="Menu" onClose={handleClosed} onClick={handleClick}>
             <div className="nav-drawer-body">
                 <div className="nav-drawer-header">
-                    <span className="nav-name">Weather</span>
+                    <span className="nav-name">{appName}</span>
                     <button type="button" className="icon-button" aria-label="Close menu" onClick={onClose}>
                         <CloseIcon />
                     </button>

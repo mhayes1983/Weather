@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- Not Weather.Android, which would hide the Android namespace from everything in this project. -->
+    <RootNamespace>Weather.Mobile</RootNamespace>
+    <AssemblyName>Weather.Android</AssemblyName>
+
+    <ApplicationTitle>Personal Weather</ApplicationTitle>
+    <ApplicationId>com.mhayes1983.weather</ApplicationId>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+
+    <!-- HybridWebView reads what the client sends with reflection. -->
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Weather.Core\Weather.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" ForegroundScale="1" />
+    <MauiSplashScreen Include="Resources\AppIcon\appiconfg.svg" Color="#1f6fb2" BaseSize="128,128" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The server's settings hold no keys, so the default stations and limits have one source. -->
+    <EmbeddedResource Include="..\Weather.Server\appsettings.json" LogicalName="appsettings.json" Link="appsettings.json" />
+    <TrimmerRootAssembly Include="Weather.Core" />
+    <TrimmerRootAssembly Include="Weather.Android" />
+  </ItemGroup>
+
+  <!-- The default asset glob runs before this does, so a first build would otherwise miss the files. -->
+  <Target Name="BuildWeatherClient" BeforeTargets="BeforeBuild">
+    <Exec Command="npm run build -- --mode app --outDir ../Weather.Android/Resources/Raw/wwwroot --emptyOutDir" WorkingDirectory="..\weather.client" />
+    <ItemGroup>
+      <MauiAsset Remove="Resources\Raw\wwwroot\**" />
+      <ClientFile Include="Resources\Raw\wwwroot\**" />
+      <MauiAsset Include="@(ClientFile)" LogicalName="wwwroot\%(ClientFile.RecursiveDir)%(ClientFile.Filename)%(ClientFile.Extension)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

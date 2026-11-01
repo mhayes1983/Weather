@@ -10,6 +10,7 @@ interface StationChartProps {
     unit: string;
     times: string[];
     series: ChartSeries[];
+    maxGapMinutes: number;
     zeroBased?: boolean;
     digits?: number;
 }
@@ -20,10 +21,11 @@ const left = 44;
 const right = 8;
 const top = 8;
 const bottom = 22;
-const maxGapMs = 30 * 60 * 1000;
-const hourMs = 60 * 60 * 1000;
+const minuteMs = 60 * 1000;
+const hourMs = 60 * minuteMs;
 
-function StationChart({ title, range, unit, times, series, zeroBased = false, digits = 0 }: StationChartProps) {
+function StationChart({ title, range, unit, times, series, maxGapMinutes, zeroBased = false, digits = 0 }: StationChartProps) {
+    const maxGapMs = maxGapMinutes * minuteMs;
     const timestamps = times.map(time => Date.parse(time));
     const values = series.flatMap(line => line.values).filter(value => value !== null);
 

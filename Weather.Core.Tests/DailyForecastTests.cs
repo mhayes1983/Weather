@@ -102,7 +102,7 @@ public class DailyForecastTests
             new StationDirectory([
                 new AmbientWeatherStation(http, options, time),
                 new WeatherUndergroundStation(new WeatherStationOptions { Id = Id, Name = "Test" }, http, options),
-            ], http, options),
+            ], http, options, TestData.Locations(http, options), TimeProvider.System),
             new StationLocator(cache),
             new OpenMeteoOutlook(http, options),
             new NwsDescriptions(http, cache),
@@ -121,6 +121,47 @@ public class DailyForecastTests
                 ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
                 : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Respond(url)) };
         });
+
+    private static async Task<IReadOnlyList<ForecastDay>> DaysFrom(string outlook)
+    {
+        var service = Service(StubHttp.Json(url => url.Contains("api.open-meteo.com") ? outlook : Respond(url)));
+        return (await service.GetAsync())!.Days;
+    }
+
+    [Fact]
+    public async Task DryDayUsesItsTypicalDaylightHour()
+    {
+        var days = await DaysFrom(Outlook);
+
+        Assert.Equal("Sunny", days[0].Conditions);
+        Assert.Equal("clear", days[0].Icon);
+    }
+
+    [Fact]
+    public async Task DaylightTieGoesToTheCloudierCondition()
+    {
+        var days = await DaysFrom(Outlook
+            .Replace("\"weather_code\": [0, 0, 0, 2, 2]", "\"weather_code\": [0, 2, 1, 2, 2]")
+            .Replace("\"is_day\": [1, 1, 1, 0, 0]", "\"is_day\": [1, 1, 0, 0, 0]"));
+
+        Assert.Equal("Partly Cloudy", days[0].Conditions);
+    }
+
+    [Fact]
+    public async Task RainyDayKeepsItsDailyCode()
+    {
+        var days = await DaysFrom(Outlook.Replace("\"is_day\": [1, 1, 1, 0, 0]", "\"is_day\": [1, 1, 1, 1, 0]"));
+
+        Assert.Equal("Light Rain", days[1].Conditions);
+    }
+
+    [Fact]
+    public async Task DryDayWithNoDaylightHoursKeepsItsDailyCode()
+    {
+        var days = await DaysFrom(Outlook.Replace("\"weather_code\": [3, 61, null]", "\"weather_code\": [3, 3, null]"));
+
+        Assert.Equal("Cloudy", days[1].Conditions);
+    }
 
     [Fact]
     public async Task ParsesDailyData()

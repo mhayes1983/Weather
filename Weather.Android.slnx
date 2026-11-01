@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Weather.Core/Weather.Core.csproj" />
+  <Project Path="Weather.Android/Weather.Android.csproj" />
+</Solution>

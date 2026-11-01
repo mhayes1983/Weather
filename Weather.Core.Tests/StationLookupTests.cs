@@ -44,7 +44,9 @@ public class StationLookupTests
             new WeatherUndergroundStation(new WeatherStationOptions { Id = "KCONFIG1", Name = "Configured" }, http, options),
         ],
         http,
-        options);
+        options,
+        TestData.Locations(http, options),
+        TimeProvider.System);
 
     private static StationLookup Lookup(StubHttp http, string? key = "secret-wu", ILogger<StationLookup>? logger = null) =>
         Create(http, Directory(http, Options(key)), Options(key), logger);
@@ -53,8 +55,8 @@ public class StationLookupTests
     {
         var cache = new WeatherCache();
         var time = new FixedTime(TestData.Now);
-        var stations = new StationService(directory, cache, options, time, NullLogger<StationService>.Instance);
-        return new StationLookup(directory, stations, http, cache, options, time, logger ?? NullLogger<StationLookup>.Instance);
+        var stations = new StationService(directory, cache, options, time, TestData.Sky(http, options), NullLogger<StationService>.Instance);
+        return new StationLookup(directory, stations, http, cache, options, time, TestData.Locations(http, options), logger ?? NullLogger<StationLookup>.Instance);
     }
 
     private static HttpResponseMessage Status(HttpStatusCode status) => new(status);
@@ -129,7 +131,9 @@ public class StationLookupTests
         var directory = new StationDirectory(
             [new WeatherUndergroundStation(new WeatherStationOptions { Id = "KCONFIG1" }, http, options)],
             http,
-            options);
+            options,
+            TestData.Locations(http, options),
+            TimeProvider.System);
 
         var match = await Create(http, directory, options).FindAsync("KCONFIG1");
 
@@ -286,13 +290,14 @@ public class StationLookupTests
         var directory = Directory(http, options);
         var cache = new WeatherCache();
         var time = new FixedTime(TestData.Now);
-        var stations = new StationService(directory, cache, options, time, NullLogger<StationService>.Instance);
-        var lookup = new StationLookup(directory, stations, http, cache, options, time, NullLogger<StationLookup>.Instance);
+        var stations = new StationService(directory, cache, options, time, TestData.Sky(http, options), NullLogger<StationService>.Instance);
+        var lookup = new StationLookup(directory, stations, http, cache, options, time, TestData.Locations(http, options), NullLogger<StationLookup>.Instance);
 
         await lookup.FindAsync(Id);
         await stations.GetReportAsync(Id);
 
-        Assert.Single(http.Requests, request => request.RequestUri!.AbsolutePath.EndsWith("/current"));
+        // One for the reading, and one for the location that StationSky shares with alerts.
+        Assert.Equal(2, http.Requests.Count(request => request.RequestUri!.AbsolutePath.EndsWith("/current")));
     }
 
     [Fact]

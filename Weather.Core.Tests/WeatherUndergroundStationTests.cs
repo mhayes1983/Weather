@@ -64,10 +64,11 @@ public class WeatherUndergroundStationTests
             new StationDirectory([
                 new AmbientWeatherStation(http, options, time),
                 new WeatherUndergroundStation(new WeatherStationOptions { Id = Id, Name = "Test" }, http, options),
-            ], http, options),
+            ], http, options, TestData.Locations(http, options), TimeProvider.System),
             new WeatherCache(),
             options,
             time,
+            TestData.Sky(http, options),
             NullLogger<StationService>.Instance);
     }
 
@@ -196,9 +197,10 @@ public class WeatherUndergroundStationTests
         var service = Service(http);
 
         await service.GetReportAsync(Id);
+        var firstRequests = http.Requests.Count;
         await service.GetReportAsync(Id);
 
-        Assert.Equal(2, http.Requests.Count);
+        Assert.Equal(firstRequests, http.Requests.Count);
     }
 
     [Fact]
@@ -242,10 +244,11 @@ public class WeatherUndergroundStationTests
         var http = Working();
         var time = new FixedTime(TestData.Now.AddMinutes(minutesOld));
         var service = new StationService(
-            new StationDirectory([new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, http, options)], http, options),
+            new StationDirectory([new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, http, options)], http, options, TestData.Locations(http, options), TimeProvider.System),
             new WeatherCache(),
             options,
             time,
+            TestData.Sky(http, options),
             NullLogger<StationService>.Instance);
 
         var report = (await service.GetReportAsync(Id))!;
@@ -261,10 +264,11 @@ public class WeatherUndergroundStationTests
         cache.Set($"last-good:station:{Id}:current", new StationReading { ObservedAt = TestData.Now, TemperatureF = 50 }, TimeSpan.FromHours(1));
         var http = new StubHttp(_ => new HttpResponseMessage(HttpStatusCode.TooManyRequests));
         var service = new StationService(
-            new StationDirectory([new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, http, options)], http, options),
+            new StationDirectory([new WeatherUndergroundStation(new WeatherStationOptions { Id = Id }, http, options)], http, options, TestData.Locations(http, options), TimeProvider.System),
             cache,
             options,
             new FixedTime(TestData.Now),
+            TestData.Sky(http, options),
             NullLogger<StationService>.Instance);
 
         var report = (await service.GetReportAsync(Id))!;

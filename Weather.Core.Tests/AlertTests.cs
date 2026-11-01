@@ -50,7 +50,7 @@ public class AlertTests
             new StationDirectory([
                 new AmbientWeatherStation(http, options, time),
                 new WeatherUndergroundStation(new WeatherStationOptions { Id = Id, Name = "Test" }, http, options),
-            ], http, options),
+            ], http, options, TestData.Locations(http, options), TimeProvider.System),
             new StationLocator(cache),
             new NwsAlerts(http, time),
             cache,

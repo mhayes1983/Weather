@@ -48,6 +48,13 @@ function TermsPage({ onNavigate }: TermsPageProps) {
                 data at any time. Links to other sites are provided for convenience only.
             </p>
 
+            <h2>The Android app</h2>
+            <p>
+                These terms also apply to the Android app. Any Weather Underground or Ambient Weather keys you enter are your
+                own, and your use of them is subject to those providers' terms and limits. The app doesn't use the site's
+                allowance with data providers.
+            </p>
+
             <h2>No warranty</h2>
             <p>
                 The site is provided "as is" and "as available", with no warranties of any kind, express or implied, including

@@ -1,5 +1,6 @@
 ﻿import { lazy, Suspense, useEffect, useState } from 'react';
 import { fetchStations, type StationSummary } from './api/station';
+import { currentSetup } from './appBridge';
 import ErrorBoundary from './components/ErrorBoundary';
 import NavBar from './components/NavBar';
 import SettingsPanel from './components/SettingsPanel';
@@ -22,6 +23,9 @@ import './App.css';
 // Leaflet is large, so it only loads when the radar page opens.
 const RadarPage = lazy(() => import('./pages/RadarPage'));
 
+// Setup is only in the Android app, so the site's build leaves this out.
+const SetupPage = import.meta.env.MODE === 'app' ? lazy(() => import('./pages/SetupPage')) : null;
+
 const titles: Partial<Record<Route, string>> = {
     '/': 'Weather Station',
     '/alerts': 'Weather Alerts',
@@ -30,6 +34,7 @@ const titles: Partial<Record<Route, string>> = {
     '/help': 'Help & About',
     '/terms': 'Terms of Use',
     '/privacy': 'Privacy Policy',
+    '/setup': 'Setup',
 };
 
 function App() {
@@ -121,12 +126,16 @@ function App() {
         onStationRemoved: handleStationRemoved,
     };
 
+    if (SetupPage && (route === '/setup' || !currentSetup()?.complete)) {
+        return <main><Suspense fallback={<p>Loading setup…</p>}><SetupPage /></Suspense></main>;
+    }
+
     return (
         <>
             <NavBar
                 route={route}
                 onNavigate={navigate}
-                settings={<SettingsPanel theme={theme} onThemeChange={handleThemeChange} unit={unit} onUnitChange={handleUnitChange} />}
+                settings={<SettingsPanel theme={theme} onThemeChange={handleThemeChange} unit={unit} onUnitChange={handleUnitChange} onNavigate={navigate} />}
             />
             {route === '/' && <StationPage selected={station} stationControls={stationControls} unit={unit} onNavigate={navigate} />}
             {route === '/radar' &&

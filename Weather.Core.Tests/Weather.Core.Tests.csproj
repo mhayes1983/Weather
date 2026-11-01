@@ -26,7 +26,7 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <Using Include="Microsoft.AspNetCore.Http" />
-    <Compile Include="..\Weather.Server\Controllers\StationController.cs" Link="Linked\StationController.cs" />
+    <Compile Include="..\Weather.Server\Controllers\*.cs" Link="Linked\%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

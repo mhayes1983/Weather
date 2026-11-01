@@ -41,6 +41,11 @@ export interface StationSummary {
     name: string;
 }
 
+export interface CurrentSky {
+    conditions: string;
+    icon: string;
+}
+
 export interface StationReport {
     status: StationStatus;
     message: string | null;
@@ -50,6 +55,9 @@ export interface StationReport {
     history: StationHistoryPoint[];
     historyRange: StationHistoryRange;
     historyMessage: string | null;
+    modelled: boolean;
+    historyMaxGapMinutes: number;
+    sky: CurrentSky | null;
 }
 
 export interface StationMatch {
@@ -58,8 +66,11 @@ export interface StationMatch {
     distanceMi: number | null;
 }
 
-export async function lookUpStation(query: string, signal: AbortSignal): Promise<StationMatch> {
-    const response = await fetch(`/api/stations/lookup?q=${encodeURIComponent(query)}`, { signal });
+export type StationLookupSource = 'nearest' | 'open-meteo';
+
+export async function lookUpStation(query: string, source: StationLookupSource, signal: AbortSignal): Promise<StationMatch> {
+    const sourceQuery = source === 'open-meteo' ? '&source=open-meteo' : '';
+    const response = await fetch(`/api/stations/lookup?q=${encodeURIComponent(query)}${sourceQuery}`, { signal });
     if (!response.ok) {
         const problem = await response.json().catch(() => null) as { detail?: string } | null;
         throw new Error(problem?.detail ?? 'The station lookup failed.');
