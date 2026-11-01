@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 
-const fixedRoutes = ['/alerts', '/forecast', '/radar', '/daily', '/help', '/terms', '/privacy'] as const;
+const fixedRoutes = ['/alerts', '/forecast', '/radar', '/daily', '/help', '/terms', '/privacy', '/setup'] as const;
 
 export type Route = '/' | (typeof fixedRoutes)[number] | `/daily/${string}`;
 
 function currentRoute(): Route {
     const path = window.location.pathname;
     const fixed = fixedRoutes.find(route => route === path);
-    if (fixed) {
+
+    // Setup only exists in the Android app.
+    if (fixed && (fixed !== '/setup' || import.meta.env.MODE === 'app')) {
         return fixed;
     }
 

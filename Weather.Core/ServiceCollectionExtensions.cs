@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Weather.Core.Alerts;
+using Weather.Core.Api;
 using Weather.Core.Climate;
 using Weather.Core.DailyForecast;
 using Weather.Core.Locations;
@@ -22,7 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<LocationResolver>();
         services.AddSingleton<IClimateNormals, AcisClimateNormals>();
         services.AddSingleton<ForecastTableService>();
-        services.AddSingleton<IWeatherStation, AmbientWeatherStation>();
+        AddHomeStation(services, configuration.Get<WeatherOptions>() ?? new WeatherOptions());
         services.AddSingleton<StationDirectory>();
         services.AddSingleton<StationLookup>();
         services.AddSingleton<StationService>();
@@ -33,6 +34,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<NwsDescriptions>();
         services.AddSingleton<UsnoMoon>();
         services.AddSingleton<DailyForecastService>();
+        services.AddSingleton<KeyCheck>();
+        services.AddSingleton<LocalApi>();
 
         // The home station comes first in the dropdown, then the configured stations in order.
         var stations = (configuration.Get<WeatherOptions>()?.Stations ?? [])
@@ -65,6 +68,20 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IForecastSource, NwsSource>();
 
         return services;
+    }
+
+    // "home" must always be a registered station, or StationDirectory would treat it as a Weather Underground ID.
+    private static void AddHomeStation(IServiceCollection services, WeatherOptions options)
+    {
+        if (options.HomeStationSource == HomeStationSource.OpenMeteo)
+        {
+            services.AddSingleton<IWeatherStation>(provider =>
+                ActivatorUtilities.CreateInstance<OpenMeteoStation>(provider, AmbientWeatherStation.HomeId, options.DefaultLocation.Zip));
+        }
+        else
+        {
+            services.AddSingleton<IWeatherStation, AmbientWeatherStation>();
+        }
     }
 
     private static void AddOpenMeteo(

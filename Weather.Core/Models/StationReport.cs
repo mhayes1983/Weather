@@ -61,4 +61,9 @@ public sealed record StationReport(
     StationReading? Current,
     IReadOnlyList<StationHistoryPoint> History,
     StationHistoryRange HistoryRange,
-    string? HistoryMessage);
+    string? HistoryMessage,
+    bool Modelled = false,
+    int HistoryMaxGapMinutes = StationReport.DefaultHistoryMaxGapMinutes)
+{
+    public const int DefaultHistoryMaxGapMinutes = 30;
+}

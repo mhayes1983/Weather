@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.Extensions.Options;
+using Weather.Core.Locations;
 using Weather.Core.Models;
 
 namespace Weather.Core.Tests;
@@ -42,6 +43,9 @@ internal static class TestData
     };
 
     public static readonly DateTimeOffset Now = new(2026, 10, 30, 16, 0, 0, TimeSpan.Zero);
+
+    public static LocationResolver Locations(IHttpClientFactory http, IOptions<WeatherOptions> options) =>
+        new(http, new WeatherCache(), options);
 
     public static IOptions<WeatherOptions> Options(Action<WeatherOptions>? configure = null)
     {

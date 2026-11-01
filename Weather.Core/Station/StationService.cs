@@ -47,7 +47,9 @@ public sealed class StationService(
             current.Value,
             history.Value ?? [],
             station.HistoryRange,
-            history.Message);
+            history.Message,
+            station.Modelled,
+            station.HistoryMaxGapMinutes);
     }
 
     /// <summary>The latest reading, from the same cache as the station's page.</summary>

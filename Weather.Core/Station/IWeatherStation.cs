@@ -22,6 +22,12 @@ public interface IWeatherStation
 
     bool CanLocate { get; }
 
+    /// <summary>True when the values come from a weather model rather than instruments.</summary>
+    bool Modelled => false;
+
+    /// <summary>A longer gap between history points shows as a break in the charts.</summary>
+    int HistoryMaxGapMinutes => StationReport.DefaultHistoryMaxGapMinutes;
+
     Task<GeoPoint> GetCoordinatesAsync(CancellationToken cancellationToken);
 
     Task<StationReading> GetCurrentAsync(CancellationToken cancellationToken);

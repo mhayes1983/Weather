@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# The Android app's copy of the built client
+Weather.Android/Resources/Raw/wwwroot/

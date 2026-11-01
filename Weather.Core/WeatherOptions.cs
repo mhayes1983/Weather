@@ -7,6 +7,7 @@ public sealed class WeatherOptions
     public const string SectionName = "Weather";
 
     public ForecastLocation DefaultLocation { get; set; } = new();
+    public HomeStationSource HomeStationSource { get; set; } = HomeStationSource.AmbientWeather;
     public int AboveAverageF { get; set; } = 6;
     public int BelowAverageF { get; set; } = 6;
     public int ForecastDays { get; set; } = 16;
@@ -19,6 +20,13 @@ public sealed class WeatherOptions
     public AmbientWeatherOptions AmbientWeather { get; set; } = new();
     public List<WeatherStationOptions> Stations { get; set; } = [];
     public WeatherUndergroundStationOptions WeatherUndergroundStations { get; set; } = new();
+    public OpenMeteoStationOptions OpenMeteoStations { get; set; } = new();
+}
+
+public enum HomeStationSource
+{
+    AmbientWeather,
+    OpenMeteo,
 }
 
 public sealed class WeatherStationOptions
@@ -32,6 +40,13 @@ public sealed class WeatherUndergroundStationOptions
     public int CurrentCacheMinutes { get; set; } = 5;
     public int HistoryCacheMinutes { get; set; } = 15;
     public int OfflineAfterMinutes { get; set; } = 30;
+}
+
+public sealed class OpenMeteoStationOptions
+{
+    public int CurrentCacheMinutes { get; set; } = 15;
+    public int HistoryCacheMinutes { get; set; } = 60;
+    public int OfflineAfterMinutes { get; set; } = 180;
 }
 
 public sealed class AmbientWeatherOptions

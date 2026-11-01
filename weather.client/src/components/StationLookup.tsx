@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { lookUpStation, type StationMatch } from '../api/station';
+import { lookUpStation, type StationLookupSource, type StationMatch } from '../api/station';
+import { currentSetup, isApp } from '../appBridge';
 import { maxSavedStations } from '../savedStations';
 
 interface StationLookupProps {
@@ -8,7 +9,11 @@ interface StationLookupProps {
     onFound: (match: StationMatch) => void;
 }
 
+const zipPattern = /^\d{5}$/;
+
 function StationLookup({ ready, full, onFound }: StationLookupProps) {
+    // In the app, searching for stations uses the person's own Weather Underground key.
+    const canFindStations = !isApp || currentSetup()?.hasWeatherUnderground;
     const controller = useRef<AbortController>(null);
     const latestOnFound = useRef(onFound);
     const [query, setQuery] = useState('');
@@ -25,7 +30,10 @@ function StationLookup({ ready, full, onFound }: StationLookupProps) {
 
     function handleSubmit(event: FormEvent) {
         event.preventDefault();
+        lookUp(canFindStations ? 'nearest' : 'open-meteo');
+    }
 
+    function lookUp(source: StationLookupSource) {
         const trimmed = query.trim();
         if (!trimmed || !ready || full) {
             return;
@@ -38,7 +46,7 @@ function StationLookup({ ready, full, onFound }: StationLookupProps) {
         setLoading(true);
         setMessage(undefined);
 
-        lookUpStation(trimmed, request.signal)
+        lookUpStation(trimmed, source, request.signal)
             .then(match => {
                 if (request.signal.aborted) {
                     return;
@@ -68,14 +76,15 @@ function StationLookup({ ready, full, onFound }: StationLookupProps) {
                 <input
                     type="text"
                     value={query}
-                    placeholder="ZIP or station ID"
+                    placeholder={canFindStations ? 'ZIP or station ID' : 'ZIP'}
                     autoComplete="off"
                     spellCheck={false}
                     disabled={full}
                     onChange={event => setQuery(event.target.value)}
                 />
             </label>
-            <button type="submit" disabled={loading || !ready || full || !query.trim()}>{loading ? 'Finding…' : 'Add'}</button>
+            {canFindStations && <button type="submit" disabled={loading || !ready || full || !query.trim()}>{loading ? 'Finding…' : 'Add'}</button>}
+            <button type="button" disabled={loading || !ready || full || !zipPattern.test(query.trim())} onClick={() => lookUp('open-meteo')}>Use Open-Meteo for this ZIP</button>
             {message &&
                 <p className={`station-lookup-message${message.failed ? ' is-error' : ''}`} role={message.failed ? 'alert' : 'status'}>
                     {message.text}

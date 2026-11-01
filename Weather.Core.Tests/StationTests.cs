@@ -73,7 +73,7 @@ public class StationTests
         var options = Keys();
         var time = new FixedTime(now ?? TestData.Now);
         return new StationService(
-            new StationDirectory([new AmbientWeatherStation(http, options, time)], http, options),
+            new StationDirectory([new AmbientWeatherStation(http, options, time)], http, options, TestData.Locations(http, options), TimeProvider.System),
             cache ?? new WeatherCache(),
             options,
             time,
@@ -169,7 +169,7 @@ public class StationTests
         });
         var time = new FixedTime(TestData.Now);
         var service = new StationService(
-            new StationDirectory([new AmbientWeatherStation(http, options, time)], http, options),
+            new StationDirectory([new AmbientWeatherStation(http, options, time)], http, options, TestData.Locations(http, options), TimeProvider.System),
             new WeatherCache(),
             options,
             time,

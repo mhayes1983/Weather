@@ -113,9 +113,10 @@ Select a station and click its star to make it your default. It then opens on ev
 
 | Folder | Purpose |
 |---|---|
-| `Weather.Core` | Forecast sources, averages, highlighting and caching, in a library that a future Android app can reuse |
+| `Weather.Core` | Forecast sources, averages, highlighting and caching, in a library shared by the server and the Android app |
 | `Weather.Core.Tests` | Unit tests |
 | `Weather.Server` | ASP.NET Core API, which also serves the website |
+| `Weather.Android` | .NET MAUI app that runs `Weather.Core` on the phone and hosts the website's client |
 | `weather.client` | React and TypeScript website |
 
 ## Settings
@@ -196,7 +197,6 @@ Returns a station's current readings and history. The `id` value is optional and
 
 ## Planned
 
-- Android app
 - Winter weather page (snow, ice, wind, and alerts)
 
 ## Data use

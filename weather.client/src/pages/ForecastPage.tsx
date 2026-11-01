@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchForecast, type ForecastTable as ForecastData } from '../api/forecast';
+import { currentSetup, isApp } from '../appBridge';
 import ColumnFilters from '../components/ColumnFilters';
 import ForecastTable from '../components/ForecastTable';
 import Legend from '../components/Legend';
@@ -15,7 +16,7 @@ interface ForecastPageProps {
 }
 
 function ForecastPage({ hidden, unit }: ForecastPageProps) {
-    const [zip, setZip] = useState(defaultZip);
+    const [zip, setZip] = useState(currentSetup()?.zip ?? defaultZip);
     const [forecast, setForecast] = useState<ForecastData>();
     const [error, setError] = useState<string>();
     const [loading, setLoading] = useState(true);
@@ -59,7 +60,10 @@ function ForecastPage({ hidden, unit }: ForecastPageProps) {
     }
 
     const average = forecast?.averageHigh;
-    const columns = orderColumns(forecast?.columns ?? [], columnOrder);
+
+    // Skipping a key is a valid choice in the app, so its column isn't shown as a problem.
+    const available = forecast?.columns.filter(column => !isApp || column.status !== 'NeedsKey') ?? [];
+    const columns = orderColumns(available, columnOrder);
     const visibleColumns = columns.filter(column => !hiddenColumns.includes(column.id));
 
     return (
@@ -70,7 +74,7 @@ function ForecastPage({ hidden, unit }: ForecastPageProps) {
             </header>
 
             <div className="controls">
-                <ZipForm initialZip={defaultZip} loading={loading} onSubmit={handleZipSubmit} />
+                <ZipForm initialZip={currentSetup()?.zip ?? defaultZip} loading={loading} onSubmit={handleZipSubmit} />
             </div>
 
             {error && <p className="error" role="alert">{error}</p>}
@@ -83,7 +87,7 @@ function ForecastPage({ hidden, unit }: ForecastPageProps) {
                             ? <>Average High <strong>{displayTemperature(average.startF, unit)} → {displayTemperature(average.endF, unit)}</strong> <span className="station">{average.station}</span></>
                             : forecast.averageMessage}
                     </p>
-                    <ColumnFilters columns={forecast.columns} hidden={hiddenColumns} onToggle={handleToggleColumn} />
+                    <ColumnFilters columns={available} hidden={hiddenColumns} onToggle={handleToggleColumn} />
                     <ForecastTable columns={visibleColumns} rows={forecast.rows} unit={unit} onMoveColumn={handleMoveColumn} />
                     <Legend aboveAverageF={forecast.aboveAverageF} belowAverageF={forecast.belowAverageF} />
                 </>}
