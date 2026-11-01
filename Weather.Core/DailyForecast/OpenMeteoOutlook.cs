@@ -15,6 +15,9 @@ public sealed class OpenMeteoOutlook(IHttpClientFactory httpClientFactory, IOpti
 {
     private const double HectopascalsPerInHg = 33.8639;
 
+    // WMO codes 0 to 3 run from clear to overcast. Anything higher is fog, rain, snow or storms.
+    private const int LastDryCode = 3;
+
     private const string DailyFields = "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant,uv_index_max";
     private const string HourlyFields = "weather_code,is_day,temperature_2m,apparent_temperature,precipitation_probability,precipitation,snowfall,cloud_cover,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,pressure_msl";
 
@@ -33,13 +36,50 @@ public sealed class OpenMeteoOutlook(IHttpClientFactory httpClientFactory, IOpti
             TimeSpan.FromSeconds(root.GetProperty("utc_offset_seconds").GetInt32()),
             TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
 
-        var hours = ReadHours(root.GetProperty("hourly"), clock);
-        return new Outlook(timeZoneId, ReadDays(root.GetProperty("daily"), hours, clock), hours);
+        var hourly = root.GetProperty("hourly");
+        var hours = ReadHours(hourly, clock);
+        return new Outlook(timeZoneId, ReadDays(root.GetProperty("daily"), hours, ReadDaylightCodes(hourly, clock), clock), hours);
     }
+
+    private static Dictionary<DateOnly, List<int>> ReadDaylightCodes(JsonElement hourly, LocalClock clock)
+    {
+        var times = hourly.GetProperty("time");
+        var codes = new Dictionary<DateOnly, List<int>>();
+
+        for (var i = 0; i < times.GetArrayLength(); i++)
+        {
+            if (WholeNumber(hourly, "is_day", i) == 0 || WholeNumber(hourly, "weather_code", i) is not int code)
+            {
+                continue;
+            }
+
+            var date = DateOnly.ParseExact(clock.Correct(times[i].GetString())![..10], "yyyy-MM-dd", CultureInfo.InvariantCulture);
+            if (!codes.TryGetValue(date, out var list))
+            {
+                codes[date] = list = [];
+            }
+
+            list.Add(code);
+        }
+
+        return codes;
+    }
+
+    // The daily code is the day's worst hour, which suits rain and snow. On a dry day it
+    // lets one cloudy hour before dawn label a sunny day, so those use the typical daylight hour.
+    private static int? DayCode(int? dailyCode, IReadOnlyList<int>? daylightCodes) =>
+        dailyCode is <= LastDryCode && daylightCodes is { Count: > 0 }
+            ? daylightCodes
+                .GroupBy(code => code)
+                .OrderByDescending(group => group.Count())
+                .ThenByDescending(group => group.Key)
+                .First().Key
+            : dailyCode;
 
     private static List<ForecastDay> ReadDays(
         JsonElement daily,
         Dictionary<DateOnly, IReadOnlyList<ForecastHour>> hours,
+        Dictionary<DateOnly, List<int>> daylightCodes,
         LocalClock clock)
     {
         var dates = daily.GetProperty("time");
@@ -48,7 +88,8 @@ public sealed class OpenMeteoOutlook(IHttpClientFactory httpClientFactory, IOpti
         for (var i = 0; i < dates.GetArrayLength(); i++)
         {
             var date = DateOnly.ParseExact(dates[i].GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture);
-            var (conditions, icon) = WeatherConditions.Describe(WholeNumber(daily, "weather_code", i));
+            var (conditions, icon) = WeatherConditions.Describe(
+                DayCode(WholeNumber(daily, "weather_code", i), daylightCodes.GetValueOrDefault(date)));
 
             days.Add(new ForecastDay(
                 date,
