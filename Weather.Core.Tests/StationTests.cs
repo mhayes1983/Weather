@@ -77,6 +77,7 @@ public class StationTests
             cache ?? new WeatherCache(),
             options,
             time,
+            TestData.Sky(http, options),
             NullLogger<StationService>.Instance);
     }
 
@@ -173,6 +174,7 @@ public class StationTests
             new WeatherCache(),
             options,
             time,
+            TestData.Sky(http, options),
             NullLogger<StationService>.Instance);
 
         var report = await service.GetReportAsync();

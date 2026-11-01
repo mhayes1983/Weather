@@ -83,7 +83,7 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
             {report && report.status !== 'Ok' && report.status !== 'NeedsKey' && <p className="error" role="alert">{report.message}</p>}
             {current?.batteryLow && <p className="error" role="alert">The outdoor sensor's battery is low.</p>}
 
-            {current && <CurrentConditions reading={current} unit={unit} />}
+            {current && <CurrentConditions reading={current} sky={report?.sky ?? null} unit={unit} />}
 
             {report?.historyMessage && <p className="error" role="alert">History: {report.historyMessage}</p>}
             {history.length > 0 &&
@@ -138,7 +138,7 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
                 <footer className="attribution">
                     {report?.modelled
                         ? <>Modelled data by <a href="https://open-meteo.com/">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>)</>
-                        : <>Station data from {report?.source}</>}
+                        : <>Station data from {report?.source}{report?.sky && <>. Sky conditions modelled by <a href="https://open-meteo.com/">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>)</>}</>}
                 </footer>}
         </main>
     );

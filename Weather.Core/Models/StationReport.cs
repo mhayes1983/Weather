@@ -63,7 +63,10 @@ public sealed record StationReport(
     StationHistoryRange HistoryRange,
     string? HistoryMessage,
     bool Modelled = false,
-    int HistoryMaxGapMinutes = StationReport.DefaultHistoryMaxGapMinutes)
+    int HistoryMaxGapMinutes = StationReport.DefaultHistoryMaxGapMinutes,
+    CurrentSky? Sky = null)
 {
     public const int DefaultHistoryMaxGapMinutes = 30;
 }
+
+public sealed record CurrentSky(string Conditions, string Icon);

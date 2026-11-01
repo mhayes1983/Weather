@@ -2,6 +2,8 @@
 
 export const isApp = import.meta.env.MODE === 'app';
 
+export const appName = isApp ? 'Personal Weather' : 'Weather';
+
 export interface SetupStation {
     id: string;
     name: string;

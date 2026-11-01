@@ -68,6 +68,7 @@ public class WeatherUndergroundStationTests
             new WeatherCache(),
             options,
             time,
+            TestData.Sky(http, options),
             NullLogger<StationService>.Instance);
     }
 
@@ -196,9 +197,10 @@ public class WeatherUndergroundStationTests
         var service = Service(http);
 
         await service.GetReportAsync(Id);
+        var firstRequests = http.Requests.Count;
         await service.GetReportAsync(Id);
 
-        Assert.Equal(2, http.Requests.Count);
+        Assert.Equal(firstRequests, http.Requests.Count);
     }
 
     [Fact]
@@ -246,6 +248,7 @@ public class WeatherUndergroundStationTests
             new WeatherCache(),
             options,
             time,
+            TestData.Sky(http, options),
             NullLogger<StationService>.Instance);
 
         var report = (await service.GetReportAsync(Id))!;
@@ -265,6 +268,7 @@ public class WeatherUndergroundStationTests
             cache,
             options,
             new FixedTime(TestData.Now),
+            TestData.Sky(http, options),
             NullLogger<StationService>.Instance);
 
         var report = (await service.GetReportAsync(Id))!;

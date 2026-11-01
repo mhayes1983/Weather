@@ -89,10 +89,13 @@
     margin-top: 8px;
 }
 
+/* Data & keys, matching the menu's page links. */
 .settings-panel > a {
     display: block;
     margin-top: 12px;
-    font-size: 0.9rem;
+    padding: 4px 2px;
+    color: var(--text);
+    text-decoration: none;
 }
 
 .setup-field {

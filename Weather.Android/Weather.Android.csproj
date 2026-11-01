@@ -12,7 +12,7 @@
     <RootNamespace>Weather.Mobile</RootNamespace>
     <AssemblyName>Weather.Android</AssemblyName>
 
-    <ApplicationTitle>Weather</ApplicationTitle>
+    <ApplicationTitle>Personal Weather</ApplicationTitle>
     <ApplicationId>com.mhayes1983.weather</ApplicationId>
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
@@ -33,7 +33,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" ForegroundScale="0.65" />
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" ForegroundScale="1" />
     <MauiSplashScreen Include="Resources\AppIcon\appiconfg.svg" Color="#1f6fb2" BaseSize="128,128" />
   </ItemGroup>
 

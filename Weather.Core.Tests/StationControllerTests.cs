@@ -27,7 +27,7 @@ public class StationControllerTests
         var directory = new StationDirectory([], http, options, TestData.Locations(http, options), TimeProvider.System);
         var cache = new WeatherCache();
         var time = new FixedTime(TestData.Now);
-        var stations = new StationService(directory, cache, options, time, NullLogger<StationService>.Instance);
+        var stations = new StationService(directory, cache, options, time, TestData.Sky(http, options), NullLogger<StationService>.Instance);
         var lookup = new StationLookup(directory, stations, http, cache, options, time, TestData.Locations(http, options), NullLogger<StationLookup>.Instance);
         return new StationController(stations, lookup);
     }

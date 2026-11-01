@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import {
+    appName,
     checkAmbientWeather,
     checkWeatherUnderground,
     getSetupState,
@@ -169,7 +170,7 @@ function SetupPage() {
     return (
         <div className="prose setup">
             <header>
-                <h1>{state.complete ? 'Data & keys' : 'Set up Weather'}</h1>
+                <h1>{state.complete ? 'Data & keys' : `Set up ${appName}`}</h1>
                 <p className="location">Step {step + 1} of {steps.length}: {steps[step]}</p>
             </header>
 

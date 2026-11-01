@@ -55,7 +55,7 @@ public class StationLookupTests
     {
         var cache = new WeatherCache();
         var time = new FixedTime(TestData.Now);
-        var stations = new StationService(directory, cache, options, time, NullLogger<StationService>.Instance);
+        var stations = new StationService(directory, cache, options, time, TestData.Sky(http, options), NullLogger<StationService>.Instance);
         return new StationLookup(directory, stations, http, cache, options, time, TestData.Locations(http, options), logger ?? NullLogger<StationLookup>.Instance);
     }
 
@@ -290,13 +290,14 @@ public class StationLookupTests
         var directory = Directory(http, options);
         var cache = new WeatherCache();
         var time = new FixedTime(TestData.Now);
-        var stations = new StationService(directory, cache, options, time, NullLogger<StationService>.Instance);
+        var stations = new StationService(directory, cache, options, time, TestData.Sky(http, options), NullLogger<StationService>.Instance);
         var lookup = new StationLookup(directory, stations, http, cache, options, time, TestData.Locations(http, options), NullLogger<StationLookup>.Instance);
 
         await lookup.FindAsync(Id);
         await stations.GetReportAsync(Id);
 
-        Assert.Single(http.Requests, request => request.RequestUri!.AbsolutePath.EndsWith("/current"));
+        // One for the reading, and one for the location that StationSky shares with alerts.
+        Assert.Equal(2, http.Requests.Count(request => request.RequestUri!.AbsolutePath.EndsWith("/current")));
     }
 
     [Fact]

@@ -41,6 +41,11 @@ export interface StationSummary {
     name: string;
 }
 
+export interface CurrentSky {
+    conditions: string;
+    icon: string;
+}
+
 export interface StationReport {
     status: StationStatus;
     message: string | null;
@@ -52,6 +57,7 @@ export interface StationReport {
     historyMessage: string | null;
     modelled: boolean;
     historyMaxGapMinutes: number;
+    sky: CurrentSky | null;
 }
 
 export interface StationMatch {

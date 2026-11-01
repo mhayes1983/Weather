@@ -21,7 +21,8 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <p>
                 The <RouteLink route="/" onNavigate={onNavigate}>Station</RouteLink> page shows current conditions and charts
                 of recent readings, and refreshes every minute. Charts cover the last 24 hours for the home station and the
-                current day for other stations.
+                current day for other stations. The description of the sky beside the temperature is modelled by Open-Meteo for
+                the station's area, so it can occasionally differ from what the station measures.
             </p>
             <p>
                 When the National Weather Service has active alerts for the station's area, they appear at the top of the
@@ -72,6 +73,10 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <p>
                 Open Settings from the gear icon in the top bar, or from the menu on small screens. Choose a colour theme (Auto
                 follows your device) and °F or °C. Your choices are saved in this browser.
+            </p>
+            <p>
+                On small touch screens, swipe right on the page to open the menu and left to close it. The radar map, the
+                forecast table and other parts you can drag sideways don't open it.
             </p>
 
             <h2>Android app</h2>

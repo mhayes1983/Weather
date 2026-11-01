@@ -41,6 +41,7 @@ public class OpenMeteoStationTests
             new WeatherCache(),
             options,
             time,
+            TestData.Sky(http, options),
             NullLogger<StationService>.Instance);
     }
 

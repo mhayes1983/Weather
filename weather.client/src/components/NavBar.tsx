@@ -2,8 +2,10 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { GearIcon, MenuIcon } from './icons';
 import NavDrawer from './NavDrawer';
 import RouteLink from './RouteLink';
+import { appName } from '../appBridge';
 import { isCurrent, navLinks } from '../navLinks';
 import type { Route } from '../useRoute';
+import { useSwipeMenu } from '../useSwipeMenu';
 
 interface NavBarProps {
     route: Route;
@@ -15,6 +17,7 @@ function NavBar({ route, onNavigate, settings }: NavBarProps) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuRoute, setMenuRoute] = useState(route);
     const closeMenu = useCallback(() => setMenuOpen(false), []);
+    useSwipeMenu(menuOpen, setMenuOpen);
 
     // Going back doesn't pass through the menu's links, but it shouldn't leave the menu open.
     if (route !== menuRoute) {
@@ -28,7 +31,7 @@ function NavBar({ route, onNavigate, settings }: NavBarProps) {
                 <button type="button" className="icon-button nav-menu-button" aria-label="Open menu" onClick={() => setMenuOpen(true)}>
                     <MenuIcon />
                 </button>
-                <span className="nav-name">Weather</span>
+                <span className="nav-name">{appName}</span>
 
                 <div className="nav-links">
                     {navLinks.map(link =>

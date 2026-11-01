@@ -28,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<StationLookup>();
         services.AddSingleton<StationService>();
         services.AddSingleton<StationLocator>();
+        services.AddSingleton<StationSky>();
         services.AddSingleton<NwsAlerts>();
         services.AddSingleton<AlertService>();
         services.AddSingleton<OpenMeteoOutlook>();

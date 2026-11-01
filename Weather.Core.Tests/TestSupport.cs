@@ -1,7 +1,9 @@
 using System.Net;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Weather.Core.Locations;
 using Weather.Core.Models;
+using Weather.Core.Station;
 
 namespace Weather.Core.Tests;
 
@@ -46,6 +48,12 @@ internal static class TestData
 
     public static LocationResolver Locations(IHttpClientFactory http, IOptions<WeatherOptions> options) =>
         new(http, new WeatherCache(), options);
+
+    public static StationSky Sky(IHttpClientFactory http, IOptions<WeatherOptions> options, WeatherCache? cache = null)
+    {
+        cache ??= new WeatherCache();
+        return new StationSky(new StationLocator(cache), http, cache, options, NullLogger<StationSky>.Instance);
+    }
 
     public static IOptions<WeatherOptions> Options(Action<WeatherOptions>? configure = null)
     {
