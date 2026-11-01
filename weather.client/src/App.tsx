@@ -2,14 +2,20 @@
 import { fetchStations, type StationSummary } from './api/station';
 import ErrorBoundary from './components/ErrorBoundary';
 import NavBar from './components/NavBar';
+import SettingsPanel from './components/SettingsPanel';
+import SiteFooter from './components/SiteFooter';
 import { homeStation, loadDefaultStation, saveDefaultStation } from './defaultStation';
 import AlertsPage from './pages/AlertsPage';
 import DailyForecastPage from './pages/DailyForecastPage';
 import ForecastDayPage from './pages/ForecastDayPage';
 import ForecastPage from './pages/ForecastPage';
+import HelpPage from './pages/HelpPage';
+import PrivacyPage from './pages/PrivacyPage';
 import StationPage from './pages/StationPage';
+import TermsPage from './pages/TermsPage';
 import { addSavedStation, loadSavedStations, removeSavedStation, watchSavedStations } from './savedStations';
-import type { Unit } from './temperature';
+import { loadUnit, saveUnit, type Unit } from './temperature';
+import { applyTheme, loadTheme, saveTheme, type Theme } from './theme';
 import { forecastDate, useRoute, type Route } from './useRoute';
 import './App.css';
 
@@ -21,11 +27,15 @@ const titles: Partial<Record<Route, string>> = {
     '/alerts': 'Weather Alerts',
     '/forecast': 'Forecast Comparison',
     '/radar': 'Weather Radar',
+    '/help': 'Help & About',
+    '/terms': 'Terms of Use',
+    '/privacy': 'Privacy Policy',
 };
 
 function App() {
     const [route, navigate] = useRoute();
-    const [unit, setUnit] = useState<Unit>('F');
+    const [unit, setUnit] = useState(loadUnit);
+    const [theme, setTheme] = useState(loadTheme);
     const [defaultStation, setDefaultStation] = useState(loadDefaultStation);
     const [station, setStation] = useState(defaultStation);
     const [savedStations, setSavedStations] = useState(loadSavedStations);
@@ -68,6 +78,17 @@ function App() {
         document.title = titles[route] ?? 'Daily Forecast';
     }, [route]);
 
+    function handleUnitChange(next: Unit) {
+        setUnit(next);
+        saveUnit(next);
+    }
+
+    function handleThemeChange(next: Theme) {
+        setTheme(next);
+        applyTheme(next);
+        saveTheme(next);
+    }
+
     function handleDefaultChange(id: string) {
         setDefaultStation(id);
         saveDefaultStation(id);
@@ -90,18 +111,36 @@ function App() {
         }
     }
 
+    const stationControls = {
+        selected: station,
+        onStationChange: setStation,
+        defaultStation,
+        onDefaultChange: handleDefaultChange,
+        savedStations,
+        onStationSaved: handleStationSaved,
+        onStationRemoved: handleStationRemoved,
+    };
+
     return (
         <>
-            <NavBar route={route} onNavigate={navigate} />
-            {route === '/' && <StationPage selected={station} onStationChange={setStation} defaultStation={defaultStation} onDefaultChange={handleDefaultChange} savedStations={savedStations} onStationSaved={handleStationSaved} onStationRemoved={handleStationRemoved} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
+            <NavBar
+                route={route}
+                onNavigate={navigate}
+                settings={<SettingsPanel theme={theme} onThemeChange={handleThemeChange} unit={unit} onUnitChange={handleUnitChange} />}
+            />
+            {route === '/' && <StationPage selected={station} stationControls={stationControls} unit={unit} onNavigate={navigate} />}
             {route === '/radar' &&
                 <ErrorBoundary message="The radar page couldn't be loaded.">
                     <Suspense fallback={<main><p>Loading radar…</p></main>}><RadarPage /></Suspense>
                 </ErrorBoundary>}
             {route === '/alerts' && <AlertsPage station={station} onNavigate={navigate} />}
-            {route === '/daily' && <DailyForecastPage station={station} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
-            {date && <ForecastDayPage date={date} station={station} unit={unit} onUnitChange={setUnit} onNavigate={navigate} />}
-            {forecastOpened && <ForecastPage hidden={route !== '/forecast'} unit={unit} onUnitChange={setUnit} />}
+            {route === '/daily' && <DailyForecastPage station={station} stationControls={stationControls} unit={unit} onNavigate={navigate} />}
+            {date && <ForecastDayPage date={date} station={station} unit={unit} onNavigate={navigate} />}
+            {forecastOpened && <ForecastPage hidden={route !== '/forecast'} unit={unit} />}
+            {route === '/help' && <HelpPage onNavigate={navigate} />}
+            {route === '/terms' && <TermsPage onNavigate={navigate} />}
+            {route === '/privacy' && <PrivacyPage onNavigate={navigate} />}
+            <SiteFooter onNavigate={navigate} />
         </>
     );
 }

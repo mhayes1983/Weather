@@ -1,13 +1,9 @@
 import { useEffect, useState } from 'react';
-import { fetchStation, fetchStations, type StationMatch, type StationReport, type StationSummary } from '../api/station';
+import { fetchStation, type StationReport } from '../api/station';
 import CurrentConditions from '../components/CurrentConditions';
 import StationChart from '../components/StationChart';
 import StationAlerts from '../components/StationAlerts';
-import StationLookup from '../components/StationLookup';
-import StationPicker from '../components/StationPicker';
-import UnitToggle from '../components/UnitToggle';
-import { homeStation } from '../defaultStation';
-import { maxSavedStations } from '../savedStations';
+import StationHeader, { type StationControls } from '../components/StationHeader';
 import { displayStationTemperature, type Unit } from '../temperature';
 import type { Route } from '../useRoute';
 
@@ -15,37 +11,22 @@ const refreshMs = 60_000;
 
 interface StationPageProps {
     selected: string;
-    onStationChange: (id: string) => void;
-    defaultStation: string;
-    onDefaultChange: (id: string) => void;
-    savedStations: StationSummary[];
-    onStationSaved: (station: StationSummary) => void;
-    onStationRemoved: (id: string) => void;
+    stationControls: StationControls;
     unit: Unit;
-    onUnitChange: (unit: Unit) => void;
     onNavigate: (route: Route) => void;
 }
 
-function StationPage({ selected, onStationChange, defaultStation, onDefaultChange, savedStations, onStationSaved, onStationRemoved, unit, onUnitChange, onNavigate }: StationPageProps) {
-    const [stationList, setStationList] = useState<StationSummary[]>();
+function StationPage({ selected, stationControls, unit, onNavigate }: StationPageProps) {
     const [report, setReport] = useState<StationReport>();
     const [error, setError] = useState<string>();
-    const stations = stationList ?? [];
+    const [shownStation, setShownStation] = useState(selected);
 
-    useEffect(() => {
-        const controller = new AbortController();
-
-        fetchStations(controller.signal)
-            .then(setStationList)
-            .catch(() => {
-                // The page still works for the home station without the list.
-                if (!controller.signal.aborted) {
-                    setStationList([{ id: homeStation, name: 'Home station' }]);
-                }
-            });
-
-        return () => controller.abort();
-    }, []);
+    // Clearing the report stops old readings appearing under the new station.
+    if (selected !== shownStation) {
+        setShownStation(selected);
+        setReport(undefined);
+        setError(undefined);
+    }
 
     useEffect(() => {
         const controller = new AbortController();
@@ -80,43 +61,6 @@ function StationPage({ selected, onStationChange, defaultStation, onDefaultChang
         };
     }, [selected]);
 
-    function handleStationChange(id: string) {
-        // Clearing the report stops old readings appearing under the new station.
-        setReport(undefined);
-        setError(undefined);
-        onStationChange(id);
-    }
-
-    function handleStationFound(match: StationMatch) {
-        if (!stations.some(station => station.id === match.id)) {
-            onStationSaved({ id: match.id, name: match.name });
-        }
-
-        if (match.id !== selected) {
-            handleStationChange(match.id);
-        }
-    }
-
-    function handleStationRemove() {
-        setReport(undefined);
-        setError(undefined);
-        onStationRemoved(selected);
-    }
-
-    const pickerStations = [
-        ...stations,
-        ...savedStations
-            .filter(saved => !stations.some(station => station.id === saved.id))
-            .map(saved => ({ id: saved.id, name: `${saved.name} (${saved.id})` })),
-    ];
-
-    // Without the list, a configured default still has to appear as the selected station.
-    if (!pickerStations.some(station => station.id === selected)) {
-        pickerStations.push({ id: selected, name: selected });
-    }
-
-    const canRemove = savedStations.some(saved => saved.id === selected) && !stations.some(station => station.id === selected);
-
     const current = report?.current;
     const history = report?.history ?? [];
     const times = history.map(point => point.time);
@@ -124,19 +68,12 @@ function StationPage({ selected, onStationChange, defaultStation, onDefaultChang
 
     return (
         <main>
-            <header>
+            <StationHeader {...stationControls}>
                 <h1>{current?.stationName ?? 'Weather Station'}</h1>
                 {current && <p className="location">Updated {new Date(current.observedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
-            </header>
+            </StationHeader>
 
             <StationAlerts station={selected} onNavigate={onNavigate} />
-
-            <div className="controls">
-                {stationList && pickerStations.length > 1 && <StationPicker stations={pickerStations} selected={selected} defaultStation={defaultStation} canRemove={canRemove} onChange={handleStationChange} onDefaultChange={onDefaultChange} onRemove={handleStationRemove} />}
-                <UnitToggle unit={unit} onChange={onUnitChange} />
-            </div>
-
-            <StationLookup ready={stationList !== undefined} full={savedStations.length >= maxSavedStations} onFound={handleStationFound} />
 
             {error && <p className="error" role="alert">{error}</p>}
             {!report && !error && <p>Loading station…</p>}

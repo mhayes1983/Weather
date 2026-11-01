@@ -1,24 +1,99 @@
 ﻿.nav-bar {
     position: relative;
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
-    gap: 4px 20px;
+    gap: 8px;
+    min-height: 34px;
     padding: 10px 16px;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
 }
 
-.theme-toggle {
+.nav-links {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 4px 20px;
+    /* Keeps the centred links clear of the gear. */
+    padding: 0 44px;
+}
+
+.nav-name {
+    font-weight: 600;
+    color: var(--text-strong);
+}
+
+.nav-bar .nav-name,
+.nav-menu-button {
+    display: none;
+}
+
+.icon {
+    display: block;
+    width: 22px;
+    height: 22px;
+}
+
+.icon-button {
+    padding: 6px;
+    color: var(--text-strong);
+    background: none;
+    border: 0;
+}
+
+.nav-settings-button {
     position: absolute;
     top: 50%;
-    right: 16px;
-    font-size: 0.85rem;
+    right: 12px;
     transform: translateY(-50%);
 }
 
-.theme-toggle button {
+.nav-settings-button .icon {
+    transition: transform 0.3s;
+}
+
+.nav-settings-button:hover .icon {
+    transform: rotate(45deg);
+}
+
+/* Absolute, so it scrolls away with the bar rather than staying fixed on the screen. */
+.settings-popover {
+    position: absolute;
+    inset: 60px 12px auto auto;
+    margin: 0;
+    padding: 12px 14px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px var(--overlay);
+}
+
+.settings-panel h2 {
+    margin: 0 0 8px;
+    font-size: 1rem;
+    color: var(--text-strong);
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    font-size: 0.9rem;
+}
+
+.settings-row + .settings-row {
+    margin-top: 8px;
+}
+
+.settings-row .unit-toggle {
+    font-size: 0.85rem;
+}
+
+.settings-row .unit-toggle button {
     padding: 3px 10px;
 }
 
@@ -30,25 +105,141 @@
     border-radius: 0;
 }
 
-/* The links are centred, so below this width the switch joins them and wraps with them. */
-@media (max-width: 960px) {
-    .theme-toggle {
-        position: static;
-        transform: none;
-    }
-}
-
-.nav-bar a {
+.nav-links a,
+.nav-drawer-links a {
     padding: 4px 2px;
     color: var(--text);
     text-decoration: none;
     border-bottom: 2px solid transparent;
 }
 
-.nav-bar a[aria-current='page'] {
+.nav-links a[aria-current='page'],
+.nav-drawer-links a[aria-current='page'] {
     color: var(--text-strong);
     font-weight: 600;
     border-bottom-color: var(--text-strong);
+}
+
+.nav-drawer {
+    width: min(280px, 85vw);
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    color: var(--text);
+    background: var(--surface);
+    border: 0;
+    border-right: 1px solid var(--border);
+}
+
+.nav-drawer[open] {
+    animation: drawer-in 0.2s ease-out;
+}
+
+.nav-drawer::backdrop {
+    background: var(--overlay);
+}
+
+@keyframes drawer-in {
+    from {
+        transform: translateX(-100%);
+    }
+}
+
+body:has(.nav-drawer[open]) {
+    overflow: hidden;
+}
+
+.nav-drawer-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    box-sizing: border-box;
+    min-height: 100%;
+    padding: 10px 16px 16px;
+}
+
+.nav-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.nav-drawer-links {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.nav-drawer-legal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    margin-top: auto;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+    .nav-links,
+    .nav-settings-button,
+    .settings-popover {
+        display: none;
+    }
+
+    .nav-bar .nav-name,
+    .nav-menu-button {
+        display: block;
+    }
+}
+
+@media (min-width: 721px) {
+    .nav-drawer {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nav-drawer[open] {
+        animation: none;
+    }
+
+    .nav-settings-button .icon {
+        transition: none;
+    }
+}
+
+.site-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 16px;
+    padding: 16px;
+    font-size: 0.85rem;
+}
+
+main.prose {
+    max-width: 70ch;
+}
+
+.prose h2 {
+    margin: 24px 0 6px;
+    font-size: 1.15rem;
+    color: var(--text-strong);
+}
+
+.prose p,
+.prose ul {
+    margin: 0 0 10px;
+}
+
+.prose ul {
+    padding-left: 22px;
+}
+
+.prose li + li {
+    margin-top: 4px;
 }
 
 main {
@@ -291,6 +482,73 @@ tbody tr:last-child td {
     opacity: 0.75;
 }
 
+.station-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.station-heading {
+    min-width: 0;
+}
+
+.station-change {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    font-size: 0.85rem;
+}
+
+.station-change .icon {
+    width: 15px;
+    height: 15px;
+}
+
+.station-change[aria-expanded='true'] {
+    color: var(--bg);
+    background: var(--text-strong);
+    border-color: var(--text-strong);
+}
+
+.station-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0 0 12px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.station-panel[hidden] {
+    display: none;
+}
+
+.station-panel select,
+.station-panel input {
+    background: var(--bg);
+}
+
+.station-panel .station-lookup {
+    margin: 0;
+}
+
+.station-panel .station-lookup label {
+    flex: 1;
+    max-width: 24em;
+}
+
+.station-panel .station-lookup input {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+}
+
 .station-picker,
 .station-picker label {
     display: flex;
@@ -509,6 +767,10 @@ a.daily-row:focus-visible {
     line-height: 1;
 }
 
+.daily-rain span {
+    white-space: nowrap;
+}
+
 .daily-low {
     text-align: right;
 }
@@ -678,6 +940,12 @@ a.daily-row:focus-visible {
 
 .day-sections p {
     margin: 0;
+}
+
+.day-sections .period-precip {
+    margin-top: 6px;
+    font-weight: 600;
+    color: var(--text-strong);
 }
 
 .collapsible-card summary {

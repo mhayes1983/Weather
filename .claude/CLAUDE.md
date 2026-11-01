@@ -1,6 +1,6 @@
 # Weather
 
-The home page (`/`) shows live readings and 24-hour charts from an Ambient Weather station. `/daily` shows the selected station's 16-day forecast, and `/daily/YYYY-MM-DD` shows one day's hourly detail. `/radar` shows a zoomable radar map. `/forecast` compares daily forecast highs from several sources in one 16-day table, highlighting days well above or below average. Default location is Topsham, ME (04086); any US ZIP works. The home page can also show other Weather Underground stations from a configured list. There is no database: station history comes from each station's source on each fetch.
+The home page (`/`) shows live readings and 24-hour charts from an Ambient Weather station. `/daily` shows the selected station's 16-day forecast, and both it and the home page switch station through `StationHeader`. `/daily/YYYY-MM-DD` shows one day's hourly detail. `/radar` shows a zoomable radar map. `/forecast` compares daily forecast highs from several sources in one 16-day table, highlighting days well above or below average. `/help`, `/terms` and `/privacy` are static pages. Settings (theme and °F/°C) opens from the gear in the top bar, or from the side menu at 720px and below. Default location is Topsham, ME (04086); any US ZIP works. The home page can also show other Weather Underground stations from a configured list. There is no database: station history comes from each station's source on each fetch.
 
 ## Layout
 
@@ -46,6 +46,8 @@ Runs on TrueNAS as a Docker custom app (`deploy/truenas-compose.yaml`). `.github
 - **Alerts never show last good data.** An old alert could be wrong, so a failed check says alerts are unavailable, which must never look like "no alerts". NWS and USNO only add detail, so their failures hide a section rather than the page.
 - **The home station stays on Ambient Weather.** Weather Underground is only for the other stations in `Stations`. It updates less often, reports less and has a shared quota.
 - **Colours follow the device by default.** Auto sets no attribute on `<html>`, so `index.css` uses `prefers-color-scheme`. Light and Dark set `data-theme`, and the choice is saved in that browser's `localStorage`. Any new colour needs defining for both themes, and dark values live in two blocks of `index.css` that must stay identical.
+- **The temperature unit stays in that browser.** It's saved in `localStorage` and set only in Settings, not on individual pages.
+- **The Help and Privacy pages describe what the site does.** Adding a data source, anything stored in the browser, or a host the browser calls directly means updating them, and changing `PrivacyPage` or `TermsPage` means updating its effective date.
 - **A browser's default station stays in that browser.** It's saved in `localStorage` and sets which station every page starts on, with no accounts or server storage. The home station is the fallback, including when a saved station is no longer configured.
 - **Keys go in .NET user-secrets**, never in `appsettings.json`, the repo or chat.
 - **All caching is in memory.** Don't add a database or disk storage for forecasts.
@@ -56,8 +58,9 @@ Runs on TrueNAS as a Docker custom app (`deploy/truenas-compose.yaml`). `.github
 2. Register it in `ServiceCollectionExtensions.cs`, in the position you want the column.
 3. Add tests to `SourceTests.cs` using a stubbed response.
 4. If it needs a key, return `SourceResult.NeedsKey()` when none is set, and add its options to `WeatherOptions`.
+5. Add it to the data sources on `HelpPage.tsx` and `PrivacyPage.tsx`.
 
-The client needs no changes; columns come from the API.
+The table needs no client changes; columns come from the API.
 
 ## Source quirks
 
@@ -71,9 +74,9 @@ The client needs no changes; columns come from the API.
 - **Ambient Weather:** needs both an `apiKey` and an `applicationKey`. It allows 1 request a second per key and returns 429 above that, so `AmbientWeatherStation` runs calls one at a time with a gap. History comes in 5-minute steps and can lag by up to 10 minutes. `hourlyrainin` is a rate in in/hr, not an hourly total.
 - **Station lookup:** `/v3/location/near?postalKey=ZIP:US&product=pws` returns the 10 nearest stations in parallel arrays. Its `updateTimeUtc` doesn't show when a station last reported: stations hours old by that value had readings from minutes ago. `StationLookup` ignores it and checks `/current` nearest first, through `StationService`'s cache, taking the first with a temperature and a reading from the last hour, because some send only a reading or two. A station with an unreadable reading or its own 4xx is skipped, but 401, 403 and 429 stop the scan because every other station would fail too. That's up to 11 calls for an uncached ZIP, and the result is cached for an hour. An unknown ID and a silent station both return an empty body from `/current`, so they can't be told apart.
 - **Weather Underground stations:** the PWS key reads any station ID, through `/v2/pws/observations/current` and `/all/1day`. Limits are reported as 1,500 calls a day and 30 a minute, shared with the WU forecast column, which is why results are cached for 5 and 15 minutes and nothing polls in the background. A station silent for an hour returns an empty body. History covers the current local day, not 24 hours. Many stations have no UV or solar readings, and some have no rain gauge.
-- **Open-Meteo Daily Forecast:** `timezone=auto` applies today's UTC offset to the whole range, so `OpenMeteoOutlook` corrects times after a clock change. Daily totals still follow that fixed offset, so they can be an hour out on those days.
+- **Open-Meteo Daily Forecast:** `precipitation` is liquid equivalent, including melted snow, while `snowfall` is depth, and `precipitation_unit=inch` returns both in inches. `timezone=auto` applies today's UTC offset to the whole range, so `OpenMeteoOutlook` corrects times after a clock change. Daily totals still follow that fixed offset, so they can be an hour out on those days.
 - **NWS alerts:** `/alerts/active?point=` with `status=actual&message_type=alert,update`. `limit` returns 400 on that endpoint. Times are in the alert area's local time, so they're shown as issued. Severity can be missing. `expires` is when the message lapses, not when the event ends, so it's never shown as an end time or used to hide an alert.
-- **NWS descriptions:** about 7 days, so later days have none. A night period starting after midnight belongs to the previous date.
+- **NWS descriptions:** about 7 days, so later days have none. A night period starting after midnight belongs to the previous date. The precipitation shown with a description comes from Open-Meteo's hours for 6am to 6pm or 6pm to 6am, skipping past hours, so it can differ from the day's total.
 - **USNO moon data:** the moon doesn't rise or set every day, so either time can be missing. The `tz` value is for that date, with `dst=false`.
 - **Radar:** the browser calls NOAA's `conus_bref_qcd` WMS and OpenStreetMap's tiles directly, so there's no server code. `GetCapabilities` lists about 60 scans over two hours, and the page uses the first scan of each ten-minute slot plus the newest, so frames stay stable as scans arrive. OpenStreetMap's tile policy requires its attribution to stay visible and suits light use only.
 - **AccuWeather:** removed on purpose. Its API has no lasting free tier and its website blocks automated requests. Don't scrape it, or Weather Underground's pages.

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { fetchDailyForecast, type DailyForecastReport, type ForecastDay } from '../api/dailyForecast';
 import RouteLink from '../components/RouteLink';
-import UnitToggle from '../components/UnitToggle';
+import StationHeader, { type StationControls } from '../components/StationHeader';
 import { formatDate } from '../localTime';
+import { snowAmount } from '../precipitation';
 import { displayTemperature, type Unit } from '../temperature';
 import type { Route } from '../useRoute';
 import { weatherIcon } from '../weatherIcons';
@@ -10,14 +11,22 @@ import { compass } from '../wind';
 
 interface DailyForecastPageProps {
     station: string;
+    stationControls: StationControls;
     unit: Unit;
-    onUnitChange: (unit: Unit) => void;
     onNavigate: (route: Route) => void;
 }
 
-function DailyForecastPage({ station, unit, onUnitChange, onNavigate }: DailyForecastPageProps) {
+function DailyForecastPage({ station, stationControls, unit, onNavigate }: DailyForecastPageProps) {
     const [report, setReport] = useState<DailyForecastReport>();
     const [error, setError] = useState<string>();
+    const [shownStation, setShownStation] = useState(station);
+
+    // Clearing the report stops the old forecast appearing under the new station.
+    if (station !== shownStation) {
+        setShownStation(station);
+        setReport(undefined);
+        setError(undefined);
+    }
 
     useEffect(() => {
         const controller = new AbortController();
@@ -51,6 +60,7 @@ function DailyForecastPage({ station, unit, onUnitChange, onNavigate }: DailyFor
         const low = day.lowF ?? day.highF ?? coldest;
         const high = day.highF ?? day.lowF ?? coldest;
         const direction = compass(day.windDirectionDegrees);
+        const snow = snowAmount(day.snowIn);
 
         return (
             <>
@@ -61,7 +71,8 @@ function DailyForecastPage({ station, unit, onUnitChange, onNavigate }: DailyFor
                 <span className="daily-conditions">{day.conditions}</span>
                 <span className="daily-rain">
                     {day.precipChancePercent ?? '—'}%
-                    {day.precipIn !== null && day.precipIn > 0 && <> · {day.precipIn.toFixed(2)} in</>}
+                    {day.precipIn !== null && day.precipIn > 0 && <> · <span>{day.precipIn.toFixed(2)} in</span></>}
+                    {snow && <> · <span>{snow} snow</span></>}
                 </span>
                 <span className="daily-low">{temperature(day.lowF)}</span>
                 <span className="daily-range" aria-hidden="true">
@@ -80,17 +91,10 @@ function DailyForecastPage({ station, unit, onUnitChange, onNavigate }: DailyFor
 
     return (
         <main>
-            <header>
+            <StationHeader {...stationControls}>
                 <h1>Daily Forecast</h1>
-                {report &&
-                    <p className="location">
-                        {report.stationName} · <RouteLink route="/" onNavigate={onNavigate}>Change station</RouteLink>
-                    </p>}
-            </header>
-
-            <div className="controls">
-                <UnitToggle unit={unit} onChange={onUnitChange} />
-            </div>
+                {report && <p className="location">{report.stationName}</p>}
+            </StationHeader>
 
             {error && <p className="error" role="alert">{error}</p>}
             {!report && !error && <p>Loading forecast…</p>}
