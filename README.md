@@ -170,15 +170,15 @@ To add a forecast source, implement `IForecastSource` in `Weather.Core/Sources` 
 
 The `zip` value is optional and defaults to Topsham. All temperatures are in °F. It returns 400 for a badly formatted ZIP code and 404 for one that doesn't exist.
 
-`GET /api/daily-forecast?station=KMESCARB25`
+`GET /api/daily-forecast?station=KMESCARB113`
 
 Returns the station's 16-day forecast. The `station` value is optional and defaults to your home station. It returns 404 for a badly formed station ID.
 
-`GET /api/daily-forecast/2026-11-02?station=KMESCARB25`
+`GET /api/daily-forecast/2026-11-02?station=KMESCARB113`
 
 Returns one day's hourly forecast, description, sun and moon data, and the previous and next days that can be opened. It returns 404 when that day isn't in the forecast or has no hourly data, and 503 when the forecast can't be loaded. Times are the station's local time.
 
-`GET /api/alerts?station=KMESCARB25`
+`GET /api/alerts?station=KMESCARB113`
 
 Returns the station's active alerts, most severe first. The `station` value is optional and defaults to your home station. It returns 404 for a badly formed station ID.
 
@@ -190,7 +190,7 @@ Finds a station by ZIP code or ID. It returns 400 for a badly formed value, 404 
 
 Lists the stations for the dropdown, with your home station first.
 
-`GET /api/station?id=KMESCARB25`
+`GET /api/station?id=KMESCARB113`
 
 Returns a station's current readings and history. The `id` value is optional and defaults to your home station. All temperatures are in °F. It returns 404 for a badly formed station ID.
 

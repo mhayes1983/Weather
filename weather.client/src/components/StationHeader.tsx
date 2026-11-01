@@ -41,12 +41,6 @@ function StationHeader({ selected, onStationChange, defaultStation, onDefaultCha
         return () => controller.abort();
     }, []);
 
-    function handleStationPicked(id: string) {
-        setOpen(false);
-        onStationChange(id);
-    }
-
-    // The panel stays open here so the lookup's result stays on screen.
     function handleStationFound(match: StationMatch) {
         if (!stations.some(station => station.id === match.id)) {
             onStationSaved({ id: match.id, name: match.name });
@@ -81,9 +75,10 @@ function StationHeader({ selected, onStationChange, defaultStation, onDefaultCha
                 </button>
             </header>
 
-            {/* Hidden rather than removed, so closing it doesn't cancel a lookup. */}
+            {/* Only the button closes this, because a list changes with each arrow key press. It's hidden
+                rather than removed, so closing it doesn't cancel a lookup. */}
             <div id={panelId} className="station-panel" hidden={!open}>
-                {stationList && pickerStations.length > 1 && <StationPicker stations={pickerStations} selected={selected} defaultStation={defaultStation} canRemove={canRemove} onChange={handleStationPicked} onDefaultChange={onDefaultChange} onRemove={() => onStationRemoved(selected)} />}
+                {stationList && pickerStations.length > 1 && <StationPicker stations={pickerStations} selected={selected} defaultStation={defaultStation} canRemove={canRemove} onChange={onStationChange} onDefaultChange={onDefaultChange} onRemove={() => onStationRemoved(selected)} />}
                 <StationLookup ready={stationList !== undefined} full={savedStations.length >= maxSavedStations} onFound={handleStationFound} />
             </div>
         </>

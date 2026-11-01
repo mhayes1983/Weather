@@ -13,7 +13,14 @@ interface NavBarProps {
 
 function NavBar({ route, onNavigate, settings }: NavBarProps) {
     const [menuOpen, setMenuOpen] = useState(false);
+    const [menuRoute, setMenuRoute] = useState(route);
     const closeMenu = useCallback(() => setMenuOpen(false), []);
+
+    // Going back doesn't pass through the menu's links, but it shouldn't leave the menu open.
+    if (route !== menuRoute) {
+        setMenuRoute(route);
+        setMenuOpen(false);
+    }
 
     return (
         <>

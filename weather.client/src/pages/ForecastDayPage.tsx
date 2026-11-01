@@ -204,7 +204,7 @@ function ForecastDayPage({ date, station, unit, onNavigate }: ForecastDayPagePro
                                         <td>{temperature(hour.feelsLikeF)}</td>
                                         <td>{percent(hour.precipChancePercent)}</td>
                                         <td>{hour.precipIn === null ? missing : `${hour.precipIn.toFixed(2)} in`}</td>
-                                        {hasSnow && <td>{snowAmount(hour.snowIn) ?? missing}</td>}
+                                        {hasSnow && <td>{hour.snowIn === null ? missing : `${hour.snowIn.toFixed(1)} in`}</td>}
                                         <td>{percent(hour.cloudCoverPercent)}</td>
                                         <td>{temperature(hour.dewPointF)}</td>
                                         <td>{percent(hour.humidityPercent)}</td>
