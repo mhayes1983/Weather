@@ -70,7 +70,7 @@ public sealed class AppHost(SettingsStore store)
 
         for (var i = 0; i < DefaultStations.Count; i++)
         {
-            if (!selected.Contains(DefaultStations[i].Id))
+            if (!selected.Contains(DefaultStations[i].Id, StringComparer.OrdinalIgnoreCase))
             {
                 overrides[$"Stations:{i}:Id"] = "";
             }

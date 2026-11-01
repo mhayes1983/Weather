@@ -25,6 +25,9 @@ jobs:
       - run: dotnet workload install maui-android
       - run: npm ci
         working-directory: weather.client
+      - run: npm test
+        working-directory: weather.client
+      - run: dotnet test Weather.Core.Tests/Weather.Core.Tests.csproj
       - name: Restore signing key
         shell: pwsh
         env:

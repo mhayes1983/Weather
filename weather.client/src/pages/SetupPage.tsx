@@ -8,7 +8,9 @@ import {
     type KeyCheckResult,
     type SetupState,
 } from '../appBridge';
-import { homeStation, saveDefaultStation } from '../defaultStation';
+import { homeStation, loadDefaultStation, saveDefaultStation } from '../defaultStation';
+import { loadSavedStations } from '../savedStations';
+import { defaultAfterSetup, defaultStationChoices } from '../setupDefault';
 
 const steps = ['Location', 'Weather Underground', 'Ambient Weather', 'Stations', 'Finish'] as const;
 const stationIdPattern = /^[A-Za-z0-9]{3,32}$/;
@@ -70,7 +72,7 @@ function SetupPage() {
     const [selected, setSelected] = useState<string[]>([]);
     const [addedStations, setAddedStations] = useState<string[]>([]);
     const [newStation, setNewStation] = useState('');
-    const [defaultStation, setDefaultStation] = useState(homeStation);
+    const [defaultStation, setDefaultStation] = useState(loadDefaultStation);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string>();
 
@@ -97,6 +99,8 @@ function SetupPage() {
     const ambientHalfEntered = (ambientApiKey.trim() === '') !== (ambientApplicationKey.trim() === '');
     const stations = [...state.stations, ...addedStations.map(id => ({ id, name: id, selected: true }))];
     const chosenStations = usesWeatherUnderground ? stations.filter(station => selected.includes(station.id)) : [];
+    const defaultChoices = defaultStationChoices(chosenStations, loadSavedStations(), usesWeatherUnderground);
+    const nextDefault = defaultAfterSetup(defaultStation, defaultChoices);
 
     function handleToggle(id: string) {
         setSelected(selected.includes(id) ? selected.filter(other => other !== id) : [...selected, id]);
@@ -110,12 +114,14 @@ function SetupPage() {
         }
 
         setError(undefined);
-        if (!stations.some(station => station.id === id)) {
+        const existing = stations.find(station => station.id.toLowerCase() === id.toLowerCase());
+        if (!existing) {
             setAddedStations([...addedStations, id]);
         }
 
-        if (!selected.includes(id)) {
-            setSelected([...selected, id]);
+        const chosenId = existing?.id ?? id;
+        if (!selected.includes(chosenId)) {
+            setSelected([...selected, chosenId]);
         }
 
         setNewStation('');
@@ -143,7 +149,7 @@ function SetupPage() {
         })
             .then(result => {
                 if (result.ok) {
-                    saveDefaultStation(chosenStations.some(station => station.id === defaultStation) ? defaultStation : homeStation);
+                    saveDefaultStation(nextDefault);
 
                     // A full reload drops everything loaded under the old keys and stations.
                     window.location.replace('/');
@@ -256,12 +262,12 @@ function SetupPage() {
                             <li>Weather Underground: {usesWeatherUnderground ? `${chosenStations.length} stations and the forecast column` : 'not used'}</li>
                             <li>Forecasts, alerts and radar work with or without keys</li>
                         </ul>
-                        {chosenStations.length > 0 &&
+                        {defaultChoices.length > 0 &&
                             <label className="setup-field">
                                 Default station
-                                <select value={defaultStation} onChange={event => setDefaultStation(event.target.value)}>
+                                <select value={nextDefault} onChange={event => setDefaultStation(event.target.value)}>
                                     <option value={homeStation}>Home station</option>
-                                    {chosenStations.map(station => <option key={station.id} value={station.id}>{station.name}</option>)}
+                                    {defaultChoices.map(station => <option key={station.id} value={station.id}>{station.name}</option>)}
                                 </select>
                             </label>}
                     </>}

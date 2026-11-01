@@ -108,6 +108,17 @@ function routeApiCalls() {
     };
 }
 
+// A page from another site would load inside the app, with no way back and access to the bridge.
+function openLinksInBrowser() {
+    document.addEventListener('click', event => {
+        const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+        if (link instanceof HTMLAnchorElement && link.origin !== window.location.origin) {
+            event.preventDefault();
+            void window.HybridWebView.InvokeDotNet('OpenLink', [link.href]);
+        }
+    }, true);
+}
+
 // The Back button: close the menu, then go back a page, then leave the app.
 function handleBack() {
     const dialog = document.querySelector<HTMLDialogElement>('dialog[open]');
@@ -127,6 +138,7 @@ function handleBack() {
 export async function startAppBridge() {
     await loadBridgeScript();
     routeApiCalls();
+    openLinksInBrowser();
     window.__appBack = handleBack;
     setupState = await getSetupState();
 }

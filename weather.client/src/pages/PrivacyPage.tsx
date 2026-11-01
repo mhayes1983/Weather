@@ -43,7 +43,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 passed on to these services:
             </p>
             <ul>
-                <li>Open-Meteo: forecasts and modelled conditions for a ZIP code</li>
+                <li>Open-Meteo: forecasts, and modelled conditions for a ZIP code or a station's location</li>
                 <li>National Weather Service: forecasts and alerts</li>
                 <li>Weather Underground: forecasts, station readings and station search</li>
                 <li>Ambient Weather: home station readings</li>

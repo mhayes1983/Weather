@@ -55,6 +55,14 @@ public sealed class AppBridge(AppHost host, SettingsStore store)
     public async Task<string> CheckAmbientWeather(string apiKey, string applicationKey) =>
         (await host.Get<KeyCheck>().CheckAmbientWeatherAsync(apiKey.Trim(), applicationKey.Trim())).ToString();
 
+    public async Task OpenLink(string url)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps)
+        {
+            await Launcher.Default.OpenAsync(uri);
+        }
+    }
+
     public async Task<string> SaveSetup(string json)
     {
         var result = await SaveAsync(JsonSerializer.Deserialize(json, AppJson.Default.SetupRequest)!);
@@ -92,10 +100,9 @@ public sealed class AppBridge(AppHost host, SettingsStore store)
         await store.SetKeyAsync(SettingsStore.AmbientApiKey, request.AmbientApiKey);
         await store.SetKeyAsync(SettingsStore.AmbientApplicationKey, request.AmbientApplicationKey);
 
-        var defaults = host.DefaultStations.Select(station => station.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var ids = request.StationIds.Where(StationDirectory.IsValidId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var (defaults, added) = StationSelection.Split(request.StationIds, host.DefaultStations.Select(station => station.Id));
 
-        store.Save(new AppSettings(location, [.. ids.Where(defaults.Contains)], [.. ids.Where(id => !defaults.Contains(id))]));
+        store.Save(new AppSettings(location, defaults, added));
         await host.LoadAsync();
 
         return new SetupResult(true, null);

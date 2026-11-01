@@ -187,6 +187,10 @@ Returns the station's active alerts, most severe first. The `station` value is o
 
 Finds a station by ZIP code or ID. It returns 400 for a badly formed value, 404 when nothing has reported in the last hour, and 503 when Weather Underground can't be reached or no key is set.
 
+`GET /api/stations/lookup?q=04086&source=open-meteo`
+
+Returns an Open-Meteo station for a ZIP code, with an ID such as `om-04086`. It needs no key and makes no Weather Underground calls. It returns 400 for a badly formed ZIP code, 404 for an unknown one, and 503 when the ZIP code can't be checked.
+
 `GET /api/stations`
 
 Lists the stations for the dropdown, with your home station first.
@@ -194,6 +198,8 @@ Lists the stations for the dropdown, with your home station first.
 `GET /api/station?id=KMESCARB113`
 
 Returns a station's current readings and history. The `id` value is optional and defaults to your home station. All temperatures are in °F. It returns 404 for a badly formed station ID.
+
+`modelled` is true when the values come from Open-Meteo rather than a station, and `historyMaxGapMinutes` is the longest gap between history points that charts should join. `sky` holds Open-Meteo's `conditions` and `icon` for the station's location, or null when they aren't available.
 
 ## Planned
 

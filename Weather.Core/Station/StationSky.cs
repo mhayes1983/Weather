@@ -24,8 +24,9 @@ public sealed class StationSky(
             $"station-sky:{station.Id}",
             async () =>
             {
-                // The result is shared through the cache, so this has its own timeout.
-                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(options.Value.SourceTimeoutSeconds));
+                // The result is shared through the cache, so this has its own timeout. It's short
+                // because the station's report waits for it, and the sky is only a description.
+                using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(options.Value.OpenMeteoStations.SkyTimeoutMilliseconds));
                 try
                 {
                     var location = await locator.GetAsync(station, timeout.Token);

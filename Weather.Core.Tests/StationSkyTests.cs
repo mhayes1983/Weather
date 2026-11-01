@@ -73,6 +73,64 @@ public class StationSkyTests
         Assert.Null(report.Sky);
     }
 
+    private sealed class SlowSky : HttpMessageHandler, IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name) => new(this, disposeHandler: false);
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (AsksForSky(request))
+            {
+                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Station(TestData.Now)) };
+        }
+    }
+
+    [Fact]
+    public async Task SlowSkyDoesNotHoldUpTheReport()
+    {
+        var http = new SlowSky();
+        var options = TestData.Options(settings => settings.OpenMeteoStations.SkyTimeoutMilliseconds = 50);
+        var time = new FixedTime(TestData.Now);
+        var cache = new WeatherCache();
+        var service = new StationService(
+            new StationDirectory([], http, options, TestData.Locations(http, options), time),
+            cache,
+            options,
+            time,
+            TestData.Sky(http, options, cache),
+            NullLogger<StationService>.Instance);
+
+        var report = await service.GetReportAsync(Id).WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(StationStatus.Ok, report!.Status);
+        Assert.Null(report.Sky);
+    }
+
+    [Theory]
+    [InlineData("kmebruns32", "KMEBRUNS32")]
+    [InlineData("KMEBRUNS32", "KMEBRUNS32")]
+    public void TypedDefaultsTakeTheirConfiguredSpelling(string typed, string expected)
+    {
+        var (defaults, added) = StationSelection.Split([typed], ["KMEBRUNS32", "KMEBANGO86"]);
+
+        Assert.Equal([expected], defaults);
+        Assert.Empty(added);
+    }
+
+    [Fact]
+    public void SelectionDropsDuplicatesAndBadIdsAndKeepsAddedStations()
+    {
+        var (defaults, added) = StationSelection.Split(
+            ["KMEBRUNS32", "kmebruns32", "not/valid", "KOTHER1", "kother1"],
+            ["KMEBRUNS32"]);
+
+        Assert.Equal(["KMEBRUNS32"], defaults);
+        Assert.Equal(["KOTHER1"], added);
+    }
+
     [Fact]
     public async Task OfflineStationHasNoSky()
     {

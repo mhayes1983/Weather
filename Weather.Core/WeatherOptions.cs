@@ -47,6 +47,7 @@ public sealed class OpenMeteoStationOptions
     public int CurrentCacheMinutes { get; set; } = 15;
     public int HistoryCacheMinutes { get; set; } = 60;
     public int OfflineAfterMinutes { get; set; } = 180;
+    public int SkyTimeoutMilliseconds { get; set; } = 3000;
 }
 
 public sealed class AmbientWeatherOptions

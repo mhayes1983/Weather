@@ -16,7 +16,9 @@ function render() {
 }
 
 if (import.meta.env.MODE === 'app') {
-  void startAppBridge().then(render)
+  void startAppBridge().then(render, () => {
+    document.getElementById('root')!.textContent = "The app couldn't start. Close it and try again."
+  })
 } else {
   render()
 }
