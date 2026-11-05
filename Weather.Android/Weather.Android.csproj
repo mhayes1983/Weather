@@ -21,6 +21,10 @@
     <!-- HybridWebView reads what the client sends with reflection. -->
     <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
+
+    <!-- The app has no MAUI stylesheets. The default glob would embed the client's CSS as one, and because it
+         runs before BuildWeatherClient, a changed CSS hash breaks the build on the deleted file. -->
+    <EnableDefaultCssItems>false</EnableDefaultCssItems>
   </PropertyGroup>
 
   <ItemGroup>
