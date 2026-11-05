@@ -16,7 +16,7 @@ public sealed class WeatherUndergroundSource(
 
     public bool AppliesTo(ForecastLocation location) => true;
 
-    public async Task<SourceResult> GetDailyHighsAsync(ForecastLocation location, CancellationToken cancellationToken)
+    public async Task<SourceResult> GetDailyTemperaturesAsync(ForecastLocation location, CancellationToken cancellationToken)
     {
         var settings = options.Value.WeatherUnderground;
         if (string.IsNullOrWhiteSpace(settings.ApiKey))
@@ -31,15 +31,18 @@ public sealed class WeatherUndergroundSource(
 
         var dates = document.RootElement.GetProperty("validTimeLocal");
         var highs = document.RootElement.GetProperty("calendarDayTemperatureMax");
+        var lows = document.RootElement.GetProperty("calendarDayTemperatureMin");
 
-        var results = new List<DailyHigh>();
+        var results = new List<DailyTemperatures>();
         for (var i = 0; i < dates.GetArrayLength(); i++)
         {
-            if (highs[i].ValueKind == JsonValueKind.Number)
+            int? high = highs[i].ValueKind == JsonValueKind.Number ? highs[i].GetInt32() : null;
+            int? low = lows[i].ValueKind == JsonValueKind.Number ? lows[i].GetInt32() : null;
+            if (high is not null || low is not null)
             {
                 // Dates look like 2026-10-30T07:00:00-0400.
                 var date = DateOnly.ParseExact(dates[i].GetString()![..10], "yyyy-MM-dd", CultureInfo.InvariantCulture);
-                results.Add(new DailyHigh(date, highs[i].GetInt32()));
+                results.Add(new DailyTemperatures(date, high, low));
             }
         }
 

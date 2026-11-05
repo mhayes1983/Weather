@@ -17,7 +17,7 @@ public class ForecastTableServiceTests
         public TimeSpan CacheDuration { get; init; } = TimeSpan.FromMinutes(30);
         public bool AppliesTo(ForecastLocation location) => applies;
 
-        public Task<SourceResult> GetDailyHighsAsync(ForecastLocation location, CancellationToken cancellationToken)
+        public Task<SourceResult> GetDailyTemperaturesAsync(ForecastLocation location, CancellationToken cancellationToken)
         {
             Calls++;
             return Task.FromResult(fetch());
@@ -33,13 +33,17 @@ public class ForecastTableServiceTests
                 throw new HttpRequestException("Down");
             }
 
-            var highs = Enumerable.Range(0, end.DayNumber - start.DayNumber + 1)
-                .ToDictionary(start.AddDays, _ => 53);
-            return Task.FromResult(new ClimateNormals("BRUNSWICK", highs));
+            var days = Enumerable.Range(0, end.DayNumber - start.DayNumber + 1).Select(start.AddDays).ToList();
+            return Task.FromResult(new ClimateNormals(
+                "BRUNSWICK",
+                days.ToDictionary(day => day, _ => 53),
+                days.ToDictionary(day => day, _ => 36)));
         }
     }
 
-    private static SourceResult HighToday(int high) => SourceResult.Ok([new DailyHigh(Today, high)], TestData.Now);
+    private static SourceResult HighToday(int high) => SourceResult.Ok([new DailyTemperatures(Today, high, null)], TestData.Now);
+
+    private static SourceResult ForecastToday(int? high, int? low) => SourceResult.Ok([new DailyTemperatures(Today, high, low)], TestData.Now);
 
     private static ForecastTableService CreateService(
         IEnumerable<IForecastSource> sources,
@@ -69,9 +73,24 @@ public class ForecastTableServiceTests
         Assert.Equal(16, table.Rows.Count);
         Assert.Equal(Today, table.Rows[0].Date);
         Assert.Equal(Today.AddDays(15), table.Rows[^1].Date);
-        Assert.Equal(new ForecastCell(60, Anomaly.Above), table.Rows[0].Cells["gfs"]);
+        Assert.Equal(new ForecastCell(60, Anomaly.Above, null, Anomaly.None), table.Rows[0].Cells["gfs"]);
         Assert.Empty(table.Rows[1].Cells);
-        Assert.Equal(new AverageHigh(53, 53, "BRUNSWICK"), table.AverageHigh);
+        Assert.Equal(new AverageRange(53, 53, "BRUNSWICK"), table.AverageHigh);
+        Assert.Equal(new AverageRange(36, 36, "BRUNSWICK"), table.AverageLow);
+    }
+
+    [Fact]
+    public async Task HighlightsLowsAgainstTheAverageLow()
+    {
+        var table = await CreateService(
+        [
+            new FakeSource("cold", () => ForecastToday(53, 29)),
+            new FakeSource("mild", () => ForecastToday(null, 42)),
+        ]).GetAsync("04086");
+
+        Assert.Equal(new ForecastCell(53, Anomaly.None, 29, Anomaly.Below), table.Rows[0].Cells["cold"]);
+        Assert.Equal(new ForecastCell(null, Anomaly.None, 42, Anomaly.Above), table.Rows[0].Cells["mild"]);
+        Assert.Equal(36, table.Rows[0].AverageLowF);
     }
 
     [Fact]
@@ -136,8 +155,9 @@ public class ForecastTableServiceTests
     {
         var table = await CreateService([new FakeSource("gfs", () => HighToday(90))], new FakeNormals(fails: true)).GetAsync("04086");
 
-        Assert.Equal(new ForecastCell(90, Anomaly.None), table.Rows[0].Cells["gfs"]);
+        Assert.Equal(new ForecastCell(90, Anomaly.None, null, Anomaly.None), table.Rows[0].Cells["gfs"]);
         Assert.Null(table.AverageHigh);
+        Assert.Null(table.AverageLow);
         Assert.NotNull(table.AverageMessage);
     }
 

@@ -1,10 +1,12 @@
 import { useRef, useState, type PointerEvent } from 'react';
-import type { Anomaly, ForecastColumn, ForecastRow } from '../api/forecast';
+import type { Anomaly, ForecastCell, ForecastColumn, ForecastRow } from '../api/forecast';
+import { measureLabels, type Measure } from '../measures';
 import { displayTemperature, type Unit } from '../temperature';
 
 interface ForecastTableProps {
     columns: ForecastColumn[];
     rows: ForecastRow[];
+    measures: Measure[];
     unit: Unit;
     onMoveColumn: (id: string, before: string | null) => void;
 }
@@ -25,6 +27,12 @@ const anomalyClasses: Record<Anomaly, string | undefined> = {
     Below: 'anomaly-below',
 };
 
+function measureValue(cell: ForecastCell, measure: Measure) {
+    return measure === 'high'
+        ? { valueF: cell.highF, anomaly: cell.highAnomaly }
+        : { valueF: cell.lowF, anomaly: cell.lowAnomaly };
+}
+
 function formatDate(date: string) {
     const [year, month, day] = date.split('-').map(Number);
     const value = new Date(year, month - 1, day);
@@ -39,6 +47,14 @@ function columnTitle(column: ForecastColumn) {
         ? null
         : `Updated ${new Date(column.fetchedAt).toLocaleString()}`;
     return [column.message, updated].filter(Boolean).join('. ');
+}
+
+function averageTitle(row: ForecastRow, unit: Unit) {
+    const parts = [
+        row.averageHighF === null ? null : `high ${displayTemperature(row.averageHighF, unit)}°${unit}`,
+        row.averageLowF === null ? null : `low ${displayTemperature(row.averageLowF, unit)}°${unit}`,
+    ].filter(Boolean);
+    return parts.length === 0 ? undefined : `Average ${parts.join(', ')}`;
 }
 
 function findDropTarget(headerRow: HTMLTableRowElement, id: string, x: number) {
@@ -56,7 +72,7 @@ function findDropTarget(headerRow: HTMLTableRowElement, id: string, x: number) {
     return before === next ? undefined : before;
 }
 
-function ForecastTable({ columns, rows, unit, onMoveColumn }: ForecastTableProps) {
+function ForecastTable({ columns, rows, measures, unit, onMoveColumn }: ForecastTableProps) {
     const headerRow = useRef<HTMLTableRowElement>(null);
     const [drag, setDrag] = useState<ColumnDrag>();
 
@@ -80,17 +96,19 @@ function ForecastTable({ columns, rows, unit, onMoveColumn }: ForecastTableProps
         setDrag(undefined);
     }
 
-    function columnClass(column: ForecastColumn, index: number) {
-        if (!drag?.moved) {
-            return undefined;
+    // Each source spans one cell per measure, so the drop markers go on its outer edges.
+    function columnClasses(column: ForecastColumn, index: number, first: boolean, last: boolean) {
+        const classes = first ? ['group-start'] : [];
+        if (drag?.moved) {
+            if (column.id === drag.id) {
+                classes.push('column-dragging');
+            } else if (column.id === drag.dropBefore && first) {
+                classes.push('drop-before');
+            } else if (drag.dropBefore === null && index === columns.length - 1 && last) {
+                classes.push('drop-after');
+            }
         }
-        if (column.id === drag.id) {
-            return 'column-dragging';
-        }
-        if (column.id === drag.dropBefore) {
-            return 'drop-before';
-        }
-        return drag.dropBefore === null && index === columns.length - 1 ? 'drop-after' : undefined;
+        return classes;
     }
 
     return (
@@ -98,12 +116,13 @@ function ForecastTable({ columns, rows, unit, onMoveColumn }: ForecastTableProps
             <table>
                 <thead>
                     <tr ref={headerRow}>
-                        <th scope="col" className="date-column">Date</th>
+                        <th scope="col" rowSpan={2} className="date-column">Date</th>
                         {columns.map((column, index) =>
                             <th
                                 key={column.id}
-                                scope="col"
-                                className={['column-header', columnClass(column, index)].filter(Boolean).join(' ')}
+                                scope="colgroup"
+                                colSpan={measures.length}
+                                className={['column-header', ...columnClasses(column, index, true, true)].join(' ')}
                                 title={columnTitle(column)}
                                 data-column-id={column.id}
                                 onPointerDown={event => handlePointerDown(event, column.id)}
@@ -119,27 +138,40 @@ function ForecastTable({ columns, rows, unit, onMoveColumn }: ForecastTableProps
                             </th>
                         )}
                     </tr>
+                    <tr>
+                        {columns.map((column, index) => measures.map((measure, position) =>
+                            <th
+                                key={`${column.id}-${measure}`}
+                                scope="col"
+                                className={['measure-header', ...columnClasses(column, index, position === 0, position === measures.length - 1)].join(' ')}
+                            >
+                                {measureLabels[measure]}
+                            </th>
+                        ))}
+                    </tr>
                 </thead>
                 <tbody>
                     {rows.map(row => {
                         const date = formatDate(row.date);
                         return (
                             <tr key={row.date}>
-                                <th
-                                    scope="row"
-                                    className="date-column"
-                                    title={row.averageF === null ? undefined : `Average high ${displayTemperature(row.averageF, unit)}°${unit}`}
-                                >
+                                <th scope="row" className="date-column" title={averageTitle(row, unit)}>
                                     <span className="weekday">{date.weekday}</span> {date.short}
                                 </th>
                                 {columns.map((column, index) => {
-                                    const cell = row.cells[column.id];
-                                    const className = [cell && anomalyClasses[cell.anomaly], columnClass(column, index)].filter(Boolean).join(' ');
-                                    return (
-                                        <td key={column.id} className={className || undefined}>
-                                            {cell && displayTemperature(cell.highF, unit)}
-                                        </td>
-                                    );
+                                    const cell = row.cells[column.id] as ForecastCell | undefined;
+                                    return measures.map((measure, position) => {
+                                        const value = cell && measureValue(cell, measure);
+                                        const className = [
+                                            value && anomalyClasses[value.anomaly],
+                                            ...columnClasses(column, index, position === 0, position === measures.length - 1),
+                                        ].filter(Boolean).join(' ');
+                                        return (
+                                            <td key={`${column.id}-${measure}`} className={className || undefined}>
+                                                {value && value.valueF !== null && displayTemperature(value.valueF, unit)}
+                                            </td>
+                                        );
+                                    });
                                 })}
                             </tr>
                         );

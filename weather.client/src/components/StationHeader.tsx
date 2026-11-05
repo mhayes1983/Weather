@@ -41,9 +41,11 @@ function StationHeader({ selected, onStationChange, defaultStation, onDefaultCha
         return () => controller.abort();
     }, []);
 
-    function handleStationFound(match: StationMatch) {
+    function handleStationFound(match: StationMatch, zip: string | undefined) {
         if (!stations.some(station => station.id === match.id)) {
-            onStationSaved({ id: match.id, name: match.name });
+            // Finding a saved station again by its ID keeps the ZIP it was first found by.
+            const knownZip = zip ?? savedStations.find(station => station.id === match.id)?.zip ?? undefined;
+            onStationSaved({ id: match.id, name: match.name, zip: knownZip });
         }
 
         if (match.id !== selected) {

@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
-import { fetchForecast, type ForecastTable as ForecastData } from '../api/forecast';
+import { fetchForecast, type AverageRange, type ForecastTable as ForecastData } from '../api/forecast';
+import { fetchStations, type StationSummary } from '../api/station';
 import { currentSetup, isApp } from '../appBridge';
 import ColumnFilters from '../components/ColumnFilters';
 import ForecastTable from '../components/ForecastTable';
 import Legend from '../components/Legend';
+import MeasureFilters from '../components/MeasureFilters';
 import ZipForm from '../components/ZipForm';
 import { moveColumn, orderColumns } from '../columns';
+import { measureLabels, measures, type Measure } from '../measures';
+import { stationZip } from '../stationZip';
 import { displayTemperature, type Unit } from '../temperature';
 
 const defaultZip = '04086';
@@ -13,20 +17,48 @@ const defaultZip = '04086';
 interface ForecastPageProps {
     hidden: boolean;
     unit: Unit;
+    station: string;
+    savedStations: StationSummary[];
 }
 
-function ForecastPage({ hidden, unit }: ForecastPageProps) {
-    const [zip, setZip] = useState(currentSetup()?.zip ?? defaultZip);
+interface ForecastRequest {
+    zip: string;
+    // Pressing Go again on the same ZIP refreshes the table.
+    attempt: number;
+}
+
+function ForecastPage({ hidden, unit, station, savedStations }: ForecastPageProps) {
+    const [request, setRequest] = useState<ForecastRequest>();
     const [forecast, setForecast] = useState<ForecastData>();
     const [error, setError] = useState<string>();
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [stationList, setStationList] = useState<StationSummary[]>([]);
+    const [shownMeasures, setShownMeasures] = useState<Measure[]>(measures);
     const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
     const [columnOrder, setColumnOrder] = useState<string[]>([]);
 
+    // The station list holds configured ZIPs and uses no forecast quota.
     useEffect(() => {
         const controller = new AbortController();
 
-        fetchForecast(zip, controller.signal)
+        fetchStations(controller.signal)
+            .then(setStationList)
+            .catch(() => {
+                // Without the list, the ZIP box falls back to the home ZIP.
+            });
+
+        return () => controller.abort();
+    }, []);
+
+    // The table only loads when asked, so opening the page uses no forecast quota.
+    useEffect(() => {
+        if (!request) {
+            return;
+        }
+
+        const controller = new AbortController();
+
+        fetchForecast(request.zip, controller.signal)
             .then(data => {
                 setForecast(data);
                 setError(undefined);
@@ -40,13 +72,17 @@ function ForecastPage({ hidden, unit }: ForecastPageProps) {
             });
 
         return () => controller.abort();
-    }, [zip]);
+    }, [request]);
 
     function handleZipSubmit(nextZip: string) {
-        if (nextZip !== zip) {
-            setLoading(true);
-            setZip(nextZip);
-        }
+        setLoading(true);
+        setRequest(current => ({ zip: nextZip, attempt: (current?.attempt ?? 0) + 1 }));
+    }
+
+    function handleToggleMeasure(measure: Measure) {
+        setShownMeasures(shown => shown.includes(measure)
+            ? shown.filter(other => other !== measure)
+            : measures.filter(other => other === measure || shown.includes(other)));
     }
 
     function handleToggleColumn(id: string) {
@@ -59,7 +95,16 @@ function ForecastPage({ hidden, unit }: ForecastPageProps) {
         setColumnOrder(moveColumn(columns.map(column => column.id), id, before));
     }
 
-    const average = forecast?.averageHigh;
+    function averageText(measure: Measure, average: AverageRange) {
+        return (
+            <span key={measure}>
+                Average {measureLabels[measure]} <strong>{displayTemperature(average.startF, unit)} → {displayTemperature(average.endF, unit)}</strong>
+            </span>
+        );
+    }
+
+    const zip = stationZip(station, savedStations, stationList, currentSetup()?.zip ?? defaultZip);
+    const averageStation = forecast?.averageHigh?.station ?? forecast?.averageLow?.station;
 
     // Skipping a key is a valid choice in the app, so its column isn't shown as a problem.
     const available = forecast?.columns.filter(column => !isApp || column.status !== 'NeedsKey') ?? [];
@@ -74,21 +119,32 @@ function ForecastPage({ hidden, unit }: ForecastPageProps) {
             </header>
 
             <div className="controls">
-                <ZipForm initialZip={currentSetup()?.zip ?? defaultZip} loading={loading} onSubmit={handleZipSubmit} />
+                {/* A new station starts the box on its ZIP. */}
+                <ZipForm key={zip} initialZip={zip} loading={loading} onSubmit={handleZipSubmit} />
             </div>
 
             {error && <p className="error" role="alert">{error}</p>}
+            {!forecast && !loading && !error && <p>Press Go to load the forecast comparison.</p>}
             {!forecast && loading && <p>Loading forecast…</p>}
 
             {forecast &&
                 <>
                     <p className="average">
-                        {average
-                            ? <>Average High <strong>{displayTemperature(average.startF, unit)} → {displayTemperature(average.endF, unit)}</strong> <span className="station">{average.station}</span></>
+                        {averageStation
+                            ? <>
+                                {shownMeasures.map(measure => {
+                                    const average = measure === 'high' ? forecast.averageHigh : forecast.averageLow;
+                                    return average && averageText(measure, average);
+                                })}
+                                <span className="station">{averageStation}</span>
+                            </>
                             : forecast.averageMessage}
                     </p>
-                    <ColumnFilters columns={available} hidden={hiddenColumns} onToggle={handleToggleColumn} />
-                    <ForecastTable columns={visibleColumns} rows={forecast.rows} unit={unit} onMoveColumn={handleMoveColumn} />
+                    <div className="table-filters">
+                        <MeasureFilters shown={shownMeasures} onToggle={handleToggleMeasure} />
+                        <ColumnFilters columns={available} hidden={hiddenColumns} onToggle={handleToggleColumn} />
+                    </div>
+                    <ForecastTable columns={visibleColumns} rows={forecast.rows} measures={shownMeasures} unit={unit} onMoveColumn={handleMoveColumn} />
                     <Legend aboveAverageF={forecast.aboveAverageF} belowAverageF={forecast.belowAverageF} />
                 </>}
 

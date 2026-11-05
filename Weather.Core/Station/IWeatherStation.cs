@@ -25,6 +25,9 @@ public interface IWeatherStation
     /// <summary>True when the values come from a weather model rather than instruments.</summary>
     bool Modelled => false;
 
+    /// <summary>The ZIP the Forecast Comparison page starts on, when the station has one.</summary>
+    string? Zip => null;
+
     /// <summary>A longer gap between history points shows as a break in the charts.</summary>
     int HistoryMaxGapMinutes => StationReport.DefaultHistoryMaxGapMinutes;
 

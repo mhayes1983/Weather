@@ -22,11 +22,11 @@ public sealed class OpenMeteoSource(
 
     public bool AppliesTo(ForecastLocation location) => true;
 
-    public async Task<SourceResult> GetDailyHighsAsync(ForecastLocation location, CancellationToken cancellationToken)
+    public async Task<SourceResult> GetDailyTemperaturesAsync(ForecastLocation location, CancellationToken cancellationToken)
     {
         var url = string.Create(
             CultureInfo.InvariantCulture,
-            $"{endpoint}?latitude={location.Latitude}&longitude={location.Longitude}&daily=temperature_2m_max&temperature_unit=fahrenheit&timezone={Uri.EscapeDataString(location.TimeZoneId)}&forecast_days={options.Value.ForecastDays}&models={model}");
+            $"{endpoint}?latitude={location.Latitude}&longitude={location.Longitude}&daily=temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone={Uri.EscapeDataString(location.TimeZoneId)}&forecast_days={options.Value.ForecastDays}&models={model}");
 
         var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
         using var document = JsonDocument.Parse(await client.GetStringAsync(url, cancellationToken));
@@ -34,19 +34,26 @@ public sealed class OpenMeteoSource(
         var daily = document.RootElement.GetProperty("daily");
         var dates = daily.GetProperty("time");
         var highs = daily.GetProperty("temperature_2m_max");
+        var lows = daily.GetProperty("temperature_2m_min");
 
-        var results = new List<DailyHigh>();
+        var results = new List<DailyTemperatures>();
         for (var i = 0; i < dates.GetArrayLength(); i++)
         {
             // Models that end before the requested range return null for the remaining days.
-            if (highs[i].ValueKind == JsonValueKind.Number)
+            var high = ToWholeDegrees(highs[i]);
+            var low = ToWholeDegrees(lows[i]);
+            if (high is not null || low is not null)
             {
-                results.Add(new DailyHigh(
+                results.Add(new DailyTemperatures(
                     DateOnly.ParseExact(dates[i].GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture),
-                    Temperature.ToWholeDegrees(highs[i].GetDouble())));
+                    high,
+                    low));
             }
         }
 
         return SourceResult.Ok(results, timeProvider.GetUtcNow());
     }
+
+    private static int? ToWholeDegrees(JsonElement value) =>
+        value.ValueKind == JsonValueKind.Number ? Temperature.ToWholeDegrees(value.GetDouble()) : null;
 }

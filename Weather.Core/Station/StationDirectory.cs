@@ -18,7 +18,7 @@ public sealed partial class StationDirectory(
 {
     // Registration order, with the home station first.
     public IReadOnlyList<StationSummary> Stations { get; } =
-        stations.Select(station => new StationSummary(station.Id, station.Name)).ToList();
+        stations.Select(station => new StationSummary(station.Id, station.Name, station.Zip)).ToList();
 
     public static bool IsValidId(string id) => StationIdPattern().IsMatch(id);
 

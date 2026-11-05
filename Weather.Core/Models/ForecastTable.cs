@@ -7,11 +7,12 @@ public enum Anomaly
     Below,
 }
 
-public sealed record ForecastCell(int HighF, Anomaly Anomaly);
+public sealed record ForecastCell(int? HighF, Anomaly HighAnomaly, int? LowF, Anomaly LowAnomaly);
 
 public sealed record ForecastRow(
     DateOnly Date,
-    int? AverageF,
+    int? AverageHighF,
+    int? AverageLowF,
     IReadOnlyDictionary<string, ForecastCell> Cells);
 
 public sealed record ForecastColumn(
@@ -21,12 +22,13 @@ public sealed record ForecastColumn(
     string? Message,
     DateTimeOffset? FetchedAt);
 
-public sealed record AverageHigh(int StartF, int EndF, string Station);
+public sealed record AverageRange(int StartF, int EndF, string Station);
 
 public sealed record ForecastTable(
     ForecastLocation Location,
     DateTimeOffset GeneratedAt,
-    AverageHigh? AverageHigh,
+    AverageRange? AverageHigh,
+    AverageRange? AverageLow,
     string? AverageMessage,
     int AboveAverageF,
     int BelowAverageF,

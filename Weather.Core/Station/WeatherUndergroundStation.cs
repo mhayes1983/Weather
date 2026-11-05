@@ -18,6 +18,8 @@ public sealed class WeatherUndergroundStation(
 
     public string Name => string.IsNullOrWhiteSpace(station.Name) ? station.Id : station.Name;
 
+    public string? Zip => string.IsNullOrWhiteSpace(station.Zip) ? null : station.Zip;
+
     public string Source => "Weather Underground";
 
     public StationHistoryRange HistoryRange => StationHistoryRange.Today;

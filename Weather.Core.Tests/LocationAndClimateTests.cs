@@ -60,13 +60,18 @@ public class LocationAndClimateTests
               {"meta":{"ll":[-70.30443,43.64244],"sids":["14764 1"],"name":"PORTLAND JETPORT"},"data":["54"]}
             ]}
             """
-            : """{"data":[["2026-10-30","53"],["2026-10-31","52"]]}""");
+            : """{"data":[["2026-10-30","53","36"],["2026-10-31","52","M"]]}""");
         var normals = new AcisClimateNormals(http, new WeatherCache());
 
         var result = await normals.GetAsync(TestData.Topsham, new DateOnly(2026, 10, 30), new DateOnly(2026, 10, 31), default);
 
         Assert.Equal("BRUNSWICK", result.Station);
         Assert.Equal(53, result.HighsF[new DateOnly(2026, 10, 30)]);
-        Assert.Contains("14611 1", await http.Requests[1].Content!.ReadAsStringAsync());
+        Assert.Equal(36, result.LowsF[new DateOnly(2026, 10, 30)]);
+        Assert.False(result.LowsF.ContainsKey(new DateOnly(2026, 10, 31)));
+
+        var normalsRequest = await http.Requests[1].Content!.ReadAsStringAsync();
+        Assert.Contains("14611 1", normalsRequest);
+        Assert.Contains("mint", normalsRequest);
     }
 }

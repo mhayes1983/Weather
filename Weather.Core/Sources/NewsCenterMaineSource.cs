@@ -22,7 +22,7 @@ public sealed class NewsCenterMaineSource(
 
     public bool AppliesTo(ForecastLocation location) => location.State == "ME";
 
-    public async Task<SourceResult> GetDailyHighsAsync(ForecastLocation location, CancellationToken cancellationToken)
+    public async Task<SourceResult> GetDailyTemperaturesAsync(ForecastLocation location, CancellationToken cancellationToken)
     {
         var html = await cache.GetOrCreateAsync(
             "ncm-page",

@@ -14,7 +14,7 @@ public enum StationHistoryRange
     Today,
 }
 
-public sealed record StationSummary(string Id, string Name);
+public sealed record StationSummary(string Id, string Name, string? Zip = null);
 
 public sealed record StationMatch(string Id, string Name, double? DistanceMi);
 

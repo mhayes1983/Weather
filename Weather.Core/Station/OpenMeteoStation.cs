@@ -32,6 +32,8 @@ public sealed class OpenMeteoStation(
 
     public string Name => $"ZIP {zip}";
 
+    public string? Zip => zip;
+
     public string Source => "Open-Meteo";
 
     public StationHistoryRange HistoryRange => StationHistoryRange.Last24Hours;

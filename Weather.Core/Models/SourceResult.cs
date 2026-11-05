@@ -9,12 +9,12 @@ public enum SourceStatus
 
 public sealed record SourceResult(
     SourceStatus Status,
-    IReadOnlyList<DailyHigh> Highs,
+    IReadOnlyList<DailyTemperatures> Days,
     DateTimeOffset? FetchedAt,
     string? Message)
 {
-    public static SourceResult Ok(IReadOnlyList<DailyHigh> highs, DateTimeOffset fetchedAt) =>
-        new(SourceStatus.Ok, highs, fetchedAt, null);
+    public static SourceResult Ok(IReadOnlyList<DailyTemperatures> days, DateTimeOffset fetchedAt) =>
+        new(SourceStatus.Ok, days, fetchedAt, null);
 
     public static SourceResult NeedsKey() =>
         new(SourceStatus.NeedsKey, [], null, "Needs key");

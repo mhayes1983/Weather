@@ -59,11 +59,13 @@ function HelpPage({ onNavigate }: HelpPageProps) {
 
             <h2>Forecast Comparison</h2>
             <p>
-                The <RouteLink route="/forecast" onNavigate={onNavigate}>Forecast Comparison</RouteLink> page puts daily highs
+                The <RouteLink route="/forecast" onNavigate={onNavigate}>Forecast Comparison</RouteLink> page puts daily lows and highs
                 from several forecast sources side by side for any US ZIP code.
             </p>
             <ul>
-                <li>Coloured cells are days well above or below the average high for the date. The legend shows the thresholds.</li>
+                <li>Enter a ZIP code and press <strong>Go</strong> to load the table. The box starts on the current station's ZIP code.</li>
+                <li>Each source has a Low and a High column. Use <strong>Show</strong> to hide either one.</li>
+                <li>Coloured cells are well above or below the average low or high for the date. The legend shows the thresholds.</li>
                 <li>Use the column list to hide sources, and drag a column heading to move it. These changes reset when you reload the page.</li>
                 <li>Blank cells are normal. Sources forecast different numbers of days, and NewsCenter Maine covers Maine ZIP codes only.</li>
                 <li>A source that can't be reached shows an error in its column, or its last good data if it has any.</li>
@@ -91,7 +93,7 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 <li>Station readings: Ambient Weather and <a href="https://www.wunderground.com/">Weather Underground</a>, with modelled estimates from <a href="https://open-meteo.com/">Open-Meteo</a></li>
                 <li>Forecasts: <a href="https://open-meteo.com/">Open-Meteo</a> (ECMWF, GFS, GEM, ICON and WeatherNext models, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>), <a href="https://www.weather.gov/">National Weather Service</a>, Weather Underground and <a href="https://www.newscentermaine.com/">NewsCenter Maine</a></li>
                 <li>Alerts and radar: <a href="https://www.weather.gov/">National Weather Service</a> and NOAA</li>
-                <li>Average highs: <a href="https://www.rcc-acis.org/">ACIS</a></li>
+                <li>Average highs and lows: <a href="https://www.rcc-acis.org/">ACIS</a></li>
                 <li>Moon data: <a href="https://aa.usno.navy.mil/">US Naval Observatory</a></li>
                 <li>ZIP code locations: <a href="https://www.zippopotam.us/">Zippopotam.us</a></li>
                 <li>Map: <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</li>

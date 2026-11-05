@@ -5,7 +5,7 @@ namespace Weather.Core.Tests;
 
 public class NewsCenterMaineParserTests
 {
-    private static string Row(string date, int high) => $"""
+    private static string Row(string date, int high, string low = "38") => $"""
         <div class="weather-10-day__row">
             <div class="weather-10-day__row-container weather-10-day__row-container_interactive_false">
                 <div class="weather-10-day__item weather-10-day__datetime">
@@ -14,7 +14,7 @@ public class NewsCenterMaineParserTests
                 </div>
                 <div class="weather-10-day__temperature">
                     <div class="weather-10-day__temperature-high">{high}</div>
-                    <div class="weather-10-day__temperature-low">38</div>
+                    <div class="weather-10-day__temperature-low">{low}</div>
                 </div>
             </div>
         </div>
@@ -34,15 +34,25 @@ public class NewsCenterMaineParserTests
     [Fact]
     public void ReadsEachSectionSeparately()
     {
-        var html = Page(Row("Oct 30", 66) + Row("Oct 31", 52), Row("Oct 30", 64));
+        var html = Page(Row("Oct 30", 66) + Row("Oct 31", 52, "41"), Row("Oct 30", 64, "33"));
         var today = new DateOnly(2026, 10, 30);
 
         Assert.Equal(
-            [new DailyHigh(new DateOnly(2026, 10, 30), 66), new DailyHigh(new DateOnly(2026, 10, 31), 52)],
+            [new DailyTemperatures(new DateOnly(2026, 10, 30), 66, 38), new DailyTemperatures(new DateOnly(2026, 10, 31), 52, 41)],
             NewsCenterMaineParser.Parse(html, "Portland 10-Day", today));
         Assert.Equal(
-            [new DailyHigh(new DateOnly(2026, 10, 30), 64)],
+            [new DailyTemperatures(new DateOnly(2026, 10, 30), 64, 33)],
             NewsCenterMaineParser.Parse(html, "Bangor 10-Day", today));
+    }
+
+    [Fact]
+    public void KeepsARowWithOnlyOneTemperature()
+    {
+        var html = Page(Row("Oct 30", 66, "--"), Row("Oct 30", 64));
+
+        Assert.Equal(
+            [new DailyTemperatures(new DateOnly(2026, 10, 30), 66, null)],
+            NewsCenterMaineParser.Parse(html, "Portland 10-Day", new DateOnly(2026, 10, 30)));
     }
 
     [Fact]

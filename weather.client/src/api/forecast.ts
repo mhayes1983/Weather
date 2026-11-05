@@ -2,13 +2,16 @@ export type SourceStatus = 'Ok' | 'NeedsKey' | 'Error';
 export type Anomaly = 'None' | 'Above' | 'Below';
 
 export interface ForecastCell {
-    highF: number;
-    anomaly: Anomaly;
+    highF: number | null;
+    highAnomaly: Anomaly;
+    lowF: number | null;
+    lowAnomaly: Anomaly;
 }
 
 export interface ForecastRow {
     date: string;
-    averageF: number | null;
+    averageHighF: number | null;
+    averageLowF: number | null;
     cells: Record<string, ForecastCell>;
 }
 
@@ -20,6 +23,12 @@ export interface ForecastColumn {
     fetchedAt: string | null;
 }
 
+export interface AverageRange {
+    startF: number;
+    endF: number;
+    station: string;
+}
+
 export interface ForecastTable {
     location: {
         zip: string;
@@ -27,7 +36,8 @@ export interface ForecastTable {
         state: string;
     };
     generatedAt: string;
-    averageHigh: { startF: number; endF: number; station: string } | null;
+    averageHigh: AverageRange | null;
+    averageLow: AverageRange | null;
     averageMessage: string | null;
     aboveAverageF: number;
     belowAverageF: number;

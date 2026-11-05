@@ -289,7 +289,9 @@ public class WeatherUndergroundStationTests
                 ["Stations:2:Id"] = "home",
                 ["Stations:3:Id"] = "KSECOND2",
                 ["Stations:3:Name"] = "Second",
+                ["Stations:3:Zip"] = "04011",
                 ["Stations:4:Id"] = "kfirst1",
+                ["DefaultLocation:Zip"] = "04086",
             })
             .Build();
         using var provider = new ServiceCollection()
@@ -300,7 +302,7 @@ public class WeatherUndergroundStationTests
         var stations = provider.GetRequiredService<StationService>().Stations;
 
         Assert.Equal(
-            [new StationSummary("home", "Home station"), new StationSummary("KFIRST1", "KFIRST1"), new StationSummary("KSECOND2", "Second")],
+            [new StationSummary("home", "Home station", "04086"), new StationSummary("KFIRST1", "KFIRST1"), new StationSummary("KSECOND2", "Second", "04011")],
             stations);
     }
 
