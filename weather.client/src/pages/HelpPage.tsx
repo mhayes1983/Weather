@@ -65,6 +65,12 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <ul>
                 <li>Enter a ZIP code and press <strong>Go</strong> to load the table. The box starts on the current station's ZIP code.</li>
                 <li>Each source has a Low and a High column. Use <strong>Show</strong> to hide either one.</li>
+                <li>
+                    The low is that morning's low, from 7pm the evening before to 9am, and the high is that afternoon's, from
+                    9am to 7pm. A day's coldest or warmest hour can fall outside those times when a front passes, so they
+                    can differ from a midnight-to-midnight low or high. Sources that give day and night forecasts, such as
+                    NWS and NewsCenter Maine, show each night's low on the morning it ends.
+                </li>
                 <li>Coloured cells are well above or below the average low or high for the date. The legend shows the thresholds.</li>
                 <li>Use the column list to hide sources, and drag a column heading to move it. These changes reset when you reload the page.</li>
                 <li>Blank cells are normal. Sources forecast different numbers of days, and NewsCenter Maine covers Maine ZIP codes only.</li>

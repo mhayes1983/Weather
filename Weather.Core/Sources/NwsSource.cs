@@ -36,9 +36,9 @@ public sealed class NwsSource(
             var start = DateTimeOffset.Parse(period.GetProperty("startTime").GetString()!, CultureInfo.InvariantCulture);
             var temperature = period.GetProperty("temperature").GetInt32();
 
-            // Overnight periods hold lows, so an evening forecast has no high for today. A night's low goes
-            // on the morning it ends, matching the other sources' calendar-day lows. Adding 12 hours moves
-            // an evening start to the next date and keeps a start after midnight on its own date.
+            // Overnight periods hold lows, so an evening forecast has no high for today. A night's low is
+            // the morning low of the date it ends on. Adding 12 hours moves an evening start to the next
+            // date and keeps a start after midnight on its own date.
             if (period.GetProperty("isDaytime").GetBoolean())
             {
                 highs.TryAdd(DateOnly.FromDateTime(start.DateTime), temperature);
@@ -49,15 +49,7 @@ public sealed class NwsSource(
             }
         }
 
-        var results = highs.Keys.Union(lows.Keys)
-            .Order()
-            .Select(date => new DailyTemperatures(
-                date,
-                highs.TryGetValue(date, out var high) ? high : null,
-                lows.TryGetValue(date, out var low) ? low : null))
-            .ToList();
-
-        return SourceResult.Ok(results, timeProvider.GetUtcNow());
+        return SourceResult.Ok(DayParts.Merge(highs, lows), timeProvider.GetUtcNow());
     }
 
     internal static async Task<string> GetForecastUrlAsync(

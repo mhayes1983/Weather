@@ -457,6 +457,12 @@ button:disabled {
     margin: 0;
 }
 
+.table-note {
+    margin: 0 0 8px;
+    font-size: 0.85rem;
+    opacity: 0.75;
+}
+
 .table-scroll {
     overflow-x: auto;
     border: 1px solid var(--border);

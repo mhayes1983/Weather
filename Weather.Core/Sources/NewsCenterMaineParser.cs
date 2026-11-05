@@ -30,8 +30,8 @@ public static class NewsCenterMaineParser
                 continue;
             }
 
-            // A row's low is the night after its high, so it goes on the next morning, matching the
-            // other sources' calendar-day lows.
+            // A row shows the day's high and the low of the night after it, as TV forecasts do, so the
+            // low is the next date's morning low.
             var date = ToDate(text, today);
             if (ReadTemperature(row, HighClass) is int high)
             {
@@ -44,14 +44,7 @@ public static class NewsCenterMaineParser
             }
         }
 
-        var results = highs.Keys.Union(lows.Keys)
-            .Order()
-            .Select(date => new DailyTemperatures(
-                date,
-                highs.TryGetValue(date, out var high) ? high : null,
-                lows.TryGetValue(date, out var low) ? low : null))
-            .ToList();
-
+        var results = DayParts.Merge(highs, lows);
         return results.Count > 0 ? results : throw new FormatException($"Section '{section}' had no forecast rows.");
     }
 

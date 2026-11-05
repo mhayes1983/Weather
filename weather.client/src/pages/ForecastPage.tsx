@@ -145,6 +145,7 @@ function ForecastPage({ hidden, unit, station, savedStations }: ForecastPageProp
                         <MeasureFilters shown={shownMeasures} onToggle={handleToggleMeasure} />
                         <ColumnFilters columns={available} hidden={hiddenColumns} onToggle={handleToggleColumn} />
                     </div>
+                    <p className="table-note">Each day's low is that morning's, and its high is that afternoon's.</p>
                     <ForecastTable columns={visibleColumns} rows={forecast.rows} measures={shownMeasures} unit={unit} onMoveColumn={handleMoveColumn} />
                     <Legend aboveAverageF={forecast.aboveAverageF} belowAverageF={forecast.belowAverageF} />
                 </>}
