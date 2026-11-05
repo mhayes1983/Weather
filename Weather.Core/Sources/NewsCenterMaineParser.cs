@@ -20,18 +20,37 @@ public static class NewsCenterMaineParser
             $"//h3[contains(normalize-space(.), '{section}')]/following::div[@data-module='weather-10-day'][1]")
             ?? throw new FormatException($"Section '{section}' was not found.");
 
-        var results = new List<DailyTemperatures>();
+        var highs = new Dictionary<DateOnly, int>();
+        var lows = new Dictionary<DateOnly, int>();
         foreach (var row in module.SelectNodes($".//div[{HasClass(RowClass)}]") ?? Enumerable.Empty<HtmlNode>())
         {
-            var date = row.SelectSingleNode($".//span[{HasClass(DateClass)}]")?.InnerText.Trim();
-            var high = ReadTemperature(row, HighClass);
-            var low = ReadTemperature(row, LowClass);
-
-            if (date is not null && (high is not null || low is not null))
+            var text = row.SelectSingleNode($".//span[{HasClass(DateClass)}]")?.InnerText.Trim();
+            if (text is null)
             {
-                results.Add(new DailyTemperatures(ToDate(date, today), high, low));
+                continue;
+            }
+
+            // A row's low is the night after its high, so it goes on the next morning, matching the
+            // other sources' calendar-day lows.
+            var date = ToDate(text, today);
+            if (ReadTemperature(row, HighClass) is int high)
+            {
+                highs.TryAdd(date, high);
+            }
+
+            if (ReadTemperature(row, LowClass) is int low)
+            {
+                lows.TryAdd(date.AddDays(1), low);
             }
         }
+
+        var results = highs.Keys.Union(lows.Keys)
+            .Order()
+            .Select(date => new DailyTemperatures(
+                date,
+                highs.TryGetValue(date, out var high) ? high : null,
+                lows.TryGetValue(date, out var low) ? low : null))
+            .ToList();
 
         return results.Count > 0 ? results : throw new FormatException($"Section '{section}' had no forecast rows.");
     }

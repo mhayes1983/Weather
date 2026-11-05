@@ -55,9 +55,10 @@ public class LocationAndClimateTests
         var http = StubHttp.Json(url => url.EndsWith("MultiStnData")
             ? """
             {"data":[
-              {"meta":{"ll":[-69.96,43.93],"sids":["CLOSEST 2"],"name":"NO DATA"},"data":["M"]},
-              {"meta":{"ll":[-69.93333,43.9],"sids":["14611 1"],"name":"BRUNSWICK"},"data":["53"]},
-              {"meta":{"ll":[-70.30443,43.64244],"sids":["14764 1"],"name":"PORTLAND JETPORT"},"data":["54"]}
+              {"meta":{"ll":[-69.96,43.93],"sids":["CLOSEST 2"],"name":"NO DATA"},"data":["M","M"]},
+              {"meta":{"ll":[-69.965,43.928],"sids":["HIGHS 2"],"name":"HIGHS ONLY"},"data":["55","M"]},
+              {"meta":{"ll":[-69.93333,43.9],"sids":["14611 1"],"name":"BRUNSWICK"},"data":["53","36"]},
+              {"meta":{"ll":[-70.30443,43.64244],"sids":["14764 1"],"name":"PORTLAND JETPORT"},"data":["54","37"]}
             ]}
             """
             : """{"data":[["2026-10-30","53","36"],["2026-10-31","52","M"]]}""");
@@ -69,6 +70,9 @@ public class LocationAndClimateTests
         Assert.Equal(53, result.HighsF[new DateOnly(2026, 10, 30)]);
         Assert.Equal(36, result.LowsF[new DateOnly(2026, 10, 30)]);
         Assert.False(result.LowsF.ContainsKey(new DateOnly(2026, 10, 31)));
+
+        // The search asks for both normals and skips a station that only has highs.
+        Assert.Contains("mint", await http.Requests[0].Content!.ReadAsStringAsync());
 
         var normalsRequest = await http.Requests[1].Content!.ReadAsStringAsync();
         Assert.Contains("14611 1", normalsRequest);

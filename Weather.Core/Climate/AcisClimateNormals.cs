@@ -42,7 +42,7 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
                     $"{location.Longitude - radius},{location.Latitude - radius},{location.Longitude + radius},{location.Latitude + radius}"),
                 ["sdate"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 ["edate"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                ["elems"] = new JsonArray(NormalElement("maxt")),
+                ["elems"] = new JsonArray(NormalElement("maxt"), NormalElement("mint")),
                 ["meta"] = "name,sids,ll",
             };
 
@@ -105,9 +105,13 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
     }
 
+    // Both normals are needed, so a station with only highs doesn't leave the lows unhighlighted.
     private static bool HasNormal(JsonElement station) =>
-        station.GetProperty("data")[0].GetString() is { Length: > 0 } value && value != MissingValue
+        IsPresent(station.GetProperty("data")[0]) && IsPresent(station.GetProperty("data")[1])
         && station.GetProperty("meta").TryGetProperty("ll", out _);
+
+    private static bool IsPresent(JsonElement value) =>
+        value.GetString() is { Length: > 0 } text && text != MissingValue;
 
     private static AcisStation ToStation(JsonElement station)
     {

@@ -24,7 +24,7 @@ public class ForecastTableServiceTests
         }
     }
 
-    private sealed class FakeNormals(bool fails = false) : IClimateNormals
+    private sealed class FakeNormals(bool fails = false, bool hasLows = true) : IClimateNormals
     {
         public Task<ClimateNormals> GetAsync(ForecastLocation location, DateOnly start, DateOnly end, CancellationToken cancellationToken)
         {
@@ -37,7 +37,7 @@ public class ForecastTableServiceTests
             return Task.FromResult(new ClimateNormals(
                 "BRUNSWICK",
                 days.ToDictionary(day => day, _ => 53),
-                days.ToDictionary(day => day, _ => 36)));
+                hasLows ? days.ToDictionary(day => day, _ => 36) : []));
         }
     }
 
@@ -91,6 +91,18 @@ public class ForecastTableServiceTests
         Assert.Equal(new ForecastCell(53, Anomaly.None, 29, Anomaly.Below), table.Rows[0].Cells["cold"]);
         Assert.Equal(new ForecastCell(null, Anomaly.None, 42, Anomaly.Above), table.Rows[0].Cells["mild"]);
         Assert.Equal(36, table.Rows[0].AverageLowF);
+        Assert.Null(table.AverageMessage);
+    }
+
+    [Fact]
+    public async Task SaysWhenOnlyTheAverageLowsAreMissing()
+    {
+        var table = await CreateService([new FakeSource("gfs", () => ForecastToday(60, 20))], new FakeNormals(hasLows: false)).GetAsync("04086");
+
+        Assert.Equal(new ForecastCell(60, Anomaly.Above, 20, Anomaly.None), table.Rows[0].Cells["gfs"]);
+        Assert.NotNull(table.AverageHigh);
+        Assert.Null(table.AverageLow);
+        Assert.Equal("Average lows are unavailable right now.", table.AverageMessage);
     }
 
     [Fact]

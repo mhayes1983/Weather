@@ -8,7 +8,7 @@ import Legend from '../components/Legend';
 import MeasureFilters from '../components/MeasureFilters';
 import ZipForm from '../components/ZipForm';
 import { moveColumn, orderColumns } from '../columns';
-import { measureLabels, measures, type Measure } from '../measures';
+import { measureLabels, measures, toggleMeasure, type Measure } from '../measures';
 import { stationZip } from '../stationZip';
 import { displayTemperature, type Unit } from '../temperature';
 
@@ -32,7 +32,7 @@ function ForecastPage({ hidden, unit, station, savedStations }: ForecastPageProp
     const [forecast, setForecast] = useState<ForecastData>();
     const [error, setError] = useState<string>();
     const [loading, setLoading] = useState(false);
-    const [stationList, setStationList] = useState<StationSummary[]>([]);
+    const [stationList, setStationList] = useState<StationSummary[]>();
     const [shownMeasures, setShownMeasures] = useState<Measure[]>(measures);
     const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
     const [columnOrder, setColumnOrder] = useState<string[]>([]);
@@ -45,6 +45,9 @@ function ForecastPage({ hidden, unit, station, savedStations }: ForecastPageProp
             .then(setStationList)
             .catch(() => {
                 // Without the list, the ZIP box falls back to the home ZIP.
+                if (!controller.signal.aborted) {
+                    setStationList([]);
+                }
             });
 
         return () => controller.abort();
@@ -80,9 +83,7 @@ function ForecastPage({ hidden, unit, station, savedStations }: ForecastPageProp
     }
 
     function handleToggleMeasure(measure: Measure) {
-        setShownMeasures(shown => shown.includes(measure)
-            ? shown.filter(other => other !== measure)
-            : measures.filter(other => other === measure || shown.includes(other)));
+        setShownMeasures(shown => toggleMeasure(shown, measure));
     }
 
     function handleToggleColumn(id: string) {
@@ -103,8 +104,14 @@ function ForecastPage({ hidden, unit, station, savedStations }: ForecastPageProp
         );
     }
 
-    const zip = stationZip(station, savedStations, stationList, currentSetup()?.zip ?? defaultZip);
-    const averageStation = forecast?.averageHigh?.station ?? forecast?.averageLow?.station;
+    // Waiting for the list means a configured ZIP can't arrive late and replace what someone has typed.
+    const zip = stationList && stationZip(station, savedStations, stationList, currentSetup()?.zip ?? defaultZip);
+    const shownAverages = forecast
+        ? shownMeasures.flatMap(measure => {
+            const average = measure === 'high' ? forecast.averageHigh : forecast.averageLow;
+            return average ? [{ measure, average }] : [];
+        })
+        : [];
 
     // Skipping a key is a valid choice in the app, so its column isn't shown as a problem.
     const available = forecast?.columns.filter(column => !isApp || column.status !== 'NeedsKey') ?? [];
@@ -120,7 +127,7 @@ function ForecastPage({ hidden, unit, station, savedStations }: ForecastPageProp
 
             <div className="controls">
                 {/* A new station starts the box on its ZIP. */}
-                <ZipForm key={zip} initialZip={zip} loading={loading} onSubmit={handleZipSubmit} />
+                {zip !== undefined && <ZipForm key={zip} initialZip={zip} loading={loading} onSubmit={handleZipSubmit} />}
             </div>
 
             {error && <p className="error" role="alert">{error}</p>}
@@ -130,15 +137,9 @@ function ForecastPage({ hidden, unit, station, savedStations }: ForecastPageProp
             {forecast &&
                 <>
                     <p className="average">
-                        {averageStation
-                            ? <>
-                                {shownMeasures.map(measure => {
-                                    const average = measure === 'high' ? forecast.averageHigh : forecast.averageLow;
-                                    return average && averageText(measure, average);
-                                })}
-                                <span className="station">{averageStation}</span>
-                            </>
-                            : forecast.averageMessage}
+                        {shownAverages.map(({ measure, average }) => averageText(measure, average))}
+                        {shownAverages.length > 0 && <span className="station">{shownAverages[0].average.station}</span>}
+                        {forecast.averageMessage && <span>{forecast.averageMessage}</span>}
                     </p>
                     <div className="table-filters">
                         <MeasureFilters shown={shownMeasures} onToggle={handleToggleMeasure} />

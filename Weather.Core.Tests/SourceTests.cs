@@ -46,6 +46,19 @@ public class SourceTests
     }
 
     [Fact]
+    public async Task OpenMeteoKeepsHighsWhenLowsAreMissing()
+    {
+        var http = StubHttp.Json(_ => """
+            {"daily":{"time":["2026-10-30"],"temperature_2m_max":[64.2]}}
+            """);
+        var source = new OpenMeteoSource(new ColumnDescriptor("gem", "GEM"), "gem_seamless", OpenMeteoSource.ForecastEndpoint, http, TestData.Options(), Time);
+
+        var result = await source.GetDailyTemperaturesAsync(TestData.Topsham, default);
+
+        Assert.Equal([new DailyTemperatures(new DateOnly(2026, 10, 30), 64, null)], result.Days);
+    }
+
+    [Fact]
     public async Task NwsPutsEachNightsLowOnTheMorningItEnds()
     {
         var http = StubHttp.Json(url => url.Contains("/points/")
@@ -69,6 +82,24 @@ public class SourceTests
     }
 
     [Fact]
+    public async Task NwsKeepsAnOvernightPeriodAfterMidnightOnItsOwnDate()
+    {
+        var http = StubHttp.Json(url => url.Contains("/points/")
+            ? """{"properties":{"forecast":"https://api.weather.gov/gridpoints/GYX/80,72/forecast"}}"""
+            : """
+            {"properties":{"periods":[
+              {"isDaytime":false,"startTime":"2026-10-30T02:00:00-04:00","temperature":36},
+              {"isDaytime":true,"startTime":"2026-10-30T06:00:00-04:00","temperature":55}
+            ]}}
+            """);
+        var source = new NwsSource(http, new WeatherCache(), TestData.Options(), Time);
+
+        var result = await source.GetDailyTemperaturesAsync(TestData.Topsham, default);
+
+        Assert.Equal([new DailyTemperatures(new DateOnly(2026, 10, 30), 55, 36)], result.Days);
+    }
+
+    [Fact]
     public async Task WeatherUndergroundReadsCalendarDayHighsAndLows()
     {
         var http = StubHttp.Json(_ => """
@@ -82,6 +113,19 @@ public class SourceTests
             [new DailyTemperatures(new DateOnly(2026, 10, 30), 66, 41), new DailyTemperatures(new DateOnly(2026, 10, 31), null, 39)],
             result.Days);
         Assert.Contains("postalKey=04086:US", http.Requests[0].RequestUri!.Query);
+    }
+
+    [Fact]
+    public async Task WeatherUndergroundKeepsHighsWhenLowsAreMissing()
+    {
+        var http = StubHttp.Json(_ => """
+            {"validTimeLocal":["2026-10-30T07:00:00-0400"],"calendarDayTemperatureMax":[66]}
+            """);
+        var options = TestData.Options(o => o.WeatherUnderground.ApiKey = "test-key");
+
+        var result = await new WeatherUndergroundSource(http, options, Time).GetDailyTemperaturesAsync(TestData.Topsham, default);
+
+        Assert.Equal([new DailyTemperatures(new DateOnly(2026, 10, 30), 66, null)], result.Days);
     }
 
     [Fact]

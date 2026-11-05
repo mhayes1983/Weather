@@ -50,7 +50,7 @@ public sealed class ForecastTableService(
             now,
             averageHigh,
             averageLow,
-            averageHigh is null && averageLow is null ? "Averages are unavailable right now." : null,
+            AverageMessage(averageHigh, averageLow),
             options.Value.AboveAverageF,
             options.Value.BelowAverageF,
             columns,
@@ -81,6 +81,16 @@ public sealed class ForecastTableService(
 
         return new ForecastRow(date, averageHigh, averageLow, cells);
     }
+
+    // Says which averages are missing, so unhighlighted columns are explained.
+    private static string? AverageMessage(AverageRange? averageHigh, AverageRange? averageLow) =>
+        (averageHigh, averageLow) switch
+        {
+            (null, null) => "Averages are unavailable right now.",
+            (null, _) => "Average highs are unavailable right now.",
+            (_, null) => "Average lows are unavailable right now.",
+            _ => null,
+        };
 
     // Lows use the same thresholds as highs, against the normal low.
     private Anomaly Classify(int? valueF, int? averageF) => valueF is int value

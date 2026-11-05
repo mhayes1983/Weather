@@ -31,13 +31,14 @@ public sealed class WeatherUndergroundSource(
 
         var dates = document.RootElement.GetProperty("validTimeLocal");
         var highs = document.RootElement.GetProperty("calendarDayTemperatureMax");
-        var lows = document.RootElement.GetProperty("calendarDayTemperatureMin");
+        // Lows are optional, so a response without them still shows its highs.
+        var hasLows = document.RootElement.TryGetProperty("calendarDayTemperatureMin", out var lows);
 
         var results = new List<DailyTemperatures>();
         for (var i = 0; i < dates.GetArrayLength(); i++)
         {
             int? high = highs[i].ValueKind == JsonValueKind.Number ? highs[i].GetInt32() : null;
-            int? low = lows[i].ValueKind == JsonValueKind.Number ? lows[i].GetInt32() : null;
+            int? low = hasLows && lows[i].ValueKind == JsonValueKind.Number ? lows[i].GetInt32() : null;
             if (high is not null || low is not null)
             {
                 // Dates look like 2026-10-30T07:00:00-0400.

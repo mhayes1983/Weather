@@ -34,14 +34,15 @@ public sealed class OpenMeteoSource(
         var daily = document.RootElement.GetProperty("daily");
         var dates = daily.GetProperty("time");
         var highs = daily.GetProperty("temperature_2m_max");
-        var lows = daily.GetProperty("temperature_2m_min");
+        // Lows are optional, so a model without them still shows its highs.
+        var hasLows = daily.TryGetProperty("temperature_2m_min", out var lows);
 
         var results = new List<DailyTemperatures>();
         for (var i = 0; i < dates.GetArrayLength(); i++)
         {
             // Models that end before the requested range return null for the remaining days.
             var high = ToWholeDegrees(highs[i]);
-            var low = ToWholeDegrees(lows[i]);
+            var low = hasLows ? ToWholeDegrees(lows[i]) : null;
             if (high is not null || low is not null)
             {
                 results.Add(new DailyTemperatures(
