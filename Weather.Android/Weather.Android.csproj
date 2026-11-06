@@ -14,8 +14,8 @@
 
     <ApplicationTitle>Personal Weather</ApplicationTitle>
     <ApplicationId>com.mhayes1983.weather</ApplicationId>
-    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.1</ApplicationDisplayVersion>
+    <ApplicationVersion>2</ApplicationVersion>
     <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
 
     <!-- HybridWebView reads what the client sends with reflection. -->
