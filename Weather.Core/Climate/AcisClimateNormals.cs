@@ -1,65 +1,32 @@
 using System.Globalization;
-using System.Text;
-using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Options;
 using Weather.Core.Models;
 
 namespace Weather.Core.Climate;
 
-/// <summary>Daily normal highs and lows from the nearest ACIS station that has them.</summary>
-public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, WeatherCache cache) : IClimateNormals
+/// <summary>Daily normal highs and lows from the location's climate station, the same one the almanac uses.</summary>
+public sealed class AcisClimateNormals(
+    IHttpClientFactory httpClientFactory,
+    WeatherCache cache,
+    ClimateStations stations,
+    IOptions<WeatherOptions> options) : IClimateNormals
 {
-    private const string BaseUrl = "https://data.rcc-acis.org";
-    private const string MissingValue = "M";
-
-    private static readonly double[] SearchRadiiDegrees = [0.3, 0.75, 1.5, 3];
     private static readonly TimeSpan NormalsCacheDuration = TimeSpan.FromHours(24);
-    private static readonly TimeSpan StationCacheDuration = TimeSpan.FromDays(30);
 
-    public async Task<ClimateNormals> GetAsync(
-        ForecastLocation location, DateOnly start, DateOnly end, CancellationToken cancellationToken)
-    {
-        return await cache.GetOrCreateAsync(
-            $"normals:{location.Zip}:{start:yyyy-MM-dd}",
+    public Task<ClimateNormals> GetAsync(
+        ForecastLocation location, DateOnly start, DateOnly end, CancellationToken cancellationToken) =>
+        // The cached fetch keeps its own timeout, so the caller's token only stops this caller waiting.
+        cache.GetOrCreateAsync(
+            string.Create(CultureInfo.InvariantCulture, $"normals:{location.Latitude:F3},{location.Longitude:F3}:{start:yyyy-MM-dd}:{end:yyyy-MM-dd}"),
             async () =>
             {
-                var station = await cache.GetOrCreateAsync(
-                    $"station:{location.Zip}",
-                    async () => (await FindNearestStationAsync(location, start, cancellationToken), StationCacheDuration));
-                return (await GetNormalsAsync(station, start, end, cancellationToken), NormalsCacheDuration);
-            });
-    }
-
-    private async Task<AcisStation> FindNearestStationAsync(
-        ForecastLocation location, DateOnly date, CancellationToken cancellationToken)
-    {
-        foreach (var radius in SearchRadiiDegrees)
-        {
-            var body = new JsonObject
-            {
-                ["bbox"] = string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"{location.Longitude - radius},{location.Latitude - radius},{location.Longitude + radius},{location.Latitude + radius}"),
-                ["sdate"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                ["edate"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                ["elems"] = new JsonArray(NormalElement("maxt"), NormalElement("mint")),
-                ["meta"] = "name,sids,ll",
-            };
-
-            using var document = await PostAsync("MultiStnData", body, cancellationToken);
-            var nearest = document.RootElement.GetProperty("data").EnumerateArray()
-                .Where(HasNormal)
-                .Select(ToStation)
-                .MinBy(station => DistanceSquared(location, station));
-
-            if (nearest is not null)
-            {
-                return nearest;
-            }
-        }
-
-        throw new InvalidOperationException($"No climate station found near {location.Zip}.");
-    }
+                var station = await stations.FindAsync(location.Latitude, location.Longitude, start);
+                var normals = await Acis.WithTimeoutAsync(
+                    TimeSpan.FromSeconds(options.Value.SourceTimeoutSeconds),
+                    token => GetNormalsAsync(station, start, end, token));
+                return (normals, NormalsCacheDuration);
+            }).WaitAsync(cancellationToken);
 
     private async Task<ClimateNormals> GetNormalsAsync(
         AcisStation station, DateOnly start, DateOnly end, CancellationToken cancellationToken)
@@ -67,12 +34,12 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
         var body = new JsonObject
         {
             ["sid"] = station.Id,
-            ["sdate"] = start.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            ["edate"] = end.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            ["elems"] = new JsonArray(NormalElement("maxt"), NormalElement("mint")),
+            ["sdate"] = Acis.Date(start),
+            ["edate"] = Acis.Date(end),
+            ["elems"] = new JsonArray(Acis.NormalElement("maxt"), Acis.NormalElement("mint")),
         };
 
-        using var document = await PostAsync("StnData", body, cancellationToken);
+        using var document = await Acis.PostAsync(httpClientFactory, "StnData", body, cancellationToken);
         var highs = new Dictionary<DateOnly, int>();
         var lows = new Dictionary<DateOnly, int>();
         foreach (var day in document.RootElement.GetProperty("data").EnumerateArray())
@@ -91,45 +58,4 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
 
         return new ClimateNormals(station.Name, highs, lows);
     }
-
-    // A node can only belong to one parent, so each request builds its own.
-    private static JsonObject NormalElement(string name) => new() { ["name"] = name, ["normal"] = "1" };
-
-    // JsonObject needs no reflection, which trimming on Android would otherwise break.
-    private async Task<JsonDocument> PostAsync(string endpoint, JsonObject body, CancellationToken cancellationToken)
-    {
-        var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
-        var content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
-        using var response = await client.PostAsync($"{BaseUrl}/{endpoint}", content, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        return JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-    }
-
-    // Both normals are needed, so a station with only highs doesn't leave the lows unhighlighted.
-    private static bool HasNormal(JsonElement station) =>
-        IsPresent(station.GetProperty("data")[0]) && IsPresent(station.GetProperty("data")[1])
-        && station.GetProperty("meta").TryGetProperty("ll", out _);
-
-    private static bool IsPresent(JsonElement value) =>
-        value.GetString() is { Length: > 0 } text && text != MissingValue;
-
-    private static AcisStation ToStation(JsonElement station)
-    {
-        var meta = station.GetProperty("meta");
-        var coordinates = meta.GetProperty("ll");
-        return new AcisStation(
-            meta.GetProperty("sids")[0].GetString()!,
-            meta.GetProperty("name").GetString()!,
-            coordinates[1].GetDouble(),
-            coordinates[0].GetDouble());
-    }
-
-    private static double DistanceSquared(ForecastLocation location, AcisStation station)
-    {
-        var latitudeDelta = station.Latitude - location.Latitude;
-        var longitudeDelta = (station.Longitude - location.Longitude) * Math.Cos(location.Latitude * Math.PI / 180);
-        return (latitudeDelta * latitudeDelta) + (longitudeDelta * longitudeDelta);
-    }
-
-    private sealed record AcisStation(string Id, string Name, double Latitude, double Longitude);
 }

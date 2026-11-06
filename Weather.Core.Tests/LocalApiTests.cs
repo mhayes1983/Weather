@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Weather.Core.Alerts;
+using Weather.Core.Almanac;
 using Weather.Core.Api;
 using Weather.Core.DailyForecast;
 using Weather.Core.Models;
@@ -143,6 +144,18 @@ public class LocalApiTests
         var controller = new DailyForecastController(services.GetRequiredService<DailyForecastService>());
 
         AssertSame(await controller.Get("not/valid"), await Ask(services, "/api/daily-forecast", ("station", "not/valid")));
+    }
+
+    [Theory]
+    [InlineData("not/valid")]
+    [InlineData("KMETEST1")]
+    [InlineData("home")]
+    public async Task AlmanacMatchesTheController(string station)
+    {
+        using var services = Services("{}");
+        var controller = new AlmanacController(services.GetRequiredService<AlmanacService>());
+
+        AssertSame(await controller.Get(station), await Ask(services, "/api/almanac", ("station", station)));
     }
 
     [Fact]

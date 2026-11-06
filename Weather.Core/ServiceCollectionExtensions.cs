@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Weather.Core.Alerts;
+using Weather.Core.Almanac;
 using Weather.Core.Api;
 using Weather.Core.Climate;
 using Weather.Core.DailyForecast;
@@ -21,6 +22,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<WeatherCache>();
         services.AddSingleton<LocationResolver>();
+        services.AddSingleton<ClimateStations>();
         services.AddSingleton<IClimateNormals, AcisClimateNormals>();
         services.AddSingleton<ForecastTableService>();
         AddHomeStation(services, configuration.Get<WeatherOptions>() ?? new WeatherOptions());
@@ -35,6 +37,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<NwsDescriptions>();
         services.AddSingleton<UsnoMoon>();
         services.AddSingleton<DailyForecastService>();
+        services.AddSingleton<AcisAlmanac>();
+        services.AddSingleton<AlmanacService>();
         services.AddSingleton<KeyCheck>();
         services.AddSingleton<LocalApi>();
 
