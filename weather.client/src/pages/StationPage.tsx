@@ -135,7 +135,8 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
                     />
                 </div>}
 
-            {current && <StationAlmanac station={selected} unit={unit} />}
+            {/* The almanac needs only the station's location, so it still shows while the station is offline. */}
+            {report && report.status !== 'NeedsKey' && <StationAlmanac station={selected} unit={unit} />}
 
             {current &&
                 <footer className="attribution">

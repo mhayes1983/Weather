@@ -22,6 +22,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<WeatherCache>();
         services.AddSingleton<LocationResolver>();
+        services.AddSingleton<ClimateStations>();
         services.AddSingleton<IClimateNormals, AcisClimateNormals>();
         services.AddSingleton<ForecastTableService>();
         AddHomeStation(services, configuration.Get<WeatherOptions>() ?? new WeatherOptions());

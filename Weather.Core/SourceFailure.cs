@@ -6,6 +6,7 @@ internal static class SourceFailure
     {
         OperationCanceledException => "Timed out",
         Station.StationNoDataException => "The station hasn't reported in the past hour.",
+        Climate.NoClimateStationException => "No climate station nearby has averages and records.",
         HttpRequestException { StatusCode: { } status } => $"Source returned HTTP {(int)status}",
         HttpRequestException => "Source could not be reached",
         _ => "Source data could not be read",

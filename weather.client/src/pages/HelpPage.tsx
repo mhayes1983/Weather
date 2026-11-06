@@ -33,7 +33,9 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 for the date. It opens on today, and its tabs switch to yesterday, which shows what was measured, or
                 tomorrow, which shows the forecast like today. The average, record and actual come from the nearest
                 climate station that still reports and has at least 30 years of records, so they can differ from the
-                station's own readings. A dash means that value isn't available.
+                station's own readings. Forecast Comparison uses the same station for its averages. A dash means that
+                value isn't available, and amounts the station only reported as part of a several-day total aren't
+                shown as one day's.
             </p>
 
             <h2>Choosing a station</h2>

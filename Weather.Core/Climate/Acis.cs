@@ -7,44 +7,11 @@ namespace Weather.Core.Climate;
 
 internal sealed record AcisStation(string Id, string Name, double Latitude, double Longitude);
 
-/// <summary>Calls shared by the ACIS normals and almanac.</summary>
+/// <summary>Request and parsing helpers shared by the ACIS normals and almanac.</summary>
 internal static class Acis
 {
     private const string BaseUrl = "https://data.rcc-acis.org";
     private const string MissingValue = "M";
-
-    private static readonly double[] SearchRadiiDegrees = [0.3, 0.75, 1.5, 3];
-
-    /// <summary>The nearest station that <paramref name="accept"/> takes, searching wider until one is found.</summary>
-    /// <param name="request">Builds the search for a bounding box. A node can only belong to one parent, so each call builds its own.</param>
-    public static async Task<AcisStation> FindNearestAsync(
-        IHttpClientFactory httpClientFactory,
-        double latitude,
-        double longitude,
-        Func<string, JsonObject> request,
-        Func<JsonElement, bool> accept,
-        CancellationToken cancellationToken)
-    {
-        foreach (var radius in SearchRadiiDegrees)
-        {
-            var bbox = string.Create(
-                CultureInfo.InvariantCulture,
-                $"{longitude - radius},{latitude - radius},{longitude + radius},{latitude + radius}");
-
-            using var document = await PostAsync(httpClientFactory, "MultiStnData", request(bbox), cancellationToken);
-            var nearest = document.RootElement.GetProperty("data").EnumerateArray()
-                .Where(station => station.GetProperty("meta").TryGetProperty("ll", out _) && accept(station))
-                .Select(ToStation)
-                .MinBy(station => DistanceSquared(latitude, longitude, station));
-
-            if (nearest is not null)
-            {
-                return nearest;
-            }
-        }
-
-        throw new InvalidOperationException("No climate station found nearby.");
-    }
 
     // JsonObject needs no reflection, which trimming on Android would otherwise break.
     public static async Task<JsonDocument> PostAsync(
@@ -62,7 +29,16 @@ internal static class Acis
 
     public static string Date(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-    private static AcisStation ToStation(JsonElement station)
+    public static DateOnly? ParseDate(JsonElement value) =>
+        value.ValueKind == JsonValueKind.String
+        && DateOnly.TryParseExact(value.GetString(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+            ? date
+            : null;
+
+    // A node can only belong to one parent, so each request builds its own.
+    public static JsonObject NormalElement(string name) => new() { ["name"] = name, ["normal"] = "1" };
+
+    public static AcisStation ToStation(JsonElement station)
     {
         var meta = station.GetProperty("meta");
         var coordinates = meta.GetProperty("ll");
@@ -73,10 +49,17 @@ internal static class Acis
             coordinates[0].GetDouble());
     }
 
-    private static double DistanceSquared(double latitude, double longitude, AcisStation station)
+    public static double DistanceSquared(double latitude, double longitude, AcisStation station)
     {
         var latitudeDelta = station.Latitude - latitude;
         var longitudeDelta = (station.Longitude - longitude) * Math.Cos(latitude * Math.PI / 180);
         return (latitudeDelta * latitudeDelta) + (longitudeDelta * longitudeDelta);
+    }
+
+    /// <summary>Runs <paramref name="fetch"/> with its own timeout, so a shared cache entry never inherits another caller's.</summary>
+    public static async Task<T> WithTimeoutAsync<T>(TimeSpan timeout, Func<CancellationToken, Task<T>> fetch)
+    {
+        using var source = new CancellationTokenSource(timeout);
+        return await fetch(source.Token);
     }
 }

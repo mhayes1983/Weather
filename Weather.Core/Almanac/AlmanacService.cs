@@ -70,15 +70,19 @@ public sealed class AlmanacService(
             $"almanac:{station.Id}:{today:yyyy-MM-dd}",
             async () =>
             {
-                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(options.Value.SourceTimeoutSeconds));
                 try
                 {
-                    var location = await locator.GetAsync(station, timeout.Token);
-                    return (new Fetched(await almanac.GetAsync(station.Id, location, today, timeout.Token), null), ClimateCacheDuration);
+                    // Each step has its own timeout, so a slow location lookup can't use up the ACIS calls' time.
+                    var location = await Climate.Acis.WithTimeoutAsync(
+                        TimeSpan.FromSeconds(options.Value.SourceTimeoutSeconds),
+                        token => locator.GetAsync(station, token));
+                    return (new Fetched(await almanac.GetAsync(location, today), null), ClimateCacheDuration);
                 }
                 catch (Exception exception)
                 {
                     logger.LogWarning("Almanac for {Id} failed: {Error}", station.Id, exception.GetType().Name);
+
+                    // ClimateStations already remembers there's no station for a day, so asking again is cheap.
                     return (new Fetched(null, SourceFailure.Describe(exception)), TimeSpan.FromMinutes(options.Value.ErrorRetryMinutes));
                 }
             });

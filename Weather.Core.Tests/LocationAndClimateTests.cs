@@ -50,32 +50,38 @@ public class LocationAndClimateTests
     }
 
     [Fact]
-    public async Task UsesNearestStationThatHasNormals()
+    public async Task UsesTheNearestActiveStationThatHasNormals()
     {
+        // Closest first: no normals, highs only, closed (as Brunswick is), too new, then Durham, which qualifies.
         var http = StubHttp.Json(url => url.EndsWith("MultiStnData")
             ? """
             {"data":[
-              {"meta":{"ll":[-69.96,43.93],"sids":["CLOSEST 2"],"name":"NO DATA"},"data":["M","M"]},
-              {"meta":{"ll":[-69.965,43.928],"sids":["HIGHS 2"],"name":"HIGHS ONLY"},"data":["55","M"]},
-              {"meta":{"ll":[-69.93333,43.9],"sids":["14611 1"],"name":"BRUNSWICK"},"data":["53","36"]},
-              {"meta":{"ll":[-70.30443,43.64244],"sids":["14764 1"],"name":"PORTLAND JETPORT"},"data":["54","37"]}
+              {"meta":{"ll":[-69.96,43.93],"sids":["CLOSEST 2"],"name":"NO DATA","valid_daterange":[["1900-01-01","2026-10-29"],["1900-01-01","2026-10-29"],[],[]]},"data":["50","30","M","M"]},
+              {"meta":{"ll":[-69.965,43.928],"sids":["HIGHS 2"],"name":"HIGHS ONLY","valid_daterange":[["1900-01-01","2026-10-29"],["1900-01-01","2026-10-29"],[],[]]},"data":["50","30","55","M"]},
+              {"meta":{"ll":[-69.93333,43.9],"sids":["14611 1"],"name":"BRUNSWICK","valid_daterange":[["1945-02-01","2010-01-31"],["1945-02-01","2010-01-31"],[],[]]},"data":["M","M","53","36"]},
+              {"meta":{"ll":[-69.86,43.93],"sids":["170409 2"],"name":"BATH","valid_daterange":[["2000-01-01","2026-10-29"],["2000-01-01","2026-10-29"],[],[]]},"data":["50","30","51","31"]},
+              {"meta":{"ll":[-70.0963,43.9996],"sids":["172048 2"],"name":"DURHAM","valid_daterange":[["1994-09-01","2026-10-29"],["1994-09-01","2026-10-29"],[],[]]},"data":["50","30","50","30"]}
             ]}
             """
-            : """{"data":[["2026-10-30","53","36"],["2026-10-31","52","M"]]}""");
-        var normals = new AcisClimateNormals(http, new WeatherCache());
+            : """{"data":[["2026-10-30","50","30"],["2026-10-31","49","M"]]}""");
+        var cache = new WeatherCache();
+        var options = TestData.Options();
+        var normals = new AcisClimateNormals(http, cache, new ClimateStations(http, cache, options), options);
 
         var result = await normals.GetAsync(TestData.Topsham, new DateOnly(2026, 10, 30), new DateOnly(2026, 10, 31), default);
 
-        Assert.Equal("BRUNSWICK", result.Station);
-        Assert.Equal(53, result.HighsF[new DateOnly(2026, 10, 30)]);
-        Assert.Equal(36, result.LowsF[new DateOnly(2026, 10, 30)]);
+        Assert.Equal("DURHAM", result.Station);
+        Assert.Equal(50, result.HighsF[new DateOnly(2026, 10, 30)]);
+        Assert.Equal(30, result.LowsF[new DateOnly(2026, 10, 30)]);
         Assert.False(result.LowsF.ContainsKey(new DateOnly(2026, 10, 31)));
 
-        // The search asks for both normals and skips a station that only has highs.
-        Assert.Contains("mint", await http.Requests[0].Content!.ReadAsStringAsync());
+        // The search asks for both normals and each station's period of record.
+        var search = await http.Requests[0].Content!.ReadAsStringAsync();
+        Assert.Contains("mint", search);
+        Assert.Contains("valid_daterange", search);
 
         var normalsRequest = await http.Requests[1].Content!.ReadAsStringAsync();
-        Assert.Contains("14611 1", normalsRequest);
+        Assert.Contains("172048 2", normalsRequest);
         Assert.Contains("mint", normalsRequest);
     }
 }

@@ -1,46 +1,32 @@
 using System.Globalization;
-using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Options;
 using Weather.Core.Models;
 
 namespace Weather.Core.Climate;
 
-/// <summary>Daily normal highs and lows from the nearest ACIS station that has them.</summary>
-public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, WeatherCache cache) : IClimateNormals
+/// <summary>Daily normal highs and lows from the location's climate station, the same one the almanac uses.</summary>
+public sealed class AcisClimateNormals(
+    IHttpClientFactory httpClientFactory,
+    WeatherCache cache,
+    ClimateStations stations,
+    IOptions<WeatherOptions> options) : IClimateNormals
 {
     private static readonly TimeSpan NormalsCacheDuration = TimeSpan.FromHours(24);
-    private static readonly TimeSpan StationCacheDuration = TimeSpan.FromDays(30);
 
-    public async Task<ClimateNormals> GetAsync(
-        ForecastLocation location, DateOnly start, DateOnly end, CancellationToken cancellationToken)
-    {
-        return await cache.GetOrCreateAsync(
-            $"normals:{location.Zip}:{start:yyyy-MM-dd}",
+    public Task<ClimateNormals> GetAsync(
+        ForecastLocation location, DateOnly start, DateOnly end, CancellationToken cancellationToken) =>
+        // The cached fetch keeps its own timeout, so the caller's token only stops this caller waiting.
+        cache.GetOrCreateAsync(
+            string.Create(CultureInfo.InvariantCulture, $"normals:{location.Latitude:F3},{location.Longitude:F3}:{start:yyyy-MM-dd}:{end:yyyy-MM-dd}"),
             async () =>
             {
-                var station = await cache.GetOrCreateAsync(
-                    $"station:{location.Zip}",
-                    async () => (await FindNearestStationAsync(location, start, cancellationToken), StationCacheDuration));
-                return (await GetNormalsAsync(station, start, end, cancellationToken), NormalsCacheDuration);
-            });
-    }
-
-    private Task<AcisStation> FindNearestStationAsync(
-        ForecastLocation location, DateOnly date, CancellationToken cancellationToken) =>
-        Acis.FindNearestAsync(
-            httpClientFactory,
-            location.Latitude,
-            location.Longitude,
-            bbox => new JsonObject
-            {
-                ["bbox"] = bbox,
-                ["sdate"] = Acis.Date(date),
-                ["edate"] = Acis.Date(date),
-                ["elems"] = new JsonArray(NormalElement("maxt"), NormalElement("mint")),
-                ["meta"] = "name,sids,ll",
-            },
-            HasNormal,
-            cancellationToken);
+                var station = await stations.FindAsync(location.Latitude, location.Longitude, start);
+                var normals = await Acis.WithTimeoutAsync(
+                    TimeSpan.FromSeconds(options.Value.SourceTimeoutSeconds),
+                    token => GetNormalsAsync(station, start, end, token));
+                return (normals, NormalsCacheDuration);
+            }).WaitAsync(cancellationToken);
 
     private async Task<ClimateNormals> GetNormalsAsync(
         AcisStation station, DateOnly start, DateOnly end, CancellationToken cancellationToken)
@@ -50,7 +36,7 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
             ["sid"] = station.Id,
             ["sdate"] = Acis.Date(start),
             ["edate"] = Acis.Date(end),
-            ["elems"] = new JsonArray(NormalElement("maxt"), NormalElement("mint")),
+            ["elems"] = new JsonArray(Acis.NormalElement("maxt"), Acis.NormalElement("mint")),
         };
 
         using var document = await Acis.PostAsync(httpClientFactory, "StnData", body, cancellationToken);
@@ -72,11 +58,4 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
 
         return new ClimateNormals(station.Name, highs, lows);
     }
-
-    // A node can only belong to one parent, so each request builds its own.
-    internal static JsonObject NormalElement(string name) => new() { ["name"] = name, ["normal"] = "1" };
-
-    // Both normals are needed, so a station with only highs doesn't leave the lows unhighlighted.
-    private static bool HasNormal(JsonElement station) =>
-        Acis.IsPresent(station.GetProperty("data")[0]) && Acis.IsPresent(station.GetProperty("data")[1]);
 }
