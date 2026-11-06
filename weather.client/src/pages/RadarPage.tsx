@@ -466,9 +466,7 @@ function TemperatureLegend({ unit }: { unit: Unit }) {
 
     return (
         <figure className="temperature-legend" aria-label="Temperature colour scale">
-            <div className="temperature-legend-bar">
-                {steps.map(step => <img key={step.fahrenheit} src={step.image} alt="" />)}
-            </div>
+            <TemperatureBar steps={steps} />
             <div className="temperature-legend-ticks" aria-hidden="true">
                 {ticks.filter(fahrenheit => fahrenheit > min && fahrenheit <= max).map(fahrenheit =>
                     <span key={fahrenheit} style={{ left: `${(fahrenheit - min) / (max - min) * 100}%` }}>
@@ -478,6 +476,46 @@ function TemperatureLegend({ unit }: { unit: Unit }) {
             </div>
         </figure>
     );
+}
+
+// One pixel column per 1°F swatch, stretched by the browser into a smooth bar. A row
+// of swatch images leaves hairline gaps between them on high-density screens.
+function TemperatureBar({ steps }: { steps: TemperatureLegendStep[] }) {
+    const canvas = useRef<HTMLCanvasElement>(null);
+
+    useEffect(() => {
+        const context = canvas.current?.getContext('2d');
+        if (!context) {
+            return;
+        }
+
+        let cancelled = false;
+        const images = steps.map(step => {
+            const image = new Image();
+            image.src = step.image;
+            return image;
+        });
+
+        Promise.all(images.map(image => image.decode()))
+            .then(() => {
+                if (!cancelled) {
+                    // Each swatch is a solid square, so its centre is its colour.
+                    images.forEach((image, index) => {
+                        const size = Math.min(image.naturalWidth, image.naturalHeight);
+                        context.drawImage(image, size / 2 - 1, size / 2 - 1, 2, 2, index, 0, 1, 1);
+                    });
+                }
+            })
+            .catch(() => {
+                // The ticks and note still explain the map without the bar.
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [steps]);
+
+    return <canvas ref={canvas} className="temperature-legend-bar" width={steps.length} height={1} aria-hidden="true" />;
 }
 
 export default RadarPage;
