@@ -61,9 +61,19 @@ function HelpPage({ onNavigate }: HelpPageProps) {
 
             <h2>Radar</h2>
             <p>
-                The <RouteLink route="/radar" onNavigate={onNavigate}>Radar</RouteLink> page shows recent US radar on a map you
-                can drag and zoom. Use the area buttons to jump to a region, <strong>Play</strong> to animate the last two hours,
-                or the slider to pick a time. Radar shows precipitation only, and snow can look weaker than it is.
+                The <RouteLink route="/radar" onNavigate={onNavigate}>Radar</RouteLink> page shows a US weather map you can drag
+                and zoom. The buttons above the map switch between one map type at a time:
+            </p>
+            <ul>
+                <li><strong>Radar</strong>: precipitation intensity. Snow can look weaker than it is.</li>
+                <li><strong>Precip type</strong>: whether radar precipitation is snow, rain mixed with hail, or one of five kinds of rain, estimated from radar and model temperatures. Point at or tap a colour in its scale to see what it means. Sleet and freezing rain have no colour of their own.</li>
+                <li><strong>Temperature</strong>: the National Weather Service forecast for the next few hours, not measured readings. It doesn't animate, and uses your °F or °C setting for its scale.</li>
+                <li><strong>Clouds</strong>: infrared satellite images, which work day and night.</li>
+                <li><strong>Lightning &amp; warnings</strong>: lightning strikes in each 15 minutes, over current NWS warnings, watches and advisories.</li>
+            </ul>
+            <p>
+                Use the area buttons to jump to a region, <strong>Play</strong> to animate recent images, or the slider to pick a
+                time. The map always starts on Radar.
             </p>
 
             <h2>Forecast Comparison</h2>
@@ -107,7 +117,7 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <ul>
                 <li>Station readings: Ambient Weather and <a href="https://www.wunderground.com/">Weather Underground</a>, with modelled estimates from <a href="https://open-meteo.com/">Open-Meteo</a></li>
                 <li>Forecasts: <a href="https://open-meteo.com/">Open-Meteo</a> (ECMWF, GFS, GEM, ICON and WeatherNext models, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>), <a href="https://www.weather.gov/">National Weather Service</a>, Weather Underground and <a href="https://www.newscentermaine.com/">NewsCenter Maine</a></li>
-                <li>Alerts and radar: <a href="https://www.weather.gov/">National Weather Service</a> and NOAA</li>
+                <li>Alerts, radar and the weather map: <a href="https://www.weather.gov/">National Weather Service</a> and NOAA, including <a href="https://nowcoast.noaa.gov/">nowCOAST</a> satellite and lightning</li>
                 <li>Averages, records and climate station measurements: <a href="https://www.rcc-acis.org/">ACIS</a></li>
                 <li>Moon data: <a href="https://aa.usno.navy.mil/">US Naval Observatory</a></li>
                 <li>ZIP code locations: <a href="https://www.zippopotam.us/">Zippopotam.us</a></li>

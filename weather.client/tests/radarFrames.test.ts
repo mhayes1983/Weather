@@ -65,3 +65,13 @@ test('keeps a frame until NOAA is about to drop it', () => {
         assert.ok(selectFrames(scans(newScans)).includes(held), `dropped after ${newScans} new scans`);
     }
 });
+
+test('loops two hours of five-minute satellite images, newest last', () => {
+    const fiveMinutes = 300_000;
+    const times = Array.from({ length: 84 }, (_, index) => new Date(start + index * fiveMinutes).toISOString());
+    const frames = selectFrames(times);
+
+    assert.equal(frames.at(-1), times.at(-1));
+    assert.ok(frames.length <= 13, `${frames.length} frames`);
+    assert.ok(Date.parse(frames.at(-1)!) - Date.parse(frames[0]) <= 2 * 3_600_000, 'about two hours');
+});
