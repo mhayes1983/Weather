@@ -38,6 +38,8 @@ The site runs at https://localhost:54777. If the build reports locked files, Vis
 
 Runs on TrueNAS as a Docker custom app (`deploy/truenas-compose.yaml`). `.github/workflows/publish-image.yml` publishes the image from `master`. The container serves plain HTTP on 8080, so HTTPS redirection is Development only. User-secrets don't load there, so keys come from environment variables such as `Weather__WeatherUnderground__ApiKey`.
 
+Android releases come from `.github/workflows/android-release.yml`. To release a version, raise `ApplicationDisplayVersion` and `ApplicationVersion` (which must always go up) in `Weather.Android.csproj`. When that reaches `master`, the workflow builds the signed APK and creates the `android-v{version}` tag and GitHub release. A version that's already released is skipped, and pushing an `android-v*` tag still works.
+
 ## Rules
 
 - **Temperatures are °F everywhere in Core and the API.** Celsius is display-only, in `weather.client/src/temperature.ts`.
