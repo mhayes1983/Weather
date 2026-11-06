@@ -55,7 +55,8 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
 
             <h2>Services your browser contacts directly</h2>
             <p>
-                The Radar page loads images directly from <a href="https://www.noaa.gov/">NOAA</a> and map tiles
+                The Radar page loads map images directly from <a href="https://www.noaa.gov/">NOAA</a> (its radar, nowCOAST and
+                National Weather Service map services) and map tiles
                 from <a href="https://www.openstreetmap.org/">OpenStreetMap</a>. Like any website, those services can see your IP
                 address, and which map areas you view. Their own privacy policies apply. Other pages don't contact them.
             </p>

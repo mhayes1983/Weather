@@ -140,7 +140,7 @@ function App() {
             {route === '/' && <StationPage selected={station} stationControls={stationControls} unit={unit} onNavigate={navigate} />}
             {route === '/radar' &&
                 <ErrorBoundary message="The radar page couldn't be loaded.">
-                    <Suspense fallback={<main><p>Loading radar…</p></main>}><RadarPage /></Suspense>
+                    <Suspense fallback={<main><p>Loading radar…</p></main>}><RadarPage unit={unit} /></Suspense>
                 </ErrorBoundary>}
             {route === '/alerts' && <AlertsPage station={station} onNavigate={navigate} />}
             {route === '/daily' && <DailyForecastPage station={station} stationControls={stationControls} unit={unit} onNavigate={navigate} />}

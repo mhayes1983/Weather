@@ -1087,6 +1087,17 @@ a.daily-row:focus-visible {
     gap: 8px;
 }
 
+.radar-modes {
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.radar-modes button[aria-pressed='true'] {
+    color: var(--bg);
+    background: var(--text-strong);
+    border-color: var(--text-strong);
+}
+
 .radar-map {
     height: min(70vh, 640px);
     min-height: 340px;
@@ -1112,10 +1123,115 @@ a.daily-row:focus-visible {
 
 .radar-legend {
     display: block;
-    width: 100%;
-    max-width: 500px;
+    max-width: 100%;
     background: #fff;
     border-radius: 4px;
+}
+
+.scale-legend {
+    max-width: 500px;
+    margin: 12px 0;
+}
+
+.scale-legend-bar {
+    height: 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.scale-legend-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 4px;
+    font-size: 0.8rem;
+}
+
+/* Room above the scale for a tooltip, so it never covers the time slider. */
+.legend-key {
+    padding-top: 32px;
+}
+
+.legend-key-image {
+    position: relative;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.legend-key-zone {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    cursor: help;
+}
+
+.legend-key-zone:hover,
+.legend-key-zone:focus-visible,
+.legend-key-zone[aria-pressed='true'] {
+    background: transparent;
+    outline: 2px solid var(--text-strong);
+    outline-offset: -2px;
+}
+
+.legend-key-tooltip {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: var(--bg);
+    background: var(--text-strong);
+    font-size: 0.8rem;
+    line-height: 1.3;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.legend-key-tooltip.start {
+    left: 0;
+    transform: none;
+}
+
+.legend-key-tooltip.end {
+    left: auto;
+    right: 0;
+    transform: none;
+}
+
+.legend-key-caption {
+    min-height: 2.6em;
+    margin: 6px 0 0;
+    font-size: 0.85rem;
+}
+
+.temperature-legend {
+    max-width: 500px;
+    margin: 12px 0;
+}
+
+.temperature-legend-bar {
+    display: block;
+    width: 100%;
+    height: 14px;
+    border-radius: 4px;
+}
+
+.temperature-legend-ticks {
+    position: relative;
+    height: 1.2em;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.temperature-legend-ticks span {
+    position: absolute;
+    transform: translateX(-50%);
 }
 
 .back-link {

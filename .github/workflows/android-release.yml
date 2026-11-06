@@ -2,13 +2,50 @@ name: Android release
 
 on:
   push:
+    # A merge that changes the app's version releases it. Path filters don't apply
+    # to tag pushes, so a pushed android-v* tag still releases as before.
+    branches: [master]
+    paths: ['Weather.Android/Weather.Android.csproj']
     tags: ['android-v*']
 
 permissions:
   contents: write
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      release: ${{ steps.version.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        name: Find the version to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.ref_type }}" = tag ]; then
+            tag="${{ github.ref_name }}"
+          else
+            version=$(sed -n 's:.*<ApplicationDisplayVersion>\(.*\)</ApplicationDisplayVersion>.*:\1:p' Weather.Android/Weather.Android.csproj)
+            if [ -z "$version" ]; then
+              echo "::error::No ApplicationDisplayVersion in Weather.Android.csproj."
+              exit 1
+            fi
+            tag="android-v$version"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          # Other changes to the project file, or a rerun, mustn't release a version twice.
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "$tag is already released."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
   release:
+    needs: version
+    if: needs.version.outputs.release == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,4 +86,5 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" (Get-Item publish/*-Signed.apk) --title "${{ github.ref_name }}" --generate-notes
+        # --target creates the tag at this commit when the release comes from a merge.
+        run: gh release create "${{ needs.version.outputs.tag }}" (Get-Item publish/*-Signed.apk) --target "${{ github.sha }}" --title "${{ needs.version.outputs.tag }}" --generate-notes
