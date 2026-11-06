@@ -19,7 +19,7 @@ public sealed class NwsSource(
 
     public bool AppliesTo(ForecastLocation location) => true;
 
-    public async Task<SourceResult> GetDailyHighsAsync(ForecastLocation location, CancellationToken cancellationToken)
+    public async Task<SourceResult> GetDailyTemperaturesAsync(ForecastLocation location, CancellationToken cancellationToken)
     {
         var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
 
@@ -29,18 +29,27 @@ public sealed class NwsSource(
 
         using var document = JsonDocument.Parse(await client.GetStringAsync(forecastUrl, cancellationToken));
 
-        var results = new List<DailyHigh>();
+        var highs = new Dictionary<DateOnly, int>();
+        var lows = new Dictionary<DateOnly, int>();
         foreach (var period in document.RootElement.GetProperty("properties").GetProperty("periods").EnumerateArray())
         {
-            // Overnight periods hold lows, so an evening forecast has no high for today.
+            var start = DateTimeOffset.Parse(period.GetProperty("startTime").GetString()!, CultureInfo.InvariantCulture);
+            var temperature = period.GetProperty("temperature").GetInt32();
+
+            // Overnight periods hold lows, so an evening forecast has no high for today. A night's low is
+            // the morning low of the date it ends on. Adding 12 hours moves an evening start to the next
+            // date and keeps a start after midnight on its own date.
             if (period.GetProperty("isDaytime").GetBoolean())
             {
-                var start = DateTimeOffset.Parse(period.GetProperty("startTime").GetString()!, CultureInfo.InvariantCulture);
-                results.Add(new DailyHigh(DateOnly.FromDateTime(start.DateTime), period.GetProperty("temperature").GetInt32()));
+                highs.TryAdd(DateOnly.FromDateTime(start.DateTime), temperature);
+            }
+            else
+            {
+                lows.TryAdd(DateOnly.FromDateTime(start.DateTime.AddHours(12)), temperature);
             }
         }
 
-        return SourceResult.Ok(results, timeProvider.GetUtcNow());
+        return SourceResult.Ok(DayParts.Merge(highs, lows), timeProvider.GetUtcNow());
     }
 
     internal static async Task<string> GetForecastUrlAsync(

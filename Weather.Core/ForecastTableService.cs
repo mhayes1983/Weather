@@ -38,15 +38,19 @@ public sealed class ForecastTableService(
         var columns = applicable.Zip(results, (source, result) => new ForecastColumn(
             source.Column.Id, source.Column.Label, result.Status, result.Message, result.FetchedAt)).ToList();
 
-        var averageHigh = rows[0].AverageF is int start && rows[^1].AverageF is int end
-            ? new AverageHigh(start, end, normals!.Station)
+        var averageHigh = rows[0].AverageHighF is int highStart && rows[^1].AverageHighF is int highEnd
+            ? new AverageRange(highStart, highEnd, normals!.Station)
+            : null;
+        var averageLow = rows[0].AverageLowF is int lowStart && rows[^1].AverageLowF is int lowEnd
+            ? new AverageRange(lowStart, lowEnd, normals!.Station)
             : null;
 
         return new ForecastTable(
             location,
             now,
             averageHigh,
-            averageHigh is null ? "Average highs are unavailable right now." : null,
+            averageLow,
+            AverageMessage(averageHigh, averageLow),
             options.Value.AboveAverageF,
             options.Value.BelowAverageF,
             columns,
@@ -59,21 +63,39 @@ public sealed class ForecastTableService(
         IReadOnlyList<IForecastSource> applicable,
         IReadOnlyList<SourceResult> results)
     {
-        int? average = normals is not null && normals.HighsF.TryGetValue(date, out var normal) ? normal : null;
+        int? averageHigh = normals is not null && normals.HighsF.TryGetValue(date, out var normalHigh) ? normalHigh : null;
+        int? averageLow = normals is not null && normals.LowsF.TryGetValue(date, out var normalLow) ? normalLow : null;
 
         var cells = new Dictionary<string, ForecastCell>();
         for (var i = 0; i < applicable.Count; i++)
         {
-            if (results[i].Highs.FirstOrDefault(high => high.Date == date) is { } high)
+            if (results[i].Days.FirstOrDefault(day => day.Date == date) is { } day)
             {
                 cells[applicable[i].Column.Id] = new ForecastCell(
-                    high.HighF,
-                    AnomalyClassifier.Classify(high.HighF, average, options.Value.AboveAverageF, options.Value.BelowAverageF));
+                    day.HighF,
+                    Classify(day.HighF, averageHigh),
+                    day.LowF,
+                    Classify(day.LowF, averageLow));
             }
         }
 
-        return new ForecastRow(date, average, cells);
+        return new ForecastRow(date, averageHigh, averageLow, cells);
     }
+
+    // Says which averages are missing, so unhighlighted columns are explained.
+    private static string? AverageMessage(AverageRange? averageHigh, AverageRange? averageLow) =>
+        (averageHigh, averageLow) switch
+        {
+            (null, null) => "Averages are unavailable right now.",
+            (null, _) => "Average highs are unavailable right now.",
+            (_, null) => "Average lows are unavailable right now.",
+            _ => null,
+        };
+
+    // Lows use the same thresholds as highs, against the normal low.
+    private Anomaly Classify(int? valueF, int? averageF) => valueF is int value
+        ? AnomalyClassifier.Classify(value, averageF, options.Value.AboveAverageF, options.Value.BelowAverageF)
+        : Anomaly.None;
 
     private Task<SourceResult> GetSourceResultAsync(IForecastSource source, ForecastLocation location)
     {
@@ -106,7 +128,7 @@ public sealed class ForecastTableService(
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(options.Value.SourceTimeoutSeconds));
         try
         {
-            return await source.GetDailyHighsAsync(location, timeout.Token);
+            return await source.GetDailyTemperaturesAsync(location, timeout.Token);
         }
         catch (Exception exception)
         {
@@ -124,7 +146,7 @@ public sealed class ForecastTableService(
         }
         catch (Exception exception)
         {
-            logger.LogWarning("Average highs failed for {Zip}: {Error}", location.Zip, exception.GetType().Name);
+            logger.LogWarning("Averages failed for {Zip}: {Error}", location.Zip, exception.GetType().Name);
             return null;
         }
     }

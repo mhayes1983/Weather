@@ -9,8 +9,9 @@ public static class NewsCenterMaineParser
     private const string RowClass = "weather-10-day__row";
     private const string DateClass = "weather-10-day__date";
     private const string HighClass = "weather-10-day__temperature-high";
+    private const string LowClass = "weather-10-day__temperature-low";
 
-    public static IReadOnlyList<DailyHigh> Parse(string html, string section, DateOnly today)
+    public static IReadOnlyList<DailyTemperatures> Parse(string html, string section, DateOnly today)
     {
         var document = new HtmlDocument();
         document.LoadHtml(html);
@@ -19,20 +20,38 @@ public static class NewsCenterMaineParser
             $"//h3[contains(normalize-space(.), '{section}')]/following::div[@data-module='weather-10-day'][1]")
             ?? throw new FormatException($"Section '{section}' was not found.");
 
-        var results = new List<DailyHigh>();
+        var highs = new Dictionary<DateOnly, int>();
+        var lows = new Dictionary<DateOnly, int>();
         foreach (var row in module.SelectNodes($".//div[{HasClass(RowClass)}]") ?? Enumerable.Empty<HtmlNode>())
         {
-            var date = row.SelectSingleNode($".//span[{HasClass(DateClass)}]")?.InnerText.Trim();
-            var high = row.SelectSingleNode($".//div[{HasClass(HighClass)}]")?.InnerText.Trim();
-
-            if (date is not null && int.TryParse(high, CultureInfo.InvariantCulture, out var highF))
+            var text = row.SelectSingleNode($".//span[{HasClass(DateClass)}]")?.InnerText.Trim();
+            if (text is null)
             {
-                results.Add(new DailyHigh(ToDate(date, today), highF));
+                continue;
+            }
+
+            // A row shows the day's high and the low of the night after it, as TV forecasts do, so the
+            // low is the next date's morning low.
+            var date = ToDate(text, today);
+            if (ReadTemperature(row, HighClass) is int high)
+            {
+                highs.TryAdd(date, high);
+            }
+
+            if (ReadTemperature(row, LowClass) is int low)
+            {
+                lows.TryAdd(date.AddDays(1), low);
             }
         }
 
+        var results = DayParts.Merge(highs, lows);
         return results.Count > 0 ? results : throw new FormatException($"Section '{section}' had no forecast rows.");
     }
+
+    private static int? ReadTemperature(HtmlNode row, string className) =>
+        int.TryParse(row.SelectSingleNode($".//div[{HasClass(className)}]")?.InnerText.Trim(), CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
 
     private static string HasClass(string name) =>
         $"contains(concat(' ', normalize-space(@class), ' '), ' {name} ')";

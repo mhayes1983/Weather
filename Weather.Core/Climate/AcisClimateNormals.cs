@@ -6,7 +6,7 @@ using Weather.Core.Models;
 
 namespace Weather.Core.Climate;
 
-/// <summary>Daily normal highs from the nearest ACIS station that has them.</summary>
+/// <summary>Daily normal highs and lows from the nearest ACIS station that has them.</summary>
 public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, WeatherCache cache) : IClimateNormals
 {
     private const string BaseUrl = "https://data.rcc-acis.org";
@@ -42,7 +42,7 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
                     $"{location.Longitude - radius},{location.Latitude - radius},{location.Longitude + radius},{location.Latitude + radius}"),
                 ["sdate"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 ["edate"] = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                ["elems"] = NormalHighElements(),
+                ["elems"] = new JsonArray(NormalElement("maxt"), NormalElement("mint")),
                 ["meta"] = "name,sids,ll",
             };
 
@@ -69,24 +69,31 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
             ["sid"] = station.Id,
             ["sdate"] = start.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             ["edate"] = end.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            ["elems"] = NormalHighElements(),
+            ["elems"] = new JsonArray(NormalElement("maxt"), NormalElement("mint")),
         };
 
         using var document = await PostAsync("StnData", body, cancellationToken);
         var highs = new Dictionary<DateOnly, int>();
+        var lows = new Dictionary<DateOnly, int>();
         foreach (var day in document.RootElement.GetProperty("data").EnumerateArray())
         {
+            var date = DateOnly.ParseExact(day[0].GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture);
             if (int.TryParse(day[1].GetString(), CultureInfo.InvariantCulture, out var high))
             {
-                highs[DateOnly.ParseExact(day[0].GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture)] = high;
+                highs[date] = high;
+            }
+
+            if (int.TryParse(day[2].GetString(), CultureInfo.InvariantCulture, out var low))
+            {
+                lows[date] = low;
             }
         }
 
-        return new ClimateNormals(station.Name, highs);
+        return new ClimateNormals(station.Name, highs, lows);
     }
 
     // A node can only belong to one parent, so each request builds its own.
-    private static JsonArray NormalHighElements() => [new JsonObject { ["name"] = "maxt", ["normal"] = "1" }];
+    private static JsonObject NormalElement(string name) => new() { ["name"] = name, ["normal"] = "1" };
 
     // JsonObject needs no reflection, which trimming on Android would otherwise break.
     private async Task<JsonDocument> PostAsync(string endpoint, JsonObject body, CancellationToken cancellationToken)
@@ -98,9 +105,13 @@ public sealed class AcisClimateNormals(IHttpClientFactory httpClientFactory, Wea
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
     }
 
+    // Both normals are needed, so a station with only highs doesn't leave the lows unhighlighted.
     private static bool HasNormal(JsonElement station) =>
-        station.GetProperty("data")[0].GetString() is { Length: > 0 } value && value != MissingValue
+        IsPresent(station.GetProperty("data")[0]) && IsPresent(station.GetProperty("data")[1])
         && station.GetProperty("meta").TryGetProperty("ll", out _);
+
+    private static bool IsPresent(JsonElement value) =>
+        value.GetString() is { Length: > 0 } text && text != MissingValue;
 
     private static AcisStation ToStation(JsonElement station)
     {

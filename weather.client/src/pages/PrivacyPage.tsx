@@ -10,7 +10,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         <main className="prose">
             <header>
                 <h1>Privacy Policy</h1>
-                <p className="location">Effective November 1, 2026</p>
+                <p className="location">Effective November 5, 2026</p>
             </header>
 
             <p>
@@ -24,7 +24,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 <li>Colour theme</li>
                 <li>Temperature unit</li>
                 <li>Default station</li>
-                <li>Stations you've added (up to 20)</li>
+                <li>Stations you've added (up to 20), with the ZIP code you found each one by</li>
             </ul>
             <p>To remove them, clear this site's data in your browser settings.</p>
 
@@ -47,7 +47,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 <li>National Weather Service: forecasts and alerts</li>
                 <li>Weather Underground: forecasts, station readings and station search</li>
                 <li>Ambient Weather: home station readings</li>
-                <li>ACIS: average highs</li>
+                <li>ACIS: average highs and lows</li>
                 <li>US Naval Observatory: moon data</li>
                 <li>Zippopotam.us: ZIP code locations</li>
                 <li>NewsCenter Maine: Maine forecasts</li>

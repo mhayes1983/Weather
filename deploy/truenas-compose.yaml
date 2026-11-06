@@ -15,3 +15,4 @@ services:
       # by position without a rebuild. Weather Underground station IDs are case sensitive.
       # Weather__Stations__0__Id: "KMELISBO29"
       # Weather__Stations__0__Name: "Lisbon Falls, ME"
+      # Weather__Stations__0__Zip: "04252"

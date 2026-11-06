@@ -33,6 +33,9 @@ public sealed class WeatherStationOptions
 {
     public string Id { get; set; } = "";
     public string? Name { get; set; }
+
+    /// <summary>Fills the Forecast Comparison ZIP box when this is the current station.</summary>
+    public string? Zip { get; set; }
 }
 
 public sealed class WeatherUndergroundStationOptions

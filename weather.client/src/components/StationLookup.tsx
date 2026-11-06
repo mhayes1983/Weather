@@ -6,7 +6,8 @@ import { maxSavedStations } from '../savedStations';
 interface StationLookupProps {
     ready: boolean;
     full: boolean;
-    onFound: (match: StationMatch) => void;
+    /** zip is the query when it was a ZIP, so the station can remember where it was found. */
+    onFound: (match: StationMatch, zip: string | undefined) => void;
 }
 
 const zipPattern = /^\d{5}$/;
@@ -52,7 +53,7 @@ function StationLookup({ ready, full, onFound }: StationLookupProps) {
                     return;
                 }
 
-                latestOnFound.current(match);
+                latestOnFound.current(match, zipPattern.test(trimmed) ? trimmed : undefined);
                 setQuery('');
                 setMessage({
                     text: match.distanceMi === null

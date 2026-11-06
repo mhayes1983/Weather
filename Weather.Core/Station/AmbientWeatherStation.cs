@@ -26,6 +26,8 @@ public sealed class AmbientWeatherStation(
 
     public string Name => Settings.Name;
 
+    public string? Zip => string.IsNullOrWhiteSpace(options.Value.DefaultLocation.Zip) ? null : options.Value.DefaultLocation.Zip;
+
     public string Source => "AmbientWeather.net";
 
     public StationHistoryRange HistoryRange => StationHistoryRange.Last24Hours;

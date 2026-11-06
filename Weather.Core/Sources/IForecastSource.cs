@@ -10,5 +10,5 @@ public interface IForecastSource
 
     bool AppliesTo(ForecastLocation location);
 
-    Task<SourceResult> GetDailyHighsAsync(ForecastLocation location, CancellationToken cancellationToken);
+    Task<SourceResult> GetDailyTemperaturesAsync(ForecastLocation location, CancellationToken cancellationToken);
 }

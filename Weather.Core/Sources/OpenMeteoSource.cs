@@ -22,31 +22,62 @@ public sealed class OpenMeteoSource(
 
     public bool AppliesTo(ForecastLocation location) => true;
 
-    public async Task<SourceResult> GetDailyHighsAsync(ForecastLocation location, CancellationToken cancellationToken)
+    // The daily min and max cover midnight to midnight, so a front can put a day's "high" at 2am or its
+    // "low" late that night. Hours give the afternoon high and the morning low people mean instead.
+    private const int HighStartHour = 9;
+    private const int HighHours = 10; // 9am to 7pm
+    private const int LowStartHour = 19;
+    private const int LowHours = 14; // 7pm the evening before to 9am
+
+    public async Task<SourceResult> GetDailyTemperaturesAsync(ForecastLocation location, CancellationToken cancellationToken)
     {
+        // The day before is included so today's morning low has its evening hours.
         var url = string.Create(
             CultureInfo.InvariantCulture,
-            $"{endpoint}?latitude={location.Latitude}&longitude={location.Longitude}&daily=temperature_2m_max&temperature_unit=fahrenheit&timezone={Uri.EscapeDataString(location.TimeZoneId)}&forecast_days={options.Value.ForecastDays}&models={model}");
+            $"{endpoint}?latitude={location.Latitude}&longitude={location.Longitude}&hourly=temperature_2m&temperature_unit=fahrenheit&timezone={Uri.EscapeDataString(location.TimeZoneId)}&past_days=1&forecast_days={options.Value.ForecastDays}&models={model}");
 
         var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
         using var document = JsonDocument.Parse(await client.GetStringAsync(url, cancellationToken));
 
-        var daily = document.RootElement.GetProperty("daily");
-        var dates = daily.GetProperty("time");
-        var highs = daily.GetProperty("temperature_2m_max");
+        var hourly = document.RootElement.GetProperty("hourly");
+        var times = hourly.GetProperty("time");
+        var values = hourly.GetProperty("temperature_2m");
 
-        var results = new List<DailyHigh>();
-        for (var i = 0; i < dates.GetArrayLength(); i++)
+        // Models that end before the requested range return null for the remaining hours.
+        var temperatures = new Dictionary<DateTime, double?>();
+        for (var i = 0; i < times.GetArrayLength(); i++)
         {
-            // Models that end before the requested range return null for the remaining days.
-            if (highs[i].ValueKind == JsonValueKind.Number)
+            var time = DateTime.ParseExact(times[i].GetString()!, "yyyy-MM-dd'T'HH:mm", CultureInfo.InvariantCulture);
+            temperatures[time] = values[i].ValueKind == JsonValueKind.Number ? values[i].GetDouble() : null;
+        }
+
+        var results = new List<DailyTemperatures>();
+        foreach (var date in temperatures.Keys.Select(DateOnly.FromDateTime).Distinct())
+        {
+            var high = Extreme(temperatures, date.ToDateTime(new TimeOnly(HighStartHour, 0)), HighHours, Enumerable.Max);
+            var low = Extreme(temperatures, date.AddDays(-1).ToDateTime(new TimeOnly(LowStartHour, 0)), LowHours, Enumerable.Min);
+            if (high is not null || low is not null)
             {
-                results.Add(new DailyHigh(
-                    DateOnly.ParseExact(dates[i].GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture),
-                    Temperature.ToWholeDegrees(highs[i].GetDouble())));
+                results.Add(new DailyTemperatures(date, high, low));
             }
         }
 
         return SourceResult.Ok(results, timeProvider.GetUtcNow());
+    }
+
+    // A window needs every hour, so a model that ends partway through it doesn't give a partial value.
+    // One missing hour is allowed, for the hour a spring clock change skips.
+    private static int? Extreme(
+        Dictionary<DateTime, double?> temperatures, DateTime start, int hours, Func<IEnumerable<double>, double> pick)
+    {
+        var window = Enumerable.Range(0, hours)
+            .Select(hour => start.AddHours(hour))
+            .Where(temperatures.ContainsKey)
+            .Select(time => temperatures[time])
+            .ToList();
+
+        return window.Count >= hours - 1 && window.All(value => value is not null)
+            ? Temperature.ToWholeDegrees(pick(window.Select(value => value!.Value)))
+            : null;
     }
 }

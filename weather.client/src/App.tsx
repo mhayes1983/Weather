@@ -46,7 +46,7 @@ function App() {
     const [savedStations, setSavedStations] = useState(loadSavedStations);
     const [forecastOpened, setForecastOpened] = useState(route === '/forecast');
 
-    // The forecast loads on first visit, then stays mounted to keep its ZIP and columns.
+    // The forecast page mounts on first visit, then stays mounted to keep its table and columns.
     if (route === '/forecast' && !forecastOpened) {
         setForecastOpened(true);
     }
@@ -145,7 +145,7 @@ function App() {
             {route === '/alerts' && <AlertsPage station={station} onNavigate={navigate} />}
             {route === '/daily' && <DailyForecastPage station={station} stationControls={stationControls} unit={unit} onNavigate={navigate} />}
             {date && <ForecastDayPage date={date} station={station} unit={unit} onNavigate={navigate} />}
-            {forecastOpened && <ForecastPage hidden={route !== '/forecast'} unit={unit} />}
+            {forecastOpened && <ForecastPage hidden={route !== '/forecast'} unit={unit} station={station} savedStations={savedStations} />}
             {route === '/help' && <HelpPage onNavigate={navigate} />}
             {route === '/terms' && <TermsPage onNavigate={navigate} />}
             {route === '/privacy' && <PrivacyPage onNavigate={navigate} />}

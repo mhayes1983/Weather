@@ -39,6 +39,8 @@ export interface StationHistoryPoint {
 export interface StationSummary {
     id: string;
     name: string;
+    /** Starts the Forecast Comparison page on this ZIP. A looked-up station keeps the ZIP it was found by. */
+    zip?: string | null;
 }
 
 export interface CurrentSky {
