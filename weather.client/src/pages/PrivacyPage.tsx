@@ -10,7 +10,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         <main className="prose">
             <header>
                 <h1>Privacy Policy</h1>
-                <p className="location">Effective November 5, 2026</p>
+                <p className="location">Effective November 6, 2026</p>
             </header>
 
             <p>
@@ -47,7 +47,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 <li>National Weather Service: forecasts and alerts</li>
                 <li>Weather Underground: forecasts, station readings and station search</li>
                 <li>Ambient Weather: home station readings</li>
-                <li>ACIS: average highs and lows</li>
+                <li>ACIS: averages, records and climate station measurements</li>
                 <li>US Naval Observatory: moon data</li>
                 <li>Zippopotam.us: ZIP code locations</li>
                 <li>NewsCenter Maine: Maine forecasts</li>

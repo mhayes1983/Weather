@@ -782,6 +782,105 @@ thead th.measure-header {
     font-variant-numeric: tabular-nums;
 }
 
+/* Fills a chart's width, so the card lines up with the charts above it. */
+.almanac-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(420px, 100%), 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.almanac-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+    margin-bottom: 6px;
+}
+
+.almanac-heading h2 {
+    margin: 0;
+}
+
+.almanac-tabs {
+    display: flex;
+}
+
+.almanac-tabs button {
+    padding: 3px 10px;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    border-radius: 0;
+}
+
+.almanac-tabs button:not(:first-child) {
+    margin-left: -1px;
+}
+
+.almanac-tabs button:first-child {
+    border-radius: 6px 0 0 6px;
+}
+
+.almanac-tabs button:last-child {
+    border-radius: 0 6px 6px 0;
+}
+
+.almanac-tabs button[aria-selected='true'] {
+    color: var(--bg);
+    background: var(--text-strong);
+    border-color: var(--text-strong);
+}
+
+.almanac-card caption {
+    padding-bottom: 2px;
+    font-size: 0.85rem;
+    text-align: left;
+    opacity: 0.75;
+}
+
+.almanac-card table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.almanac-card th,
+.almanac-card td {
+    padding: 3px 0 3px 8px;
+    text-align: right;
+    vertical-align: top;
+    font-variant-numeric: tabular-nums;
+}
+
+.almanac-card thead th {
+    font-size: 0.8rem;
+    font-weight: 600;
+    opacity: 0.75;
+    border-bottom: 1px solid var(--border);
+}
+
+.almanac-card tbody th {
+    padding-left: 0;
+    font-weight: normal;
+    text-align: left;
+}
+
+.almanac-card tbody td {
+    color: var(--text-strong);
+}
+
+.almanac-year {
+    display: block;
+    font-size: 0.75rem;
+    opacity: 0.75;
+}
+
+.almanac-source {
+    margin: 8px 0 0;
+    font-size: 0.8rem;
+    opacity: 0.75;
+}
+
 .station-chart p {
     margin: 0;
 }

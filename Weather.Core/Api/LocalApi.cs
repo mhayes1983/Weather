@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.Logging;
 using Weather.Core.Alerts;
+using Weather.Core.Almanac;
 using Weather.Core.DailyForecast;
 using Weather.Core.Locations;
 using Weather.Core.Models;
@@ -19,6 +20,7 @@ public sealed class LocalApi(
     StationLookup lookup,
     AlertService alerts,
     DailyForecastService dailyForecasts,
+    AlmanacService almanac,
     ILogger<LocalApi> logger)
 {
     private const string OpenMeteoSource = "open-meteo";
@@ -39,6 +41,7 @@ public sealed class LocalApi(
                 "/api/station" => await GetStationAsync(value("id")),
                 "/api/alerts" => await GetAlertsAsync(value("station")),
                 "/api/daily-forecast" => await GetDailyForecastAsync(value("station")),
+                "/api/almanac" => await GetAlmanacAsync(value("station")),
                 _ when path.StartsWith(DayPrefix, StringComparison.Ordinal) => await GetDayAsync(path[DayPrefix.Length..], value("station")),
                 _ => Problem(404, "Not found."),
             };
@@ -142,6 +145,11 @@ public sealed class LocalApi(
     private async Task<LocalApiResponse> GetDailyForecastAsync(string? station) =>
         await dailyForecasts.GetAsync(Station(station)) is { } report
             ? Ok(report, LocalApiJson.Default.DailyForecastReport)
+            : InvalidStation();
+
+    private async Task<LocalApiResponse> GetAlmanacAsync(string? station) =>
+        await almanac.GetAsync(Station(station)) is { } report
+            ? Ok(report, LocalApiJson.Default.AlmanacReport)
             : InvalidStation();
 
     private async Task<LocalApiResponse> GetDayAsync(string date, string? station)

@@ -28,6 +28,13 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 When the National Weather Service has active alerts for the station's area, they appear at the top of the
                 page. If alerts can't be checked, the page says so. That doesn't mean there are no alerts.
             </p>
+            <p>
+                Below the charts, the almanac compares the high, low, precipitation and snow with the average and record
+                for the date. It opens on today, and its tabs switch to yesterday, which shows what was measured, or
+                tomorrow, which shows the forecast like today. The average, record and actual come from the nearest
+                climate station that still reports and has at least 30 years of records, so they can differ from the
+                station's own readings. A dash means that value isn't available.
+            </p>
 
             <h2>Choosing a station</h2>
             <p>Press <strong>Change station</strong> on the Station or Daily Forecast page. Both pages use the same station.</p>
@@ -99,7 +106,7 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 <li>Station readings: Ambient Weather and <a href="https://www.wunderground.com/">Weather Underground</a>, with modelled estimates from <a href="https://open-meteo.com/">Open-Meteo</a></li>
                 <li>Forecasts: <a href="https://open-meteo.com/">Open-Meteo</a> (ECMWF, GFS, GEM, ICON and WeatherNext models, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>), <a href="https://www.weather.gov/">National Weather Service</a>, Weather Underground and <a href="https://www.newscentermaine.com/">NewsCenter Maine</a></li>
                 <li>Alerts and radar: <a href="https://www.weather.gov/">National Weather Service</a> and NOAA</li>
-                <li>Average highs and lows: <a href="https://www.rcc-acis.org/">ACIS</a></li>
+                <li>Averages, records and climate station measurements: <a href="https://www.rcc-acis.org/">ACIS</a></li>
                 <li>Moon data: <a href="https://aa.usno.navy.mil/">US Naval Observatory</a></li>
                 <li>ZIP code locations: <a href="https://www.zippopotam.us/">Zippopotam.us</a></li>
                 <li>Map: <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</li>

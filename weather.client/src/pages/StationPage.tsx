@@ -3,6 +3,7 @@ import { fetchStation, type StationReport } from '../api/station';
 import CurrentConditions from '../components/CurrentConditions';
 import StationChart from '../components/StationChart';
 import StationAlerts from '../components/StationAlerts';
+import StationAlmanac from '../components/StationAlmanac';
 import StationHeader, { type StationControls } from '../components/StationHeader';
 import { displayStationTemperature, type Unit } from '../temperature';
 import type { Route } from '../useRoute';
@@ -133,6 +134,8 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
                         series={[{ label: 'Rain rate', colour: 'var(--chart-1)', values: history.map(point => point.rainRateInPerHour) }]}
                     />
                 </div>}
+
+            {current && <StationAlmanac station={selected} unit={unit} />}
 
             {current &&
                 <footer className="attribution">
