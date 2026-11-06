@@ -24,6 +24,19 @@ export interface MapMode {
     // What each block of a legend image means, left to right. The image must be
     // divided into this many equal blocks.
     legendKey?: LegendKeyEntry[];
+    // A drawn scale in place of the service's legend image, when that image means
+    // nothing to a reader.
+    scale?: LegendScale;
+    // A page that explains colours the legend doesn't cover.
+    noteLink?: { href: string; text: string };
+}
+
+export interface LegendScale {
+    // Left to right, as a CSS gradient. These are the image's own colours, so they
+    // stay the same in both themes.
+    colours: string[];
+    start: string;
+    end: string;
 }
 
 export interface LegendKeyEntry {
@@ -108,6 +121,12 @@ export const mapModes: MapMode[] = [
         opacity: 0.65,
         refreshMs: 300_000,
         note: 'Clouds are infrared satellite images, so they show day and night. Brighter clouds are colder and higher.',
+        // nowCOAST's own legend is a grey ramp labelled only 0 and 255.
+        scale: {
+            colours: ['#3a3a3a', '#9a9a9a', '#ffffff'],
+            start: 'Warmer, lower or clear',
+            end: 'Colder, higher clouds',
+        },
     },
     {
         id: 'lightning',
@@ -119,7 +138,8 @@ export const mapModes: MapMode[] = [
         animated: true,
         opacity: 0.85,
         refreshMs: 300_000,
-        note: 'Lightning is strikes in each 15 minutes. Shaded areas are current NWS warnings, watches and advisories.',
+        note: 'Lightning is strikes in each 15 minutes, shown by the scale. Shaded areas are current NWS warnings, watches and advisories, in the National Weather Service\'s hazard colours.',
+        noteLink: { href: 'https://www.weather.gov/help-map', text: 'See what each warning colour means' },
         overlay: {
             service: `${opengeo}/wwa/hazards/ows`,
             layer: 'hazards',

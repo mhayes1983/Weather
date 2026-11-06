@@ -3,14 +3,13 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
     arcgisTileUrl, fetchRadarTimes, fetchTemperatureLegend, legendUrl, mapModes,
-    type LegendKeyEntry, type MapMode, type MapModeId, type TemperatureLegendStep,
+    type LegendKeyEntry, type LegendScale, type MapMode, type MapModeId, type TemperatureLegendStep,
 } from '../api/radar';
-import { selectFrames } from '../api/radarFrames';
+import { imageVersion, keepLayer, mapLayerKey, selectFrames } from '../api/radarFrames';
 import { displayTemperature, type Unit } from '../temperature';
 
 const frameMs = 700;
 const lastFrameMs = 1_500;
-const latestTime = 'latest';
 const overlayOpacity = 0.45;
 
 const areas: { label: string; bounds: L.LatLngBoundsLiteral }[] = [
@@ -22,26 +21,21 @@ function formatFrame(time: string) {
     return new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-// Layers are kept per mode and time, because two modes can share scan times.
 function frameKey(mode: MapMode, time: string) {
-    return `${mode.id}|${time}`;
+    return mapLayerKey(mode.id, time);
 }
 
 function overlayKey(mode: MapMode) {
     return `${mode.id}|overlay`;
 }
 
-// A version that changes once per refresh interval, so a static image's URL changes
-// when a newer one could be available, and browsers don't show a cached one.
-function imageVersion(mode: MapMode) {
-    return Math.floor(Date.now() / mode.refreshMs);
-}
-
-function createLayer(mode: MapMode, time: string | undefined): L.TileLayer {
+// A static image's URL carries its version, so a newer image gets a new URL and
+// browsers don't show a cached one.
+function createLayer(mode: MapMode, time: string | undefined, version: number): L.TileLayer {
     if (mode.kind === 'arcgis') {
         const layer = L.tileLayer('', { opacity: 0, attribution: mode.attribution, zIndex: 2 });
         layer.getTileUrl = coords =>
-            arcgisTileUrl(mode.service, mode.layer, coords.x, coords.y, coords.z, imageVersion(mode));
+            arcgisTileUrl(mode.service, mode.layer, coords.x, coords.y, coords.z, version);
         return layer;
     }
 
@@ -81,13 +75,14 @@ function RadarPage({ unit }: RadarPageProps) {
     const [playing, setPlaying] = useState(false);
     const [timesFailed, setTimesFailed] = useState(false);
     const [failedTiles, setFailedTiles] = useState<FailedTile[]>([]);
+    const [staticVersion, setStaticVersion] = useState(0);
 
     const mode = mapModes.find(candidate => candidate.id === modeId)!;
 
     // The newest frame shows unless the user or the loop has picked another.
     const newest = frames.at(-1);
     const current = selected && frames.includes(selected) ? selected : newest;
-    const key = frameKey(mode, current ?? latestTime);
+    const key = mapLayerKey(mode.id, current, mode.animated ? undefined : staticVersion);
     const tilesFailed = failedTiles.some(failed => failed.key === shown || failed.key === overlayKey(mode));
 
     useEffect(() => {
@@ -111,21 +106,22 @@ function RadarPage({ unit }: RadarPageProps) {
     useEffect(() => {
         const controller = new AbortController();
 
-        // Asks for the newest image again. Browsers reuse images with an unchanged URL,
-        // so WMS layers ask for the current time, which NOAA answers with its nearest scan.
+        // Asks for the newest scan again when the times can't be loaded. Browsers reuse
+        // images with an unchanged URL, so this asks for the current time, which NOAA
+        // answers with its nearest scan.
         function refreshLatest() {
-            const layer = layers.current.get(frameKey(mode, latestTime));
+            const layer = layers.current.get(mapLayerKey(mode.id, undefined));
             if (layer instanceof L.TileLayer.WMS) {
                 const latest = { layers: mode.layer, time: new Date().toISOString() };
                 layer.setParams(latest);
-            } else {
-                layer?.redraw();
             }
         }
 
         function load() {
+            // A static image moves to a new version, and so a new layer, only once its
+            // refresh interval has passed. The old one stays up until the new one loads.
             if (!mode.animated) {
-                refreshLatest();
+                setStaticVersion(imageVersion(mode.refreshMs));
                 return;
             }
 
@@ -204,7 +200,7 @@ function RadarPage({ unit }: RadarPageProps) {
 
         let layer = loadedLayers.get(key);
         if (!layer) {
-            layer = createLayer(mode, current);
+            layer = createLayer(mode, current, staticVersion);
             trackTiles(layer, key, setFailedTiles);
             layer.addTo(radarMap);
             loadedLayers.set(key, layer);
@@ -216,7 +212,7 @@ function RadarPage({ unit }: RadarPageProps) {
         // so the map doesn't flash.
         function reveal() {
             loadedLayers.forEach((other, otherKey) => {
-                const keep = otherKey === key || (playing && frameKeys.includes(otherKey));
+                const keep = keepLayer(otherKey, key, playing, frameKeys);
                 if (!keep) {
                     other.remove();
                     loadedLayers.delete(otherKey);
@@ -236,7 +232,7 @@ function RadarPage({ unit }: RadarPageProps) {
         return () => {
             target.off('load', reveal);
         };
-    }, [mode, key, current, frames, playing]);
+    }, [mode, key, current, frames, playing, staticVersion]);
 
     useEffect(() => {
         if (!playing || frames.length < 2 || shown !== key || !current) {
@@ -254,6 +250,11 @@ function RadarPage({ unit }: RadarPageProps) {
     function handleMode(next: MapModeId) {
         if (next === modeId) {
             return;
+        }
+
+        const nextMode = mapModes.find(candidate => candidate.id === next)!;
+        if (!nextMode.animated) {
+            setStaticVersion(imageVersion(nextMode.refreshMs));
         }
 
         setModeId(next);
@@ -345,16 +346,41 @@ function RadarPage({ unit }: RadarPageProps) {
                     <span>{formatFrame(frames[frames.length - 1])}</span>
                 </label>}
 
-            {mode.kind === 'arcgis'
-                ? <TemperatureLegend unit={unit} />
-                : mode.legendKey
-                    ? <KeyedLegend key={mode.id} mode={mode} entries={mode.legendKey} />
-                    : <img key={mode.id} className="radar-legend" src={legendUrl(mode)} alt={`${mode.label} colour scale`} />}
+            <Legend key={mode.id} mode={mode} unit={unit} />
 
             <footer className="attribution">
                 From <a href="https://www.weather.gov/">NOAA/NWS</a>. {mode.note}
+                {mode.noteLink && <> <a href={mode.noteLink.href}>{mode.noteLink.text}</a>.</>}
             </footer>
         </main>
+    );
+}
+
+function Legend({ mode, unit }: { mode: MapMode; unit: Unit }) {
+    if (mode.kind === 'arcgis') {
+        return <TemperatureLegend unit={unit} />;
+    }
+
+    if (mode.legendKey) {
+        return <KeyedLegend mode={mode} entries={mode.legendKey} />;
+    }
+
+    if (mode.scale) {
+        return <ScaleLegend label={mode.label} scale={mode.scale} />;
+    }
+
+    return <img className="radar-legend" src={legendUrl(mode)} alt={`${mode.label} colour scale`} />;
+}
+
+function ScaleLegend({ label, scale }: { label: string; scale: LegendScale }) {
+    return (
+        <figure className="scale-legend" aria-label={`${label} colour scale: ${scale.start} to ${scale.end}`}>
+            <div className="scale-legend-bar" style={{ background: `linear-gradient(to right, ${scale.colours.join(', ')})` }} />
+            <div className="scale-legend-labels" aria-hidden="true">
+                <span>← {scale.start}</span>
+                <span>{scale.end} →</span>
+            </div>
+        </figure>
     );
 }
 

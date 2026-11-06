@@ -22,3 +22,22 @@ export function selectFrames(times: string[]): string[] {
 
     return frames;
 }
+
+// Map layers are kept per mode and image, because two modes can share scan times.
+// An animated mode's image is its scan time, or 'latest' before times have loaded.
+// A static mode's image is its version, which changes once per refresh interval.
+export function mapLayerKey(modeId: string, time: string | undefined, version?: number) {
+    return `${modeId}|${time ?? (version === undefined ? 'latest' : `v${version}`)}`;
+}
+
+// The version a static image should be on at `now`. Asking again within the same
+// interval gives the same version, so nothing reloads, such as when a tab is refocused.
+export function imageVersion(refreshMs: number, now = Date.now()) {
+    return Math.floor(now / refreshMs);
+}
+
+// Once the shown layer has loaded, every other layer goes, except the loop's frames
+// while it plays.
+export function keepLayer(layerKey: string, shownKey: string, playing: boolean, frameKeys: string[]) {
+    return layerKey === shownKey || (playing && frameKeys.includes(layerKey));
+}

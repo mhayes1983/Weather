@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { arcgisTileUrl, readLayerTimes, readTemperatureLegend } from '../src/api/radar.ts';
+import { arcgisTileUrl, mapModes, precipTypeKey, readLayerTimes, readTemperatureLegend } from '../src/api/radar.ts';
 
 const capabilities = `<?xml version="1.0"?>
 <WMS_Capabilities version="1.3.0">
@@ -85,4 +85,35 @@ test('reads the temperature scale in range, keyed by the top of each band', () =
 
 test('reads no temperature scale from an unexpected response', () => {
     assert.deepEqual(readTemperatureLegend({}), []);
+});
+
+test('keys the precip type legend blocks in NOAA order', () => {
+    // NOAA's image has seven equal blocks labelled with these codes. If the image
+    // changes, the hover zones would name the wrong colours.
+    assert.deepEqual(precipTypeKey.map(entry => entry.code), ['WS', 'S', 'C', 'H', 'CS', 'ST', 'CT']);
+    assert.ok(precipTypeKey.every(entry => entry.label && entry.description));
+});
+
+test('gives every mode a unique id and one kind of legend', () => {
+    assert.equal(new Set(mapModes.map(mode => mode.id)).size, mapModes.length);
+
+    for (const mode of mapModes) {
+        const legends = [mode.kind === 'arcgis', Boolean(mode.legendKey), Boolean(mode.scale)].filter(Boolean);
+        assert.ok(legends.length <= 1, `${mode.id} has ${legends.length} legends`);
+    }
+});
+
+test('explains the clouds scale and links the warning colours', () => {
+    const clouds = mapModes.find(mode => mode.id === 'clouds')!;
+    const lightning = mapModes.find(mode => mode.id === 'lightning')!;
+
+    assert.ok(clouds.scale && clouds.scale.colours.length >= 2);
+    assert.match(clouds.scale.start, /warmer/i);
+    assert.match(clouds.scale.end, /colder/i);
+    assert.ok(lightning.overlay);
+    assert.match(lightning.noteLink?.href ?? '', /^https:\/\/www\.weather\.gov\//);
+});
+
+test('animates every mode except temperature', () => {
+    assert.deepEqual(mapModes.filter(mode => !mode.animated).map(mode => mode.id), ['temperature']);
 });

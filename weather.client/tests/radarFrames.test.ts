@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { selectFrames } from '../src/api/radarFrames.ts';
+import { imageVersion, keepLayer, mapLayerKey, selectFrames } from '../src/api/radarFrames.ts';
 
 const scanMs = 120_000;
 const scanCount = 60;
@@ -74,4 +74,39 @@ test('loops two hours of five-minute satellite images, newest last', () => {
     assert.equal(frames.at(-1), times.at(-1));
     assert.ok(frames.length <= 13, `${frames.length} frames`);
     assert.ok(Date.parse(frames.at(-1)!) - Date.parse(frames[0]) <= 2 * 3_600_000, 'about two hours');
+});
+
+test('keeps layers apart when two modes share a scan time', () => {
+    const time = scan(5);
+
+    assert.notEqual(mapLayerKey('radar', time), mapLayerKey('precipType', time));
+    assert.equal(mapLayerKey('radar', time), mapLayerKey('radar', time));
+});
+
+test('keys the latest image before times load, and a static image by version', () => {
+    assert.equal(mapLayerKey('radar', undefined), 'radar|latest');
+    assert.equal(mapLayerKey('temperature', undefined, 7), 'temperature|v7');
+    assert.notEqual(mapLayerKey('temperature', undefined, 7), mapLayerKey('temperature', undefined, 8));
+});
+
+test('keeps a static image on one version until its interval passes', () => {
+    const refreshMs = 1_800_000;
+    const start = 1_800_000 * 1000;
+
+    // Refocusing a tab moments later must not reload the image.
+    assert.equal(imageVersion(refreshMs, start), imageVersion(refreshMs, start + 60_000));
+    assert.equal(imageVersion(refreshMs, start), imageVersion(refreshMs, start + refreshMs - 1));
+    assert.equal(imageVersion(refreshMs, start + refreshMs), imageVersion(refreshMs, start) + 1);
+});
+
+test('keeps only the shown layer, or the loop frames while playing', () => {
+    const frames = [mapLayerKey('radar', scan(1)), mapLayerKey('radar', scan(2))];
+    const shown = frames[1];
+
+    assert.ok(keepLayer(shown, shown, false, frames));
+    assert.ok(!keepLayer(frames[0], shown, false, frames));
+    assert.ok(keepLayer(frames[0], shown, true, frames));
+    assert.ok(!keepLayer(mapLayerKey('clouds', scan(1)), shown, true, frames), 'another mode is removed');
+    assert.ok(!keepLayer(mapLayerKey('temperature', undefined, 3), mapLayerKey('temperature', undefined, 4), false, []),
+        'an older static version is removed once the new one shows');
 });

@@ -1128,6 +1128,25 @@ a.daily-row:focus-visible {
     border-radius: 4px;
 }
 
+.scale-legend {
+    max-width: 500px;
+    margin: 12px 0;
+}
+
+.scale-legend-bar {
+    height: 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.scale-legend-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 4px;
+    font-size: 0.8rem;
+}
+
 .legend-key-image {
     position: relative;
     width: fit-content;
