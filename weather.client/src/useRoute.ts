@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const fixedRoutes = ['/alerts', '/forecast', '/radar', '/daily', '/help', '/terms', '/privacy', '/setup'] as const;
+const fixedRoutes = ['/alerts', '/forecast', '/snow', '/radar', '/daily', '/help', '/terms', '/privacy', '/setup'] as const;
 
 export type Route = '/' | (typeof fixedRoutes)[number] | `/daily/${string}`;
 

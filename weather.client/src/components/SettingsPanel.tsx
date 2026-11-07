@@ -1,7 +1,7 @@
 import RouteLink from './RouteLink';
 import ThemeToggle from './ThemeToggle';
 import UnitToggle from './UnitToggle';
-import { isApp } from '../appBridge';
+import { currentSetup, isApp } from '../appBridge';
 import type { Unit } from '../temperature';
 import type { Theme } from '../theme';
 import type { Route } from '../useRoute';
@@ -27,6 +27,7 @@ function SettingsPanel({ theme, onThemeChange, unit, onUnitChange, onNavigate }:
                 <UnitToggle unit={unit} onChange={onUnitChange} />
             </div>
             {isApp && <RouteLink route="/setup" onNavigate={onNavigate}>Data &amp; keys</RouteLink>}
+            {isApp && currentSetup()?.appVersion && <p className="settings-version">Version {currentSetup()?.appVersion}</p>}
         </section>
     );
 }

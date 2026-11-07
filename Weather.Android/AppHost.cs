@@ -27,6 +27,7 @@ public sealed class AppHost(SettingsStore store)
         var weatherUnderground = await store.GetKeyAsync(SettingsStore.WeatherUndergroundKey);
         var ambientApiKey = await store.GetKeyAsync(SettingsStore.AmbientApiKey);
         var ambientApplicationKey = await store.GetKeyAsync(SettingsStore.AmbientApplicationKey);
+        var weatherApi = await store.GetKeyAsync(SettingsStore.WeatherApiKey);
         var hasAmbient = !string.IsNullOrWhiteSpace(ambientApiKey) && !string.IsNullOrWhiteSpace(ambientApplicationKey);
 
         var overrides = new Dictionary<string, string?>
@@ -35,6 +36,7 @@ public sealed class AppHost(SettingsStore store)
             ["WeatherUnderground:ApiKey"] = weatherUnderground,
             ["AmbientWeather:ApiKey"] = ambientApiKey,
             ["AmbientWeather:ApplicationKey"] = ambientApplicationKey,
+            ["WeatherApi:ApiKey"] = weatherApi,
         };
 
         if (settings is not null)

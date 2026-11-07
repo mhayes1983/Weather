@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import {
     appName,
     checkAmbientWeather,
+    checkWeatherApi,
     checkWeatherUnderground,
     getSetupState,
     saveSetup,
@@ -12,7 +13,7 @@ import { homeStation, loadDefaultStation, saveDefaultStation } from '../defaultS
 import { loadSavedStations } from '../savedStations';
 import { defaultAfterSetup, defaultStationChoices } from '../setupDefault';
 
-const steps = ['Location', 'Weather Underground', 'Ambient Weather', 'Stations', 'Finish'] as const;
+const steps = ['Location', 'Weather Underground', 'Ambient Weather', 'WeatherAPI', 'Stations', 'Finish'] as const;
 const stationIdPattern = /^[A-Za-z0-9]{3,32}$/;
 
 const checkMessages: Record<KeyCheckResult, string> = {
@@ -69,6 +70,8 @@ function SetupPage() {
     const [ambientApiKey, setAmbientApiKey] = useState('');
     const [ambientApplicationKey, setAmbientApplicationKey] = useState('');
     const [removeAmbient, setRemoveAmbient] = useState(false);
+    const [weatherApiKey, setWeatherApiKey] = useState('');
+    const [removeWeatherApi, setRemoveWeatherApi] = useState(false);
     const [selected, setSelected] = useState<string[]>([]);
     const [addedStations, setAddedStations] = useState<string[]>([]);
     const [newStation, setNewStation] = useState('');
@@ -96,6 +99,7 @@ function SetupPage() {
 
     const usesWeatherUnderground = !removeWeatherUnderground && (state.hasWeatherUnderground || weatherUndergroundKey.trim() !== '');
     const usesAmbient = !removeAmbient && (state.hasAmbientWeather || (ambientApiKey.trim() !== '' && ambientApplicationKey.trim() !== ''));
+    const usesWeatherApi = !removeWeatherApi && (state.hasWeatherApi || weatherApiKey.trim() !== '');
     const ambientHalfEntered = (ambientApiKey.trim() === '') !== (ambientApplicationKey.trim() === '');
     const stations = [...state.stations, ...addedStations.map(id => ({ id, name: id, selected: true }))];
     const chosenStations = usesWeatherUnderground ? stations.filter(station => selected.includes(station.id)) : [];
@@ -145,6 +149,7 @@ function SetupPage() {
             weatherUndergroundKey: keyToSave(weatherUndergroundKey, removeWeatherUnderground),
             ambientApiKey: keyToSave(ambientApiKey, removeAmbient),
             ambientApplicationKey: keyToSave(ambientApplicationKey, removeAmbient),
+            weatherApiKey: keyToSave(weatherApiKey, removeWeatherApi),
             stationIds: selected,
         })
             .then(result => {
@@ -171,7 +176,7 @@ function SetupPage() {
     }
 
     const canContinue = step === 0 ? /^\d{5}$/.test(zip.trim()) : step === 2 ? !ambientHalfEntered : true;
-    const skippable = (step === 1 && !usesWeatherUnderground) || (step === 2 && !usesAmbient && !ambientHalfEntered);
+    const skippable = (step === 1 && !usesWeatherUnderground) || (step === 2 && !usesAmbient && !ambientHalfEntered) || (step === 3 && !usesWeatherApi);
 
     return (
         <div className="prose setup">
@@ -227,10 +232,25 @@ function SetupPage() {
                             </button>}
                     </>}
 
-                {step === 3 && !usesWeatherUnderground &&
+                {step === 3 &&
+                    <>
+                        <p>
+                            Optional. A WeatherAPI.com key adds its 3-day forecast to the Snow Forecast page. It stays encrypted on
+                            this phone. Without one, that row is left out.
+                        </p>
+                        {state.hasWeatherApi && !removeWeatherApi && <p>A key is saved. Leave this blank to keep it.</p>}
+                        {!removeWeatherApi && <KeyField label="API key" value={weatherApiKey} onChange={setWeatherApiKey} />}
+                        {!removeWeatherApi && <KeyTest key={weatherApiKey} disabled={weatherApiKey.trim() === ''} run={() => checkWeatherApi(weatherApiKey)} />}
+                        {state.hasWeatherApi &&
+                            <button type="button" onClick={() => setRemoveWeatherApi(!removeWeatherApi)}>
+                                {removeWeatherApi ? 'Keep saved key' : 'Remove saved key'}
+                            </button>}
+                    </>}
+
+                {step === 4 && !usesWeatherUnderground &&
                     <p>Other stations need a Weather Underground key. Add one later from Settings to choose stations.</p>}
 
-                {step === 3 && usesWeatherUnderground &&
+                {step === 4 && usesWeatherUnderground &&
                     <>
                         <p>Choose the stations to include. You can search for more on the Station page afterwards.</p>
                         <div className="setup-actions">
@@ -254,13 +274,14 @@ function SetupPage() {
                         <button type="button" disabled={!newStation.trim()} onClick={handleAddStation}>Add</button>
                     </>}
 
-                {step === 4 &&
+                {step === 5 &&
                     <>
                         <ul>
                             <li>Location: ZIP {zip.trim()}</li>
                             <li>Home station: {usesAmbient ? 'your Ambient Weather station' : "Open-Meteo's modelled conditions"}</li>
                             <li>Weather Underground: {usesWeatherUnderground ? `${chosenStations.length} stations and the forecast column` : 'not used'}</li>
-                            <li>Forecasts, alerts and radar work with or without keys</li>
+                            <li>WeatherAPI.com: {usesWeatherApi ? 'the Snow Forecast row' : 'not used'}</li>
+                            <li>Forecasts, alerts and maps work with or without keys</li>
                         </ul>
                         {defaultChoices.length > 0 &&
                             <label className="setup-field">

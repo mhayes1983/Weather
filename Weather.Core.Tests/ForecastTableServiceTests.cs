@@ -66,6 +66,25 @@ public class ForecastTableServiceTests
     }
 
     [Fact]
+    public async Task ColumnsWithMoreDaysComeFirstAndTiesKeepRegistrationOrder()
+    {
+        static SourceResult Days(int count) => SourceResult.Ok(
+            Enumerable.Range(0, count).Select(offset => new DailyTemperatures(Today.AddDays(offset), 50, null)).ToList(),
+            TestData.Now);
+
+        var table = await CreateService(
+        [
+            new FakeSource("short", () => Days(2)),
+            new FakeSource("broken", () => throw new HttpRequestException("Down")),
+            new FakeSource("long", () => Days(16)),
+            new FakeSource("medium", () => Days(7)),
+            new FakeSource("also-medium", () => Days(7)),
+        ]).GetAsync("04086");
+
+        Assert.Equal(["long", "medium", "also-medium", "short", "broken"], table.Columns.Select(column => column.Id));
+    }
+
+    [Fact]
     public async Task BuildsSixteenRowsFromTodayWithHighlights()
     {
         var table = await CreateService([new FakeSource("gfs", () => HighToday(60))]).GetAsync("04086");
@@ -125,7 +144,7 @@ public class ForecastTableServiceTests
             new FakeSource("good", () => HighToday(55)),
         ]).GetAsync("04086");
 
-        Assert.Equal(SourceStatus.Error, table.Columns[0].Status);
+        Assert.Equal(SourceStatus.Error, table.Columns.Single(column => column.Id == "bad").Status);
         Assert.Equal(55, table.Rows[0].Cells["good"].HighF);
     }
 

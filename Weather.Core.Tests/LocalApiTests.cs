@@ -9,6 +9,7 @@ using Weather.Core.Almanac;
 using Weather.Core.Api;
 using Weather.Core.DailyForecast;
 using Weather.Core.Models;
+using Weather.Core.Snow;
 using Weather.Core.Station;
 using Weather.Server.Controllers;
 
@@ -137,6 +138,45 @@ public class LocalApiTests
         AssertSame(await controller.Get(station), await Ask(services, "/api/alerts", ("station", station)));
     }
 
+    [Theory]
+    [InlineData("04086", "2026-10-30", "2026-10-31")]
+    [InlineData("04086", null, null)]
+    [InlineData("abc", null, null)]
+    [InlineData("04086", "2026-10-31", "2026-10-30")]
+    [InlineData("04086", "2026-10-30", "2026-11-30")]
+    [InlineData("04086", "soon", null)]
+    public async Task SnowMatchesTheController(string zips, string? start, string? end)
+    {
+        using var services = Services("{}");
+        var controller = SnowApi(services);
+
+        AssertSame(await controller.Get(zips, start, end), await Ask(services, "/api/snow", ("zips", zips), ("start", start), ("end", end)));
+    }
+
+    [Theory]
+    [InlineData("04086")]
+    [InlineData("abc")]
+    public async Task SnowAlertsMatchTheController(string zips)
+    {
+        using var services = Services("""{"features":[]}""");
+
+        AssertSame(await SnowApi(services).GetAlerts(zips), await Ask(services, "/api/snow/alerts", ("zips", zips)));
+    }
+
+    [Fact]
+    public async Task SnowTownsMatchTheController()
+    {
+        using var services = Services("{}", new() { ["SnowTowns:0:Name"] = "Portland", ["SnowTowns:0:Zip"] = "04101" });
+
+        var response = await Ask(services, "/api/snow/towns");
+
+        Assert.Equal(JsonSerializer.Serialize(SnowApi(services).GetTowns(), ServerJson), response.Json);
+        Assert.Contains("Portland", response.Json);
+    }
+
+    private static SnowController SnowApi(ServiceProvider services) =>
+        new(services.GetRequiredService<SnowTableService>(), services.GetRequiredService<SnowAlertService>());
+
     [Fact]
     public async Task DailyForecastMatchesTheController()
     {
@@ -225,6 +265,7 @@ public class LocalApiTests
 
         Assert.Equal(expected, await check.CheckWeatherUndergroundAsync("a key"));
         Assert.Equal(expected, await check.CheckAmbientWeatherAsync("a key", "another"));
+        Assert.Equal(expected, await check.CheckWeatherApiAsync("a key"));
         Assert.Contains("apiKey=a%20key", http.Requests[0].RequestUri!.AbsoluteUri);
     }
 

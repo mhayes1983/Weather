@@ -33,7 +33,7 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 for the date. It opens on today, and its tabs switch to yesterday, which shows what was measured, or
                 tomorrow, which shows the forecast like today. The average, record and actual come from the nearest
                 climate station that still reports and has at least 30 years of records, so they can differ from the
-                station's own readings. Forecast Comparison uses the same station for its averages. A dash means that
+                station's own readings. Temperature Forecast uses the same station for its averages. A dash means that
                 value isn't available, and amounts the station only reported as part of a several-day total aren't
                 shown as one day's.
             </p>
@@ -59,9 +59,9 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 separately, because it's usually several times the melted amount.
             </p>
 
-            <h2>Radar</h2>
+            <h2>Maps</h2>
             <p>
-                The <RouteLink route="/radar" onNavigate={onNavigate}>Radar</RouteLink> page shows a US weather map you can drag
+                The <RouteLink route="/radar" onNavigate={onNavigate}>Maps</RouteLink> page shows a US weather map you can drag
                 and zoom. The buttons above the map switch between one map type at a time:
             </p>
             <ul>
@@ -76,9 +76,9 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 time. The map always starts on Radar.
             </p>
 
-            <h2>Forecast Comparison</h2>
+            <h2>Temperature Forecast</h2>
             <p>
-                The <RouteLink route="/forecast" onNavigate={onNavigate}>Forecast Comparison</RouteLink> page puts daily lows and highs
+                The <RouteLink route="/forecast" onNavigate={onNavigate}>Temperature Forecast</RouteLink> page puts daily lows and highs
                 from several forecast sources side by side for any US ZIP code.
             </p>
             <ul>
@@ -91,9 +91,23 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                     NWS and NewsCenter Maine, show each night's low on the morning it ends.
                 </li>
                 <li>Coloured cells are well above or below the average low or high for the date. The legend shows the thresholds.</li>
-                <li>Use the column list to hide sources, and drag a column heading to move it. These changes reset when you reload the page.</li>
-                <li>Blank cells are normal. Sources forecast different numbers of days, and NewsCenter Maine covers Maine ZIP codes only.</li>
+                <li>Sources with the most days of forecast come first. Use the column list to hide sources, and drag a column heading to move it. These changes reset when you reload the page.</li>
+                <li>Blank cells are normal. Sources forecast different numbers of days (HRRR and HRDPS only about 2), NBM and HRRR cover the US only, and NewsCenter Maine covers Maine ZIP codes only.</li>
                 <li>A source that can't be reached shows an error in its column, or its last good data if it has any.</li>
+            </ul>
+
+            <h2>Snow Forecast</h2>
+            <p>
+                The <RouteLink route="/snow" onNavigate={onNavigate}>Snow Forecast</RouteLink> page compares how much snow each
+                source expects for one storm, across several towns, with the winter alerts for those towns.
+            </p>
+            <ul>
+                <li>Choose the storm's start and end dates (up to 7 days) and press <strong>Go</strong>. Totals cover midnight to midnight on each date.</li>
+                <li>The towns start as Kittery, Portland, Brunswick, Lewiston, Bethel, Rockland and Bangor. Remove any, or add up to 8 ZIP codes. Your choice is saved in this browser.</li>
+                <li>Where a forecast's text gives a range, such as "1 to 3 inches" from NWS or Weather Underground, it fills Low and High. Other sources give one amount, shown in both.</li>
+                <li>≥ marks a forecast that doesn't cover all of your dates, so it's a minimum. That happens when a forecast ends first, such as WeatherAPI.com's 3 days, or when it has dropped hours already past, as NWS and Weather Underground do with today. The averages leave these out.</li>
+                <li>NewsCenter Maine, WMTW and WGME publish snow totals only as maps, so their rows are for typing in their numbers. Those values are saved in this browser until you press <strong>Clear manual values</strong>, and count towards the averages. You can rename, add or remove these rows.</li>
+                <li>Use the source list to hide rows from the table and the averages. Links below the alerts open each outlet's snow maps.</li>
             </ul>
 
             <h2>Settings</h2>
@@ -108,15 +122,16 @@ function HelpPage({ onNavigate }: HelpPageProps) {
 
             <h2>Android app</h2>
             <p>
-                The app works like this site, using your own keys. Setup asks for a ZIP code, then optional Weather Underground
-                and Ambient Weather keys, and which stations to include. Anything you skip uses Open-Meteo instead. To change
+                The app works like this site, using your own keys. Setup asks for a ZIP code, then optional Weather Underground,
+                Ambient Weather and WeatherAPI.com keys, and which stations to include. Anything you skip uses Open-Meteo instead. To change
                 them later, open <strong>Data &amp; keys</strong> in Settings.
             </p>
 
             <h2>Data sources</h2>
             <ul>
                 <li>Station readings: Ambient Weather and <a href="https://www.wunderground.com/">Weather Underground</a>, with modelled estimates from <a href="https://open-meteo.com/">Open-Meteo</a></li>
-                <li>Forecasts: <a href="https://open-meteo.com/">Open-Meteo</a> (ECMWF, GFS, GEM, ICON and WeatherNext models, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>), <a href="https://www.weather.gov/">National Weather Service</a>, Weather Underground and <a href="https://www.newscentermaine.com/">NewsCenter Maine</a></li>
+                <li>Forecasts: <a href="https://open-meteo.com/">Open-Meteo</a> (ECMWF, ECMWF AIFS, GFS, NBM, HRRR, GEM, HRDPS, ICON, UKMO, JMA, Météo-France, CMA and WeatherNext models, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>), <a href="https://www.weather.gov/">National Weather Service</a>, Weather Underground and <a href="https://www.newscentermaine.com/">NewsCenter Maine</a></li>
+                <li>Snow forecasts: <a href="https://www.weather.gov/">National Weather Service</a>, Weather Underground, <a href="https://www.weatherapi.com/" title="Free Weather API">WeatherAPI.com</a> and Open-Meteo</li>
                 <li>Alerts, radar and the weather map: <a href="https://www.weather.gov/">National Weather Service</a> and NOAA, including <a href="https://nowcoast.noaa.gov/">nowCOAST</a> satellite and lightning</li>
                 <li>Averages, records and climate station measurements: <a href="https://www.rcc-acis.org/">ACIS</a></li>
                 <li>Moon data: <a href="https://aa.usno.navy.mil/">US Naval Observatory</a></li>

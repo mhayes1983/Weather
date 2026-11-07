@@ -89,6 +89,14 @@
     margin-top: 8px;
 }
 
+/* The Android app's version, under Data & keys. */
+.settings-version {
+    margin: 8px 0 0;
+    padding: 0 2px;
+    font-size: 0.8rem;
+    color: var(--text);
+}
+
 /* Data & keys, matching the menu's page links. */
 .settings-panel > a {
     display: block;
@@ -1287,4 +1295,165 @@ a.daily-row:focus-visible {
 
 .hourly-table .hourly-conditions {
     text-align: left;
+}
+
+/* Snow Forecast */
+.snow-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px 12px;
+    margin: 16px 0 8px;
+}
+
+.snow-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.85rem;
+}
+
+.snow-form input,
+.snow-row-name,
+.manual-row input {
+    padding: 6px 8px;
+    font: inherit;
+    color: inherit;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.zip-form .snow-row-name {
+    width: 12em;
+}
+
+.snow-towns {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    margin: 0 0 16px;
+}
+
+.snow-towns ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.snow-towns li {
+    display: flex;
+    align-items: center;
+    padding: 0 0 0 10px;
+    font-size: 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+
+.snow-towns li .icon-button,
+.manual-label .icon-button {
+    padding: 2px 8px;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.snow-towns .table-note {
+    flex-basis: 100%;
+}
+
+.manual-row td {
+    padding: 4px;
+}
+
+.manual-row td input {
+    width: 3.6em;
+    padding: 4px;
+    text-align: center;
+}
+
+.manual-label {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.manual-label input {
+    width: 9em;
+    padding: 4px 6px;
+    font-weight: 500;
+}
+
+.snow-average th,
+.snow-average td {
+    font-weight: 600;
+    background: var(--surface);
+}
+
+.snow-table tbody tr.snow-average:first-of-type th,
+.snow-table tbody tr.snow-average:first-of-type td {
+    border-top: 2px solid var(--border);
+}
+
+.snow-manual {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    margin: 12px 0 4px;
+}
+
+.snow-alerts,
+.snow-maps {
+    margin-top: 24px;
+}
+
+.snow-alerts h2,
+.snow-maps h2 {
+    margin: 0 0 8px;
+    font-size: 1.15rem;
+    color: var(--text-strong);
+}
+
+.snow-alert .table-note {
+    margin: 2px 0 8px 4px;
+}
+
+.snow-maps ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    margin: 0;
+    padding-left: 1.2em;
+}
+
+.snow-manual .zip-form {
+    flex-wrap: wrap;
+}
+
+.snow-manual label {
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .manual-label input {
+        width: 6.5em;
+    }
+
+    .zip-form .snow-row-name {
+        width: 9em;
+    }
+}
+
+.snow-towns .zip-form {
+    flex-wrap: wrap;
+}
+
+.snow-towns .zip-form label,
+.snow-towns .zip-form button {
+    white-space: nowrap;
 }

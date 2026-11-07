@@ -14,7 +14,9 @@ public sealed record SetupState(
     string? Zip,
     bool HasWeatherUnderground,
     bool HasAmbientWeather,
-    List<SetupStation> Stations);
+    bool HasWeatherApi,
+    List<SetupStation> Stations,
+    string AppVersion);
 
 /// <summary>A null key leaves the saved one alone, and a blank key removes it.</summary>
 public sealed record SetupRequest(
@@ -22,6 +24,7 @@ public sealed record SetupRequest(
     string? WeatherUndergroundKey,
     string? AmbientApiKey,
     string? AmbientApplicationKey,
+    string? WeatherApiKey,
     List<string> StationIds);
 
 public sealed record SetupResult(bool Ok, string? Error);
@@ -38,6 +41,7 @@ public sealed class SettingsStore
     public const string WeatherUndergroundKey = "weather-underground-key";
     public const string AmbientApiKey = "ambient-api-key";
     public const string AmbientApplicationKey = "ambient-application-key";
+    public const string WeatherApiKey = "weatherapi-key";
 
     private const string SettingsName = "settings";
 

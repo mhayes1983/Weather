@@ -6,6 +6,7 @@ using Weather.Core.Almanac;
 using Weather.Core.DailyForecast;
 using Weather.Core.Locations;
 using Weather.Core.Models;
+using Weather.Core.Snow;
 using Weather.Core.Station;
 
 namespace Weather.Core.Api;
@@ -21,6 +22,8 @@ public sealed class LocalApi(
     AlertService alerts,
     DailyForecastService dailyForecasts,
     AlmanacService almanac,
+    SnowTableService snowTables,
+    SnowAlertService snowAlerts,
     ILogger<LocalApi> logger)
 {
     private const string OpenMeteoSource = "open-meteo";
@@ -42,6 +45,9 @@ public sealed class LocalApi(
                 "/api/alerts" => await GetAlertsAsync(value("station")),
                 "/api/daily-forecast" => await GetDailyForecastAsync(value("station")),
                 "/api/almanac" => await GetAlmanacAsync(value("station")),
+                "/api/snow/towns" => Ok(snowTables.Towns, LocalApiJson.Default.IReadOnlyListSnowTownSummary),
+                "/api/snow" => await GetSnowAsync(value("zips"), value("start"), value("end")),
+                "/api/snow/alerts" => await GetSnowAlertsAsync(value("zips")),
                 _ when path.StartsWith(DayPrefix, StringComparison.Ordinal) => await GetDayAsync(path[DayPrefix.Length..], value("station")),
                 _ => Problem(404, "Not found."),
             };
@@ -169,6 +175,22 @@ public sealed class LocalApi(
         {
             return Problem(503, exception.Message);
         }
+    }
+
+    private async Task<LocalApiResponse> GetSnowAsync(string? zips, string? start, string? end)
+    {
+        var (request, error) = snowTables.Parse(zips, start, end);
+        return request is null
+            ? Problem(400, error!)
+            : Ok(await snowTables.GetAsync(request), LocalApiJson.Default.SnowTable);
+    }
+
+    private async Task<LocalApiResponse> GetSnowAlertsAsync(string? zips)
+    {
+        var (request, error) = snowTables.Parse(zips, null, null);
+        return request is null
+            ? Problem(400, error!)
+            : Ok(await snowAlerts.GetAsync(request.Zips), LocalApiJson.Default.SnowAlertReport);
     }
 
     private static string? Station(string? id) => string.IsNullOrWhiteSpace(id) ? null : id.Trim();

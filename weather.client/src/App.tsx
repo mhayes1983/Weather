@@ -10,6 +10,7 @@ import AlertsPage from './pages/AlertsPage';
 import DailyForecastPage from './pages/DailyForecastPage';
 import ForecastDayPage from './pages/ForecastDayPage';
 import ForecastPage from './pages/ForecastPage';
+import SnowPage from './pages/SnowPage';
 import HelpPage from './pages/HelpPage';
 import PrivacyPage from './pages/PrivacyPage';
 import StationPage from './pages/StationPage';
@@ -29,8 +30,9 @@ const SetupPage = import.meta.env.MODE === 'app' ? lazy(() => import('./pages/Se
 const titles: Partial<Record<Route, string>> = {
     '/': 'Weather Station',
     '/alerts': 'Weather Alerts',
-    '/forecast': 'Forecast Comparison',
-    '/radar': 'Weather Radar',
+    '/forecast': 'Temperature Forecast',
+    '/snow': 'Snow Forecast',
+    '/radar': 'Weather Maps',
     '/help': 'Help & About',
     '/terms': 'Terms of Use',
     '/privacy': 'Privacy Policy',
@@ -45,10 +47,15 @@ function App() {
     const [station, setStation] = useState(defaultStation);
     const [savedStations, setSavedStations] = useState(loadSavedStations);
     const [forecastOpened, setForecastOpened] = useState(route === '/forecast');
+    const [snowOpened, setSnowOpened] = useState(route === '/snow');
 
     // The forecast page mounts on first visit, then stays mounted to keep its table and columns.
     if (route === '/forecast' && !forecastOpened) {
         setForecastOpened(true);
+    }
+
+    if (route === '/snow' && !snowOpened) {
+        setSnowOpened(true);
     }
 
     const date = forecastDate(route);
@@ -146,6 +153,7 @@ function App() {
             {route === '/daily' && <DailyForecastPage station={station} stationControls={stationControls} unit={unit} onNavigate={navigate} />}
             {date && <ForecastDayPage date={date} station={station} unit={unit} onNavigate={navigate} />}
             {forecastOpened && <ForecastPage hidden={route !== '/forecast'} unit={unit} station={station} savedStations={savedStations} />}
+            {snowOpened && <SnowPage hidden={route !== '/snow'} />}
             {route === '/help' && <HelpPage onNavigate={navigate} />}
             {route === '/terms' && <TermsPage onNavigate={navigate} />}
             {route === '/privacy' && <PrivacyPage onNavigate={navigate} />}

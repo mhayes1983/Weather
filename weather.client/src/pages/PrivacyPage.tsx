@@ -10,7 +10,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         <main className="prose">
             <header>
                 <h1>Privacy Policy</h1>
-                <p className="location">Effective November 6, 2026</p>
+                <p className="location">Effective November 7, 2026</p>
             </header>
 
             <p>
@@ -25,6 +25,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 <li>Temperature unit</li>
                 <li>Default station</li>
                 <li>Stations you've added (up to 20), with the ZIP code you found each one by</li>
+                <li>The Snow Forecast page's towns, and the snow amounts you type into its manual rows</li>
             </ul>
             <p>To remove them, clear this site's data in your browser settings.</p>
 
@@ -51,11 +52,12 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 <li>US Naval Observatory: moon data</li>
                 <li>Zippopotam.us: ZIP code locations</li>
                 <li>NewsCenter Maine: Maine forecasts</li>
+                <li>WeatherAPI.com: snow forecasts</li>
             </ul>
 
             <h2>Services your browser contacts directly</h2>
             <p>
-                The Radar page loads map images directly from <a href="https://www.noaa.gov/">NOAA</a> (its radar, nowCOAST and
+                The Maps page loads map images directly from <a href="https://www.noaa.gov/">NOAA</a> (its radar, nowCOAST and
                 National Weather Service map services) and map tiles
                 from <a href="https://www.openstreetmap.org/">OpenStreetMap</a>. Like any website, those services can see your IP
                 address, and which map areas you view. Their own privacy policies apply. Other pages don't contact them.
@@ -64,7 +66,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
             <h2>The Android app</h2>
             <p>
                 The Android app has no server. It runs on your phone and contacts the data sources above directly, so they can
-                see your IP address, and it uses any Weather Underground and Ambient Weather keys you enter. It also calls NOAA
+                see your IP address, and it uses any Weather Underground, Ambient Weather and WeatherAPI.com keys you enter. It also calls NOAA
                 and OpenStreetMap for radar, as a browser does.
             </p>
             <ul>

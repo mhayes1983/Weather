@@ -30,6 +30,7 @@ public sealed class AppBridge(AppHost host, SettingsStore store)
         var weatherUnderground = await store.GetKeyAsync(SettingsStore.WeatherUndergroundKey);
         var ambientApiKey = await store.GetKeyAsync(SettingsStore.AmbientApiKey);
         var ambientApplicationKey = await store.GetKeyAsync(SettingsStore.AmbientApplicationKey);
+        var weatherApi = await store.GetKeyAsync(SettingsStore.WeatherApiKey);
 
         var stations = host.DefaultStations
             .Select(station => new SetupStation(
@@ -45,7 +46,9 @@ public sealed class AppBridge(AppHost host, SettingsStore store)
                 settings?.Location.Zip,
                 !string.IsNullOrWhiteSpace(weatherUnderground),
                 !string.IsNullOrWhiteSpace(ambientApiKey) && !string.IsNullOrWhiteSpace(ambientApplicationKey),
-                stations),
+                !string.IsNullOrWhiteSpace(weatherApi),
+                stations,
+                AppInfo.Current.VersionString),
             AppJson.Default.SetupState);
     }
 
@@ -54,6 +57,9 @@ public sealed class AppBridge(AppHost host, SettingsStore store)
 
     public async Task<string> CheckAmbientWeather(string apiKey, string applicationKey) =>
         (await host.Get<KeyCheck>().CheckAmbientWeatherAsync(apiKey.Trim(), applicationKey.Trim())).ToString();
+
+    public async Task<string> CheckWeatherApi(string apiKey) =>
+        (await host.Get<KeyCheck>().CheckWeatherApiAsync(apiKey.Trim())).ToString();
 
     public async Task OpenLink(string url)
     {
@@ -99,6 +105,7 @@ public sealed class AppBridge(AppHost host, SettingsStore store)
         await store.SetKeyAsync(SettingsStore.WeatherUndergroundKey, request.WeatherUndergroundKey);
         await store.SetKeyAsync(SettingsStore.AmbientApiKey, request.AmbientApiKey);
         await store.SetKeyAsync(SettingsStore.AmbientApplicationKey, request.AmbientApplicationKey);
+        await store.SetKeyAsync(SettingsStore.WeatherApiKey, request.WeatherApiKey);
 
         var (defaults, added) = StationSelection.Split(request.StationIds, host.DefaultStations.Select(station => station.Id));
 
