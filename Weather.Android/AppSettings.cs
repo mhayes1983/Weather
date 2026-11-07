@@ -15,7 +15,8 @@ public sealed record SetupState(
     bool HasWeatherUnderground,
     bool HasAmbientWeather,
     bool HasWeatherApi,
-    List<SetupStation> Stations);
+    List<SetupStation> Stations,
+    string AppVersion);
 
 /// <summary>A null key leaves the saved one alone, and a blank key removes it.</summary>
 public sealed record SetupRequest(

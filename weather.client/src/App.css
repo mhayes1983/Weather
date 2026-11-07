@@ -89,6 +89,14 @@
     margin-top: 8px;
 }
 
+/* The Android app's version, under Data & keys. */
+.settings-version {
+    margin: 8px 0 0;
+    padding: 0 2px;
+    font-size: 0.8rem;
+    color: var(--text);
+}
+
 /* Data & keys, matching the menu's page links. */
 .settings-panel > a {
     display: block;

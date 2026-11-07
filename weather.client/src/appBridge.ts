@@ -17,6 +17,8 @@ export interface SetupState {
     hasAmbientWeather: boolean;
     hasWeatherApi: boolean;
     stations: SetupStation[];
+    // The version shown in the Android app, such as 1.3.
+    appVersion: string;
 }
 
 export interface SetupRequest {

@@ -47,7 +47,8 @@ public sealed class AppBridge(AppHost host, SettingsStore store)
                 !string.IsNullOrWhiteSpace(weatherUnderground),
                 !string.IsNullOrWhiteSpace(ambientApiKey) && !string.IsNullOrWhiteSpace(ambientApplicationKey),
                 !string.IsNullOrWhiteSpace(weatherApi),
-                stations),
+                stations,
+                AppInfo.Current.VersionString),
             AppJson.Default.SetupState);
     }
 
