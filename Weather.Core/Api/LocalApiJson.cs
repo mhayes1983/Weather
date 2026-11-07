@@ -14,5 +14,8 @@ namespace Weather.Core.Api;
 [JsonSerializable(typeof(DailyForecastReport))]
 [JsonSerializable(typeof(ForecastDayDetail))]
 [JsonSerializable(typeof(AlmanacReport))]
+[JsonSerializable(typeof(SnowTable))]
+[JsonSerializable(typeof(IReadOnlyList<SnowTownSummary>))]
+[JsonSerializable(typeof(SnowAlertReport))]
 [JsonSerializable(typeof(LocalApiProblem))]
 internal sealed partial class LocalApiJson : JsonSerializerContext;

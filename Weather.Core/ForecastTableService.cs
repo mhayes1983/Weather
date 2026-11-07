@@ -35,8 +35,15 @@ public sealed class ForecastTableService(
         var normals = await normalsTask;
 
         var rows = dates.Select(date => BuildRow(date, normals, applicable, results)).ToList();
-        var columns = applicable.Zip(results, (source, result) => new ForecastColumn(
-            source.Column.Id, source.Column.Label, result.Status, result.Message, result.FetchedAt)).ToList();
+        // Sources with the most days of data come first. OrderByDescending is stable, so ties keep
+        // registration order, and a source with nothing (an error or no key) goes last.
+        var columns = applicable
+            .Zip(results, (source, result) => (Column: new ForecastColumn(
+                source.Column.Id, source.Column.Label, result.Status, result.Message, result.FetchedAt),
+                Days: DaysWithData(result, dates)))
+            .OrderByDescending(entry => entry.Days)
+            .Select(entry => entry.Column)
+            .ToList();
 
         var averageHigh = rows[0].AverageHighF is int highStart && rows[^1].AverageHighF is int highEnd
             ? new AverageRange(highStart, highEnd, normals!.Station)
@@ -81,6 +88,9 @@ public sealed class ForecastTableService(
 
         return new ForecastRow(date, averageHigh, averageLow, cells);
     }
+
+    private static int DaysWithData(SourceResult result, IReadOnlyList<DateOnly> dates) =>
+        result.Days.Count(day => dates.Contains(day.Date) && (day.HighF is not null || day.LowF is not null));
 
     // Says which averages are missing, so unhighlighted columns are explained.
     private static string? AverageMessage(AverageRange? averageHigh, AverageRange? averageLow) =>

@@ -121,7 +121,7 @@ function ForecastPage({ hidden, unit, station, savedStations }: ForecastPageProp
     return (
         <main hidden={hidden}>
             <header>
-                <h1>Forecast Comparison</h1>
+                <h1>Temperature Forecast</h1>
                 {forecast && <p className="location">{forecast.location.place}, {forecast.location.state} {forecast.location.zip}</p>}
             </header>
 
@@ -131,7 +131,7 @@ function ForecastPage({ hidden, unit, station, savedStations }: ForecastPageProp
             </div>
 
             {error && <p className="error" role="alert">{error}</p>}
-            {!forecast && !loading && !error && <p>Press Go to load the forecast comparison.</p>}
+            {!forecast && !loading && !error && <p>Press Go to load the temperature forecast.</p>}
             {!forecast && loading && <p>Loading forecast…</p>}
 
             {forecast &&

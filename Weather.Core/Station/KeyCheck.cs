@@ -16,12 +16,16 @@ public sealed class KeyCheck(IHttpClientFactory httpClientFactory, IOptions<Weat
 {
     private const string WeatherUndergroundUrl = "https://api.weather.com/v3/location/near";
     private const string AmbientWeatherUrl = "https://rt.ambientweather.net/v1/devices";
+    private const string WeatherApiUrl = "https://api.weatherapi.com/v1/current.json";
 
     public Task<KeyCheckResult> CheckWeatherUndergroundAsync(string apiKey) => CheckAsync(
         $"{WeatherUndergroundUrl}?postalKey={options.Value.DefaultLocation.Zip}:US&product=pws&format=json&apiKey={Uri.EscapeDataString(apiKey)}");
 
     public Task<KeyCheckResult> CheckAmbientWeatherAsync(string apiKey, string applicationKey) => CheckAsync(
         $"{AmbientWeatherUrl}?apiKey={Uri.EscapeDataString(apiKey)}&applicationKey={Uri.EscapeDataString(applicationKey)}");
+
+    public Task<KeyCheckResult> CheckWeatherApiAsync(string apiKey) => CheckAsync(
+        $"{WeatherApiUrl}?key={Uri.EscapeDataString(apiKey)}&q={options.Value.DefaultLocation.Zip}&aqi=no");
 
     private async Task<KeyCheckResult> CheckAsync(string url)
     {

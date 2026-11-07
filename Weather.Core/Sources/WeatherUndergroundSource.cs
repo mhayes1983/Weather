@@ -7,6 +7,7 @@ namespace Weather.Core.Sources;
 
 public sealed class WeatherUndergroundSource(
     IHttpClientFactory httpClientFactory,
+    WeatherCache cache,
     IOptions<WeatherOptions> options,
     TimeProvider timeProvider) : IForecastSource
 {
@@ -24,10 +25,8 @@ public sealed class WeatherUndergroundSource(
             return SourceResult.NeedsKey();
         }
 
-        var url = $"https://api.weather.com/v3/wx/forecast/daily/{settings.ForecastDays}day?postalKey={location.Zip}:US&units=e&language=en-US&format=json&apiKey={Uri.EscapeDataString(settings.ApiKey)}";
-
-        var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
-        using var document = JsonDocument.Parse(await client.GetStringAsync(url, cancellationToken));
+        using var document = JsonDocument.Parse(await WeatherUndergroundForecast.GetJsonAsync(
+            httpClientFactory, cache, settings, location.Zip, cancellationToken));
 
         // The calendar-day fields cover midnight to midnight, so the day parts give the afternoon high
         // and morning low instead. They alternate day and night for each date, and today's day part is

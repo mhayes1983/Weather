@@ -3,8 +3,9 @@ import type { Route } from './useRoute';
 export const navLinks: { route: Route; label: string }[] = [
     { route: '/', label: 'Station' },
     { route: '/daily', label: 'Daily Forecast' },
-    { route: '/radar', label: 'Radar' },
-    { route: '/forecast', label: 'Forecast Comparison' },
+    { route: '/radar', label: 'Maps' },
+    { route: '/forecast', label: 'Temperature Forecast' },
+    { route: '/snow', label: 'Snow Forecast' },
     { route: '/help', label: 'Help' },
 ];
 

@@ -15,6 +15,7 @@ export interface SetupState {
     zip: string | null;
     hasWeatherUnderground: boolean;
     hasAmbientWeather: boolean;
+    hasWeatherApi: boolean;
     stations: SetupStation[];
 }
 
@@ -23,6 +24,7 @@ export interface SetupRequest {
     weatherUndergroundKey: string | null;
     ambientApiKey: string | null;
     ambientApplicationKey: string | null;
+    weatherApiKey: string | null;
     stationIds: string[];
 }
 
@@ -55,6 +57,10 @@ export function checkWeatherUnderground(apiKey: string) {
 
 export function checkAmbientWeather(apiKey: string, applicationKey: string) {
     return window.HybridWebView.InvokeDotNet('CheckAmbientWeather', [apiKey, applicationKey]) as Promise<KeyCheckResult>;
+}
+
+export function checkWeatherApi(apiKey: string) {
+    return window.HybridWebView.InvokeDotNet('CheckWeatherApi', [apiKey]) as Promise<KeyCheckResult>;
 }
 
 export async function saveSetup(request: SetupRequest) {

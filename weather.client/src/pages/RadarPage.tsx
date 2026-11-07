@@ -164,23 +164,44 @@ function RadarPage({ unit }: RadarPageProps) {
             return;
         }
 
-        const layer = L.tileLayer.wms(overlay.service, {
-            layers: overlay.layer,
-            format: 'image/png',
-            transparent: true,
-            version: '1.3.0',
-            opacity: overlayOpacity,
-            zIndex: 1,
-            attribution: overlay.attribution,
-        });
-        trackTiles(layer, overlayKey(mode), setFailedTiles);
-        layer.addTo(map.current!);
+        const radarMap = map.current!;
 
+        // Without a time, the service draws its newest. A refresh asks for "now" to skip the browser's cached tiles.
+        function createOverlay(time?: string) {
+            const created = L.tileLayer.wms(overlay!.service, {
+                layers: overlay!.layer,
+                format: 'image/png',
+                transparent: true,
+                version: '1.3.0',
+                opacity: overlayOpacity,
+                zIndex: 1,
+                attribution: overlay!.attribution,
+                ...(time ? { time } : {}),
+            } as L.WMSOptions);
+            trackTiles(created, overlayKey(mode), setFailedTiles);
+            return created.addTo(radarMap);
+        }
+
+        let shownLayer = createOverlay();
+        let pending: L.TileLayer | undefined;
+        let loadedAt = Date.now();
+
+        // Like the temperature layer, a newer overlay loads as a new layer and replaces the old one once
+        // it's ready. setParams would clear every tile first, blanking the warnings on each refocus.
+        // Coming back to the tab only refreshes when the interval has passed.
         function refresh() {
-            if (!document.hidden) {
-                const latest = { layers: overlay!.layer, time: new Date().toISOString() };
-                layer.setParams(latest);
+            if (document.hidden || pending || Date.now() - loadedAt < mode.refreshMs - 1000) {
+                return;
             }
+
+            const next = createOverlay(new Date().toISOString());
+            pending = next;
+            loadedAt = Date.now();
+            next.once('load', () => {
+                shownLayer.remove();
+                shownLayer = next;
+                pending = undefined;
+            });
         }
 
         const timer = window.setInterval(refresh, mode.refreshMs);
@@ -189,7 +210,8 @@ function RadarPage({ unit }: RadarPageProps) {
         return () => {
             window.clearInterval(timer);
             document.removeEventListener('visibilitychange', refresh);
-            layer.remove();
+            shownLayer.remove();
+            pending?.remove();
         };
     }, [mode]);
 

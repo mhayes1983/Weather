@@ -17,6 +17,12 @@ public sealed class WeatherOptions
     public int AlertCacheMinutes { get; set; } = 2;
     public string UserAgent { get; set; } = "WeatherTable/1.0 (personal forecast comparison)";
     public KeyedSourceOptions WeatherUnderground { get; set; } = new() { ForecastDays = 5, CacheMinutes = 60 };
+
+    /// <summary>WeatherAPI.com, used for snow only. Its free plan forecasts 3 days.</summary>
+    public KeyedSourceOptions WeatherApi { get; set; } = new() { ForecastDays = 3, CacheMinutes = 60 };
+
+    /// <summary>The towns the Snow Forecast page starts with, in column order.</summary>
+    public List<SnowTownOptions> SnowTowns { get; set; } = [];
     public AmbientWeatherOptions AmbientWeather { get; set; } = new();
     public List<WeatherStationOptions> Stations { get; set; } = [];
     public WeatherUndergroundStationOptions WeatherUndergroundStations { get; set; } = new();
@@ -34,8 +40,14 @@ public sealed class WeatherStationOptions
     public string Id { get; set; } = "";
     public string? Name { get; set; }
 
-    /// <summary>Fills the Forecast Comparison ZIP box when this is the current station.</summary>
+    /// <summary>Fills the Temperature Forecast ZIP box when this is the current station.</summary>
     public string? Zip { get; set; }
+}
+
+public sealed class SnowTownOptions
+{
+    public string Name { get; set; } = "";
+    public string Zip { get; set; } = "";
 }
 
 public sealed class WeatherUndergroundStationOptions

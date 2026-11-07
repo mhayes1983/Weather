@@ -9,7 +9,9 @@ public sealed class OpenMeteoSource(
     ColumnDescriptor column,
     string model,
     string endpoint,
+    IReadOnlyList<string> endpointModels,
     IHttpClientFactory httpClientFactory,
+    WeatherCache cache,
     IOptions<WeatherOptions> options,
     TimeProvider timeProvider) : IForecastSource
 {
@@ -31,17 +33,20 @@ public sealed class OpenMeteoSource(
 
     public async Task<SourceResult> GetDailyTemperaturesAsync(ForecastLocation location, CancellationToken cancellationToken)
     {
-        // The day before is included so today's morning low has its evening hours.
+        // The day before is included so today's morning low has its evening hours. Every model on this
+        // endpoint comes back in one shared response, each as temperature_2m_{model}.
         var url = string.Create(
             CultureInfo.InvariantCulture,
-            $"{endpoint}?latitude={location.Latitude}&longitude={location.Longitude}&hourly=temperature_2m&temperature_unit=fahrenheit&timezone={Uri.EscapeDataString(location.TimeZoneId)}&past_days=1&forecast_days={options.Value.ForecastDays}&models={model}");
+            $"{endpoint}?latitude={location.Latitude}&longitude={location.Longitude}&hourly=temperature_2m&temperature_unit=fahrenheit&timezone={Uri.EscapeDataString(location.TimeZoneId)}&past_days=1&forecast_days={options.Value.ForecastDays}&models={string.Join(',', endpointModels)}");
 
-        var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
-        using var document = JsonDocument.Parse(await client.GetStringAsync(url, cancellationToken));
+        var json = await OpenMeteoRequests.GetSharedAsync(
+            httpClientFactory, cache, $"om-temperature:{endpoint}:{location.Zip}", url, CacheDuration, cancellationToken);
+        using var document = JsonDocument.Parse(json);
 
+        // With one model, the series is just temperature_2m.
         var hourly = document.RootElement.GetProperty("hourly");
         var times = hourly.GetProperty("time");
-        var values = hourly.GetProperty("temperature_2m");
+        var values = hourly.TryGetProperty($"temperature_2m_{model}", out var series) ? series : hourly.GetProperty("temperature_2m");
 
         // Models that end before the requested range return null for the remaining hours.
         var temperatures = new Dictionary<DateTime, double?>();

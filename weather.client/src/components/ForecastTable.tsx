@@ -1,3 +1,4 @@
+import { sourceTitle } from '../sourceDescriptions';
 import { useRef, useState, type PointerEvent } from 'react';
 import type { Anomaly, ForecastCell, ForecastColumn, ForecastRow } from '../api/forecast';
 import { measureLabels, type Measure } from '../measures';
@@ -46,7 +47,7 @@ function columnTitle(column: ForecastColumn) {
     const updated = column.fetchedAt === null
         ? null
         : `Updated ${new Date(column.fetchedAt).toLocaleString()}`;
-    return [column.message, updated].filter(Boolean).join('. ');
+    return sourceTitle(column.id, [column.message, updated].filter(Boolean).join('. ') || null);
 }
 
 function averageTitle(row: ForecastRow, unit: Unit) {

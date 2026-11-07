@@ -26,7 +26,7 @@ public class SourceTests
         temperatures[38] = 64.6; // Oct 30, 2pm
         temperatures[46] = 30;   // Oct 30, 10pm: the night before Oct 31
         var http = StubHttp.Json(_ => Hourly(temperatures));
-        var source = new OpenMeteoSource(new ColumnDescriptor("ecmwf", "ECMWF"), "ecmwf_ifs025", OpenMeteoSource.ForecastEndpoint, http, TestData.Options(), Time);
+        var source = new OpenMeteoSource(new ColumnDescriptor("ecmwf", "ECMWF"), "ecmwf_ifs025", OpenMeteoSource.ForecastEndpoint, ["ecmwf_ifs025"], http, new WeatherCache(), TestData.Options(), Time);
 
         var result = await source.GetDailyTemperaturesAsync(TestData.Topsham, default);
 
@@ -44,12 +44,34 @@ public class SourceTests
     }
 
     [Fact]
+    public async Task OpenMeteoModelsShareOneCallAndReadTheirOwnSeries()
+    {
+        var times = string.Join(',', Enumerable.Range(0, 48).Select(hour => $"\"{HourlyStart.AddHours(hour):yyyy-MM-dd'T'HH:mm}\""));
+        var http = StubHttp.Json(_ => $$$"""
+            {"hourly":{"time":[{{{times}}}],
+              "temperature_2m_gfs_seamless":[{{{string.Join(',', Enumerable.Repeat(40, 48))}}}],
+              "temperature_2m_gem_seamless":[{{{string.Join(',', Enumerable.Repeat(60, 48))}}}]}}
+            """);
+        string[] models = ["gfs_seamless", "gem_seamless"];
+        var cache = new WeatherCache();
+        OpenMeteoSource Source(string model) =>
+            new(new ColumnDescriptor(model, model), model, OpenMeteoSource.ForecastEndpoint, models, http, cache, TestData.Options(), Time);
+
+        var gfs = await Source("gfs_seamless").GetDailyTemperaturesAsync(TestData.Topsham, default);
+        var gem = await Source("gem_seamless").GetDailyTemperaturesAsync(TestData.Topsham, default);
+
+        Assert.Equal(40, gfs.Days[^1].HighF);
+        Assert.Equal(60, gem.Days[^1].HighF);
+        Assert.Contains("models=gfs_seamless,gem_seamless", Assert.Single(http.Requests).RequestUri!.Query);
+    }
+
+    [Fact]
     public async Task OpenMeteoLeavesOutAWindowTheModelDoesNotCover()
     {
         // The model ends at noon on Oct 30, partway through that afternoon.
         var temperatures = Enumerable.Range(0, 48).Select(hour => hour < 36 ? (double?)50 : null).ToArray();
         var http = StubHttp.Json(_ => Hourly(temperatures));
-        var source = new OpenMeteoSource(new ColumnDescriptor("gem", "GEM"), "gem_seamless", OpenMeteoSource.ForecastEndpoint, http, TestData.Options(), Time);
+        var source = new OpenMeteoSource(new ColumnDescriptor("gem", "GEM"), "gem_seamless", OpenMeteoSource.ForecastEndpoint, ["gem_seamless"], http, new WeatherCache(), TestData.Options(), Time);
 
         var result = await source.GetDailyTemperaturesAsync(TestData.Topsham, default);
 
@@ -66,7 +88,9 @@ public class SourceTests
             new ColumnDescriptor("weathernext", "WeatherNext (mean)"),
             "google_weathernext2_ensemble_mean",
             OpenMeteoSource.EnsembleEndpoint,
+            ["google_weathernext2_ensemble_mean"],
             http,
+            new WeatherCache(),
             TestData.Options(),
             Time);
 
@@ -129,7 +153,7 @@ public class SourceTests
             """);
         var options = TestData.Options(o => o.WeatherUnderground.ApiKey = "test-key");
 
-        var result = await new WeatherUndergroundSource(http, options, Time).GetDailyTemperaturesAsync(TestData.Topsham, default);
+        var result = await new WeatherUndergroundSource(http, new WeatherCache(), options, Time).GetDailyTemperaturesAsync(TestData.Topsham, default);
 
         Assert.Equal(
             [new DailyTemperatures(new DateOnly(2026, 10, 31), 66, 41), new DailyTemperatures(new DateOnly(2026, 11, 1), null, 39)],
@@ -142,7 +166,7 @@ public class SourceTests
     {
         var http = StubHttp.Json(_ => throw new InvalidOperationException("No request expected."));
 
-        var result = await new WeatherUndergroundSource(http, TestData.Options(), Time).GetDailyTemperaturesAsync(TestData.Topsham, default);
+        var result = await new WeatherUndergroundSource(http, new WeatherCache(), TestData.Options(), Time).GetDailyTemperaturesAsync(TestData.Topsham, default);
 
         Assert.Equal(SourceStatus.NeedsKey, result.Status);
         Assert.Empty(http.Requests);

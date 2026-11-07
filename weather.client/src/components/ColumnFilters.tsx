@@ -1,7 +1,10 @@
-import type { ForecastColumn } from '../api/forecast';
+interface FilterColumn {
+    id: string;
+    label: string;
+}
 
 interface ColumnFiltersProps {
-    columns: ForecastColumn[];
+    columns: FilterColumn[];
     hidden: string[];
     onToggle: (id: string) => void;
 }
