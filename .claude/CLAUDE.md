@@ -29,8 +29,12 @@ npm test
 For the Android app, with the Pixel attached by USB:
 
 ```bash
-dotnet build Weather.Android/Weather.Android.csproj -t:Run -f net10.0-android "-p:AndroidSdkDirectory=C:\Program Files (x86)\Android\android-sdk" "-p:JavaSdkDirectory=C:\Program Files\Android\openjdk\jdk-21.0.8"
+dotnet build Weather.Android/Weather.Android.csproj -t:Run -f net10.0-android
 ```
+
+The command has no paths because the SDK and JDK are in different places on each machine. The build finds them through `ANDROID_HOME` and `JAVA_HOME`, or in Visual Studio's default folders when those aren't set. Never put one machine's paths in the repo. On a machine without them, install the `maui-android` workload, then run `-t:InstallAndroidDependencies -p:AcceptAndroidSDKLicenses=True` with `AndroidSdkDirectory` and `JavaSdkDirectory` pointing at folders that don't need admin rights, such as under `%LOCALAPPDATA%\Android`. Then set `ANDROID_HOME` and `JAVA_HOME` to them.
+
+This build is debug-signed with each machine's own key, so it can't update an APK built on another machine or released from GitHub, or the other way round. Android uninstalls the old copy, and the app's setup and keys go with it.
 
 The site runs at https://localhost:54777. If the build reports locked files, Visual Studio or another `Weather.Server` process is still running; that isn't a code error.
 

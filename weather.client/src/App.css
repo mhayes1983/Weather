@@ -1557,7 +1557,8 @@ a.daily-row:focus-visible {
     list-style: none;
 }
 
-.snow-maps li + li::before {
+/* After the link, so a wrapped line starts with a link rather than a dot. */
+.snow-maps li:not(:last-child)::after {
     content: '•';
     margin: 0 10px;
     opacity: 0.6;
