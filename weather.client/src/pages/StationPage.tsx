@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { fetchStation, type StationReport } from '../api/station';
+import { stationWarnings } from '../stationCards';
 import CurrentConditions from '../components/CurrentConditions';
-import StationChart from '../components/StationChart';
+import StationCharts from '../components/StationCharts';
 import StationAlerts from '../components/StationAlerts';
 import StationAlmanac from '../components/StationAlmanac';
 import StationHeader, { type StationControls } from '../components/StationHeader';
-import { displayStationTemperature, type Unit } from '../temperature';
+import type { Unit } from '../temperature';
 import type { Route } from '../useRoute';
 
 const refreshMs = 60_000;
@@ -64,9 +65,9 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
 
     const current = report?.current;
     const history = report?.history ?? [];
-    const times = history.map(point => point.time);
     const range = report?.historyRange === 'Today' ? 'today' : 'last 24 hours';
     const maxGapMinutes = report?.historyMaxGapMinutes ?? 30;
+    const warnings = current ? stationWarnings(current) : [];
 
     return (
         <main>
@@ -82,58 +83,12 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
             {!report && !error && <p>Loading station…</p>}
             {report?.status === 'NeedsKey' && <p className="error" role="alert">Add your {report.source} key to see station data.</p>}
             {report && report.status !== 'Ok' && report.status !== 'NeedsKey' && <p className="error" role="alert">{report.message}</p>}
-            {current?.batteryLow && <p className="error" role="alert">The outdoor sensor's battery is low.</p>}
+            {warnings.map(warning => <p key={warning} className="error" role="alert">{warning}</p>)}
 
             {current && <CurrentConditions reading={current} sky={report?.sky ?? null} unit={unit} />}
 
             {report?.historyMessage && <p className="error" role="alert">History: {report.historyMessage}</p>}
-            {history.length > 0 &&
-                <div className="station-charts">
-                    <StationChart
-                        title="Temperature"
-                        range={range}
-                        unit={`°${unit}`}
-                        times={times}
-                        maxGapMinutes={maxGapMinutes}
-                        digits={1}
-                        series={[{
-                            label: 'Temperature',
-                            colour: 'var(--chart-1)',
-                            values: history.map(point => point.temperatureF === null ? null : displayStationTemperature(point.temperatureF, unit)),
-                        }]}
-                    />
-                    <StationChart
-                        title="Wind"
-                        range={range}
-                        unit="mph"
-                        times={times}
-                        maxGapMinutes={maxGapMinutes}
-                        zeroBased
-                        series={[
-                            { label: 'Speed', colour: 'var(--chart-1)', values: history.map(point => point.windSpeedMph) },
-                            { label: 'Gust', colour: 'var(--chart-2)', values: history.map(point => point.windGustMph) },
-                        ]}
-                    />
-                    <StationChart
-                        title="Pressure"
-                        range={range}
-                        unit="inHg"
-                        times={times}
-                        maxGapMinutes={maxGapMinutes}
-                        digits={2}
-                        series={[{ label: 'Pressure', colour: 'var(--chart-1)', values: history.map(point => point.pressureInHg) }]}
-                    />
-                    <StationChart
-                        title="Rain rate"
-                        range={range}
-                        unit="in/hr"
-                        times={times}
-                        maxGapMinutes={maxGapMinutes}
-                        zeroBased
-                        digits={2}
-                        series={[{ label: 'Rain rate', colour: 'var(--chart-1)', values: history.map(point => point.rainRateInPerHour) }]}
-                    />
-                </div>}
+            {history.length > 0 && <StationCharts history={history} range={range} unit={unit} maxGapMinutes={maxGapMinutes} />}
 
             {/* The almanac needs only the station's location, so it still shows while the station is offline. */}
             {report && report.status !== 'NeedsKey' && <StationAlmanac station={selected} unit={unit} />}

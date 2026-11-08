@@ -10,7 +10,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         <main className="prose">
             <header>
                 <h1>Privacy Policy</h1>
-                <p className="location">Effective November 7, 2026</p>
+                <p className="location">Effective November 8, 2026</p>
             </header>
 
             <p>
@@ -24,6 +24,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 <li>Colour theme</li>
                 <li>Temperature unit</li>
                 <li>Default station</li>
+                <li>The order of the Station page's cards and charts, and which ones you've collapsed</li>
                 <li>Stations you've added (up to 20), with the ZIP code you found each one by</li>
                 <li>The Snow Forecast page's towns, and the snow amounts you type into its manual rows</li>
             </ul>

@@ -25,6 +25,54 @@ export interface StationReading {
     uvIndex: number | null;
     solarRadiationWm2: number | null;
     batteryLow: boolean | null;
+    // Only Ambient Weather stations fill these, and add-on sensors appear only when fitted.
+    windSpeedAvg2mMph?: number | null;
+    windDirectionAvg2mDegrees?: number | null;
+    windSpeedAvg10mMph?: number | null;
+    windDirectionAvg10mDegrees?: number | null;
+    windGustDirectionDegrees?: number | null;
+    rain24HourIn?: number | null;
+    totalRainIn?: number | null;
+    extraSensors?: ExtraSensor[];
+    soilSensors?: SoilSensor[];
+    leakSensors?: LeakSensor[];
+    airQuality?: AirQuality | null;
+    lightning?: Lightning | null;
+    /** Names of other sensors whose batteries are low, such as "rain gauge". */
+    lowBatteries?: string[];
+}
+
+export interface ExtraSensor {
+    channel: number;
+    temperatureF: number | null;
+    humidityPercent: number | null;
+    batteryLow: boolean | null;
+}
+
+export interface SoilSensor {
+    channel: number;
+    temperatureF: number | null;
+    moisturePercent: number | null;
+}
+
+export interface LeakSensor {
+    channel: number;
+    leak: boolean;
+}
+
+export interface AirQuality {
+    pm25: number | null;
+    pm25Avg24h: number | null;
+    aqi: number | null;
+    indoorPm25: number | null;
+    indoorCo2Ppm: number | null;
+}
+
+export interface Lightning {
+    strikesToday: number | null;
+    strikesLastHour: number | null;
+    lastStrike: string | null;
+    lastDistanceMi: number | null;
 }
 
 export interface StationHistoryPoint {
@@ -34,6 +82,11 @@ export interface StationHistoryPoint {
     windGustMph: number | null;
     pressureInHg: number | null;
     rainRateInPerHour: number | null;
+    humidityPercent?: number | null;
+    dewPointF?: number | null;
+    uvIndex?: number | null;
+    solarRadiationWm2?: number | null;
+    indoorTemperatureF?: number | null;
 }
 
 export interface StationSummary {

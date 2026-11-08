@@ -30,12 +30,7 @@ function StationChart({ title, range, unit, times, series, maxGapMinutes, zeroBa
     const values = series.flatMap(line => line.values).filter(value => value !== null);
 
     if (values.length === 0) {
-        return (
-            <section className="station-chart">
-                <h2>{title} <span className="chart-range">{range}</span></h2>
-                <p>This station does not report this.</p>
-            </section>
-        );
+        return <p>This station does not report this.</p>;
     }
 
     const start = timestamps[0];
@@ -80,18 +75,19 @@ function StationChart({ title, range, unit, times, series, maxGapMinutes, zeroBa
     }
 
     const valueTicks = [low, low + span / 2, low + span];
+    // A narrow range, such as humidity between 98 and 99%, needs more decimals so the three labels differ.
+    const tickDigits = Math.min(3, Math.max(digits, Math.ceil(-Math.log10(span / 2))));
     const summary = series
         .map(line => `${line.label}: latest ${line.values.findLast(value => value !== null)?.toFixed(digits) ?? 'none'} ${unit}`)
         .join(', ');
 
     return (
-        <section className="station-chart">
-            <h2>{title} <span className="chart-range">{range}</span></h2>
+        <>
             <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}, ${range}. ${summary}`}>
                 {valueTicks.map(tick =>
                     <g key={tick}>
                         <line className="chart-grid" x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} />
-                        <text className="chart-label" x={left - 6} y={y(tick) + 4} textAnchor="end">{tick.toFixed(digits)}</text>
+                        <text className="chart-label" x={left - 6} y={y(tick) + 4} textAnchor="end">{tick.toFixed(tickDigits)}</text>
                     </g>
                 )}
                 {hourTicks.map(tick =>
@@ -109,7 +105,7 @@ function StationChart({ title, range, unit, times, series, maxGapMinutes, zeroBa
                 )}
                 <span>{unit}</span>
             </p>
-        </section>
+        </>
     );
 }
 

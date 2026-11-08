@@ -85,9 +85,117 @@ public sealed class AmbientWeatherStation(
                 : null,
             UvIndex = Number(data, "uv"),
             SolarRadiationWm2 = Number(data, "solarradiation"),
-            BatteryLow = Number(data, "battout") is double battery ? battery == 0 : null,
+            BatteryLow = BatteryLow(data, "battout"),
+            WindSpeedAvg2mMph = Number(data, "windspdmph_avg2m"),
+            WindDirectionAvg2mDegrees = Number(data, "winddir_avg2m"),
+            WindSpeedAvg10mMph = Number(data, "windspdmph_avg10m"),
+            WindDirectionAvg10mDegrees = Number(data, "winddir_avg10m"),
+            WindGustDirectionDegrees = Number(data, "windgustdir"),
+            Rain24HourIn = Number(data, "24hourrainin"),
+            TotalRainIn = Number(data, "totalrainin"),
+            ExtraSensors = ExtraSensors(data),
+            SoilSensors = SoilSensors(data),
+            LeakSensors = LeakSensors(data),
+            AirQuality = ReadAirQuality(data),
+            Lightning = ReadLightning(data),
+            LowBatteries = LowBatteries(data),
         };
     }
+
+    private const int SensorChannels = 10;
+    private const int LeakChannels = 4;
+    private const double MilesPerKm = 0.621371;
+
+    // Other sensors' battery flags. Extra temperature sensors carry theirs on each channel.
+    private static readonly (string Field, string Name)[] Batteries =
+    [
+        ("battin", "indoor sensor"),
+        ("battrain", "rain gauge"),
+        ("batt_lightning", "lightning detector"),
+        ("batt_co2", "CO2 sensor"),
+        ("batt_25", "outdoor air quality sensor"),
+        ("batt_25in", "indoor air quality sensor"),
+    ];
+
+    private static List<ExtraSensor> ExtraSensors(JsonElement data)
+    {
+        var sensors = new List<ExtraSensor>();
+        for (var channel = 1; channel <= SensorChannels; channel++)
+        {
+            var temperature = Number(data, $"temp{channel}f");
+            var humidity = Number(data, $"humidity{channel}");
+            if (temperature is not null || humidity is not null)
+            {
+                sensors.Add(new ExtraSensor(channel, temperature, humidity, BatteryLow(data, $"batt{channel}")));
+            }
+        }
+
+        return sensors;
+    }
+
+    private static List<SoilSensor> SoilSensors(JsonElement data)
+    {
+        var sensors = new List<SoilSensor>();
+        for (var channel = 1; channel <= SensorChannels; channel++)
+        {
+            var temperature = Number(data, $"soiltemp{channel}f");
+            var moisture = Number(data, $"soilhum{channel}");
+            if (temperature is not null || moisture is not null)
+            {
+                sensors.Add(new SoilSensor(channel, temperature, moisture));
+            }
+        }
+
+        return sensors;
+    }
+
+    // Ambient sends 1 for a leak and 0 for dry. Other values mean the sensor isn't reporting.
+    private static List<LeakSensor> LeakSensors(JsonElement data)
+    {
+        var sensors = new List<LeakSensor>();
+        for (var channel = 1; channel <= LeakChannels; channel++)
+        {
+            if (Number(data, $"leak{channel}") is double value and (0 or 1))
+            {
+                sensors.Add(new LeakSensor(channel, value == 1));
+            }
+        }
+
+        return sensors;
+    }
+
+    private static AirQuality? ReadAirQuality(JsonElement data)
+    {
+        var air = new AirQuality(
+            Number(data, "pm25"),
+            Number(data, "pm25_24h"),
+            Number(data, "aqi_pm25"),
+            Number(data, "pm25_in"),
+            Number(data, "co2_in") ?? Number(data, "co2"));
+        return air is { Pm25: null, Pm25Avg24h: null, Aqi: null, IndoorPm25: null, IndoorCo2Ppm: null } ? null : air;
+    }
+
+    // Ambient gives the last strike's distance in kilometres and its time in epoch milliseconds.
+    private static Lightning? ReadLightning(JsonElement data)
+    {
+        var today = Number(data, "lightning_day");
+        var hour = Number(data, "lightning_hour");
+        DateTimeOffset? last = Number(data, "lightning_time") is double ms && ms > 0
+            ? DateTimeOffset.FromUnixTimeMilliseconds((long)ms)
+            : null;
+        var distance = Number(data, "lightning_distance") is double km ? Math.Round(km * MilesPerKm, 1) : (double?)null;
+
+        return today is null && hour is null && last is null && distance is null
+            ? null
+            : new Lightning(today, hour, last, distance);
+    }
+
+    private static List<string> LowBatteries(JsonElement data) =>
+        Batteries.Where(battery => BatteryLow(data, battery.Field) == true).Select(battery => battery.Name).ToList();
+
+    // Ambient's battery fields are 1 for OK and 0 for low.
+    private static bool? BatteryLow(JsonElement data, string name) =>
+        Number(data, name) is double battery ? battery == 0 : null;
 
     public async Task<IReadOnlyList<StationHistoryPoint>> GetHistoryAsync(CancellationToken cancellationToken)
     {
@@ -111,7 +219,12 @@ public sealed class AmbientWeatherStation(
                 Number(data, "windspeedmph"),
                 Number(data, "windgustmph"),
                 Number(data, "baromrelin"),
-                Number(data, "hourlyrainin")))
+                Number(data, "hourlyrainin"),
+                Number(data, "humidity"),
+                Number(data, "dewPoint"),
+                Number(data, "uv"),
+                Number(data, "solarradiation"),
+                Number(data, "tempinf")))
             .Where(point => point.Time >= since)
             .OrderBy(point => point.Time)
             .ToList();
