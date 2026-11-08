@@ -18,7 +18,16 @@ test('a card moves before another or to the end', () => {
 
 test('cards this station lacks keep their place in the saved order', () => {
     const layout = { ...empty, order: ['Soil', 'Wind', 'Rain', 'Atmosphere', 'Sun'] };
-    assert.deepEqual(moveCard(layout, shown, 'Rain', 'Wind').order, ['Rain', 'Wind', 'Atmosphere', 'Sun', 'Soil']);
+    assert.deepEqual(moveCard(layout, shown, 'Rain', 'Wind').order, ['Soil', 'Rain', 'Wind', 'Atmosphere', 'Sun']);
+
+    const middle = { ...empty, order: ['Wind', 'Indoor', 'Soil', 'Rain', 'Atmosphere', 'Sun'] };
+    assert.deepEqual(moveCard(middle, shown, 'Sun', 'Wind').order, ['Sun', 'Indoor', 'Soil', 'Wind', 'Rain', 'Atmosphere']);
+});
+
+test('a shown card the saved order lacks joins it where it was shown', () => {
+    const layout = { ...empty, order: ['Wind', 'Soil', 'Rain'] };
+    const onScreen = ['Wind', 'Rain', 'Sun'];
+    assert.deepEqual(moveCard(layout, onScreen, 'Sun', 'Wind').order, ['Sun', 'Soil', 'Wind', 'Rain']);
 });
 
 test('arrow keys move one place and stop at the ends', () => {

@@ -104,17 +104,18 @@ public sealed class AmbientWeatherStation(
 
     private const int SensorChannels = 10;
     private const int LeakChannels = 4;
-    private const double MilesPerKm = 0.621371;
 
-    // Other sensors' battery flags. Extra temperature sensors carry theirs on each channel.
-    private static readonly (string Field, string Name)[] Batteries =
+    // Other sensors' battery flags, from Ambient's Device Data Specs. Extra temperature sensors carry theirs on
+    // each channel. Most are 1 for OK and 0 for low, but the lightning detector and leak sensors are the reverse.
+    private static readonly (string Field, string Name, bool OneIsLow)[] Batteries =
     [
-        ("battin", "indoor sensor"),
-        ("battrain", "rain gauge"),
-        ("batt_lightning", "lightning detector"),
-        ("batt_co2", "CO2 sensor"),
-        ("batt_25", "outdoor air quality sensor"),
-        ("batt_25in", "indoor air quality sensor"),
+        ("battin", "indoor sensor", false),
+        ("batt_lightning", "lightning detector", true),
+        ("batt_co2", "CO2 sensor", false),
+        ("batt_25", "air quality sensor", false),
+        ("batt_cellgateway", "cellular gateway", false),
+        .. Enumerable.Range(1, LeakChannels).Select(channel => ($"batleak{channel}", $"leak sensor {channel}", true)),
+        .. Enumerable.Range(1, 4).Select(channel => ($"battsm{channel}", $"soil sensor {channel}", false)),
     ];
 
     private static List<ExtraSensor> ExtraSensors(JsonElement data)
@@ -164,26 +165,37 @@ public sealed class AmbientWeatherStation(
         return sensors;
     }
 
+    // Ambient removed its outdoor AQI fields in 2023, so the only AQI is indoor: from the PM2.5 indoor
+    // sensor, or the AQIN monitor. `co2` is a standalone CO2 meter; the AQIN reports indoor CO2 separately.
     private static AirQuality? ReadAirQuality(JsonElement data)
     {
         var air = new AirQuality(
             Number(data, "pm25"),
             Number(data, "pm25_24h"),
-            Number(data, "aqi_pm25"),
-            Number(data, "pm25_in"),
-            Number(data, "co2_in") ?? Number(data, "co2"));
-        return air is { Pm25: null, Pm25Avg24h: null, Aqi: null, IndoorPm25: null, IndoorCo2Ppm: null } ? null : air;
+            Number(data, "pm25_in") ?? Number(data, "pm25_in_aqin"),
+            Number(data, "aqi_pm25_in") ?? Number(data, "aqi_pm25_aqin"),
+            Number(data, "co2"),
+            Number(data, "co2_in_aqin"));
+        return air is { Pm25: null, Pm25Avg24h: null, IndoorPm25: null, IndoorAqi: null, Co2Ppm: null, IndoorCo2Ppm: null }
+            ? null
+            : air;
     }
 
-    // Ambient gives the last strike's distance in kilometres and its time in epoch milliseconds.
+    // Ambient gives the last strike's distance in miles. Its time is epoch milliseconds, like `dateutc`,
+    // though the specs only call it a datetime, so an ISO string is read too.
     private static Lightning? ReadLightning(JsonElement data)
     {
         var today = Number(data, "lightning_day");
         var hour = Number(data, "lightning_hour");
-        DateTimeOffset? last = Number(data, "lightning_time") is double ms && ms > 0
-            ? DateTimeOffset.FromUnixTimeMilliseconds((long)ms)
+        DateTimeOffset? last = data.TryGetProperty("lightning_time", out var time)
+            ? time.ValueKind switch
+            {
+                JsonValueKind.Number when time.GetDouble() > 0 => DateTimeOffset.FromUnixTimeMilliseconds((long)time.GetDouble()),
+                JsonValueKind.String when time.TryGetDateTimeOffset(out var parsed) => parsed,
+                _ => null,
+            }
             : null;
-        var distance = Number(data, "lightning_distance") is double km ? Math.Round(km * MilesPerKm, 1) : (double?)null;
+        var distance = Number(data, "lightning_distance");
 
         return today is null && hour is null && last is null && distance is null
             ? null
@@ -191,11 +203,14 @@ public sealed class AmbientWeatherStation(
     }
 
     private static List<string> LowBatteries(JsonElement data) =>
-        Batteries.Where(battery => BatteryLow(data, battery.Field) == true).Select(battery => battery.Name).ToList();
+        Batteries
+            .Where(battery => BatteryLow(data, battery.Field, battery.OneIsLow) == true)
+            .Select(battery => battery.Name)
+            .ToList();
 
-    // Ambient's battery fields are 1 for OK and 0 for low.
-    private static bool? BatteryLow(JsonElement data, string name) =>
-        Number(data, name) is double battery ? battery == 0 : null;
+    // Most of Ambient's battery fields are 1 for OK and 0 for low; `oneIsLow` flips that for the ones that aren't.
+    private static bool? BatteryLow(JsonElement data, string name, bool oneIsLow = false) =>
+        Number(data, name) is double battery ? battery == (oneIsLow ? 1 : 0) : null;
 
     public async Task<IReadOnlyList<StationHistoryPoint>> GetHistoryAsync(CancellationToken cancellationToken)
     {

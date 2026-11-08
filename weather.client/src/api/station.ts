@@ -63,8 +63,10 @@ export interface LeakSensor {
 export interface AirQuality {
     pm25: number | null;
     pm25Avg24h: number | null;
-    aqi: number | null;
     indoorPm25: number | null;
+    /** Ambient has no outdoor AQI, only one worked out from indoor PM2.5. */
+    indoorAqi: number | null;
+    co2Ppm: number | null;
     indoorCo2Ppm: number | null;
 }
 

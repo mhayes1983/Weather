@@ -51,8 +51,9 @@ export function orderCards<T>(items: T[], key: (item: T) => string, order: strin
 }
 
 /**
- * Moves a card before another, or to the end when `before` is null. `shown` is the order on screen,
- * which becomes the saved order so the cards stay where the user put them.
+ * Moves a card before another, or to the end when `before` is null. `shown` is the order on screen.
+ * The layout is shared by every station, so cards this station lacks keep their saved places, and the
+ * shown cards are rearranged in the slots around them.
  */
 export function moveCard(layout: StationLayout, shown: string[], id: string, before: string | null): StationLayout {
     const others = shown.filter(title => title !== id);
@@ -62,8 +63,12 @@ export function moveCard(layout: StationLayout, shown: string[], id: string, bef
     }
 
     others.splice(index, 0, id);
-    const hidden = layout.order.filter(title => !shown.includes(title));
-    return { ...layout, order: [...others, ...hidden] };
+
+    // The full order as it stands: the saved order, then shown cards it doesn't name yet, as orderCards places them.
+    const full = [...layout.order, ...shown.filter(title => !layout.order.includes(title))];
+    const moved = others.values();
+    const order = full.map(title => (shown.includes(title) ? moved.next().value ?? title : title));
+    return { ...layout, order };
 }
 
 /** Moves a card one place earlier or later, for keyboard users. */

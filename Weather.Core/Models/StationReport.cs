@@ -58,7 +58,7 @@ public sealed record StationReading
     public AirQuality? AirQuality { get; init; }
     public Lightning? Lightning { get; init; }
 
-    /// <summary>Names of other sensors (indoor, rain gauge, lightning, CO2) whose batteries are low.</summary>
+    /// <summary>Names of other sensors (indoor, lightning, CO2, air quality, leak, soil) whose batteries are low.</summary>
     public IReadOnlyList<string> LowBatteries { get; init; } = [];
 }
 
@@ -68,7 +68,13 @@ public sealed record SoilSensor(int Channel, double? TemperatureF, double? Moist
 
 public sealed record LeakSensor(int Channel, bool Leak);
 
-public sealed record AirQuality(double? Pm25, double? Pm25Avg24h, double? Aqi, double? IndoorPm25, double? IndoorCo2Ppm);
+public sealed record AirQuality(
+    double? Pm25,
+    double? Pm25Avg24h,
+    double? IndoorPm25,
+    double? IndoorAqi,
+    double? Co2Ppm,
+    double? IndoorCo2Ppm);
 
 public sealed record Lightning(double? StrikesToday, double? StrikesLastHour, DateTimeOffset? LastStrike, double? LastDistanceMi);
 

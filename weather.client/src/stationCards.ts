@@ -93,8 +93,9 @@ export function stationCards(reading: StationReading, unit: Unit): StationCard[]
             rows: [
                 ['PM2.5', measure(air?.pm25, ' µg/m³', 1)],
                 ['PM2.5, 24-hour average', measure(air?.pm25Avg24h, ' µg/m³', 1)],
-                ['AQI', measure(air?.aqi, '')],
                 ['Indoor PM2.5', measure(air?.indoorPm25, ' µg/m³', 1)],
+                ['Indoor AQI', measure(air?.indoorAqi, '')],
+                ['CO₂', measure(air?.co2Ppm, ' ppm')],
                 ['Indoor CO₂', measure(air?.indoorCo2Ppm, ' ppm')],
             ],
         },

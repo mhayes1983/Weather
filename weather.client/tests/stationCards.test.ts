@@ -44,7 +44,7 @@ test('add-on sensors show only when fitted, in the chosen unit', () => {
         extraSensors: [{ channel: 2, temperatureF: 50, humidityPercent: null, batteryLow: false }],
         soilSensors: [{ channel: 1, temperatureF: null, moisturePercent: 33 }],
         leakSensors: [{ channel: 1, leak: false }],
-        airQuality: { pm25: null, pm25Avg24h: null, aqi: 35, indoorPm25: null, indoorCo2Ppm: null },
+        airQuality: { pm25: null, pm25Avg24h: null, indoorPm25: null, indoorAqi: 35, co2Ppm: 612, indoorCo2Ppm: null },
         lightning: { strikesToday: 0, strikesLastHour: null, lastStrike: null, lastDistanceMi: null },
     }, 'C');
 
@@ -52,7 +52,7 @@ test('add-on sensors show only when fitted, in the chosen unit', () => {
     assert.deepEqual(rows['Extra sensors'], [['Sensor 2', '10.0°C']]);
     assert.deepEqual(rows['Soil'], [['Sensor 1', '33% moisture']]);
     assert.deepEqual(rows['Leak sensors'], [['Sensor 1', 'Dry']]);
-    assert.deepEqual(rows['Air quality'], [['AQI', '35']]);
+    assert.deepEqual(rows['Air quality'], [['Indoor AQI', '35'], ['CO₂', '612 ppm']]);
     assert.deepEqual(rows['Lightning'], [['Strikes today', '0']]);
 });
 

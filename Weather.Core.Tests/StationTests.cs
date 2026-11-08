@@ -62,14 +62,18 @@ public class StationTests
                 "leak3": 2,
                 "pm25": 8.5,
                 "pm25_24h": 7.1,
-                "aqi_pm25": 35,
-                "co2_in": 612,
+                "aqi_pm25_in": 35,
+                "co2": 612,
+                "co2_in_aqin": 540,
                 "lightning_day": 4,
                 "lightning_hour": 1,
                 "lightning_time": {{NowMs - 600_000}},
                 "lightning_distance": 10,
                 "battin": 1,
-                "battrain": 0
+                "batt_lightning": 0,
+                "batleak1": 0,
+                "batleak2": 1,
+                "battsm1": 0
             }
         }]
         """;
@@ -175,9 +179,37 @@ public class StationTests
         Assert.Equal([new ExtraSensor(2, 40.5, 55, true)], reading.ExtraSensors);
         Assert.Equal([new SoilSensor(1, 50.1, 33)], reading.SoilSensors);
         Assert.Equal([new LeakSensor(1, false), new LeakSensor(2, true)], reading.LeakSensors);
-        Assert.Equal(new AirQuality(8.5, 7.1, 35, null, 612), reading.AirQuality);
-        Assert.Equal(new Lightning(4, 1, TestData.Now.AddMinutes(-10), 6.2), reading.Lightning);
-        Assert.Equal(["rain gauge"], reading.LowBatteries);
+        Assert.Equal(new AirQuality(8.5, 7.1, null, 35, 612, 540), reading.AirQuality);
+        Assert.Equal(new Lightning(4, 1, TestData.Now.AddMinutes(-10), 10), reading.Lightning);
+        // batt_lightning and batleak* are 1 for low, unlike battin and battsm*, so only these two are low.
+        Assert.Equal(["leak sensor 2", "soil sensor 1"], reading.LowBatteries);
+    }
+
+    [Theory]
+    [InlineData("batt_lightning", 0, false)]
+    [InlineData("batt_lightning", 1, true)]
+    [InlineData("batleak3", 0, false)]
+    [InlineData("batleak3", 1, true)]
+    [InlineData("battin", 1, false)]
+    [InlineData("battin", 0, true)]
+    [InlineData("battsm2", 0, true)]
+    public async Task BatteryFlagsFollowEachFieldsPolarity(string field, int value, bool low)
+    {
+        var http = StubHttp.Json(_ => $$$"""[{"macAddress":"{{{Mac}}}","lastData":{"dateutc":{{{NowMs}}},"{{{field}}}":{{{value}}}}}]""");
+
+        var reading = await Station(http).GetCurrentAsync(default);
+
+        Assert.Equal(low, reading.LowBatteries.Count == 1);
+    }
+
+    [Fact]
+    public async Task LightningTimeCanBeAString()
+    {
+        var http = StubHttp.Json(_ => $$$"""[{"macAddress":"{{{Mac}}}","lastData":{"dateutc":{{{NowMs}}},"lightning_time":"2026-11-08T09:30:00Z"}}]""");
+
+        var reading = await Station(http).GetCurrentAsync(default);
+
+        Assert.Equal(new DateTimeOffset(2026, 11, 8, 9, 30, 0, TimeSpan.Zero), reading.Lightning?.LastStrike);
     }
 
     [Fact]
