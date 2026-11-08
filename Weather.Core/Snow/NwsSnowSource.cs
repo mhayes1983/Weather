@@ -19,7 +19,7 @@ public sealed class NwsSnowSource(
     private const double MillimetresPerInch = 25.4;
     private static readonly TimeSpan PointCacheDuration = TimeSpan.FromDays(30);
 
-    public ColumnDescriptor Column { get; } = new("nws", "NWS");
+    public ColumnDescriptor Column => SourceColumns.Nws;
 
     public TimeSpan CacheDuration => TimeSpan.FromMinutes(options.Value.FreeSourceCacheMinutes);
 

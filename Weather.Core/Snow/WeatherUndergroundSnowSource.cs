@@ -18,7 +18,7 @@ public sealed class WeatherUndergroundSnowSource(
 {
     private static readonly TimeSpan DayPart = TimeSpan.FromHours(12);
 
-    public ColumnDescriptor Column { get; } = new("wu", "Weather Channel / WU");
+    public ColumnDescriptor Column => SourceColumns.WeatherUnderground;
 
     public TimeSpan CacheDuration => TimeSpan.FromMinutes(options.Value.WeatherUnderground.CacheMinutes);
 

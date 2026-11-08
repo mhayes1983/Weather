@@ -85,7 +85,7 @@ public class SourceTests
     {
         var http = StubHttp.Json(_ => Hourly(Enumerable.Repeat<double?>(50, 48).ToArray()));
         var source = new OpenMeteoSource(
-            new ColumnDescriptor("weathernext", "WeatherNext (mean)"),
+            SourceColumns.WeatherNext,
             "google_weathernext2_ensemble_mean",
             OpenMeteoSource.EnsembleEndpoint,
             ["google_weathernext2_ensemble_mean"],

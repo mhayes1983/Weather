@@ -11,7 +11,7 @@ public sealed class WeatherUndergroundSource(
     IOptions<WeatherOptions> options,
     TimeProvider timeProvider) : IForecastSource
 {
-    public ColumnDescriptor Column { get; } = new("wu", "WU");
+    public ColumnDescriptor Column => SourceColumns.WeatherUnderground;
 
     public TimeSpan CacheDuration => TimeSpan.FromMinutes(options.Value.WeatherUnderground.CacheMinutes);
 

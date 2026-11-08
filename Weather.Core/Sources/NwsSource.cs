@@ -13,7 +13,7 @@ public sealed class NwsSource(
 {
     private static readonly TimeSpan GridCacheDuration = TimeSpan.FromDays(30);
 
-    public ColumnDescriptor Column { get; } = new("nws", "NWS");
+    public ColumnDescriptor Column => SourceColumns.Nws;
 
     public TimeSpan CacheDuration => TimeSpan.FromMinutes(options.Value.FreeSourceCacheMinutes);
 

@@ -67,7 +67,7 @@ Android releases come from `.github/workflows/android-release.yml`. To release a
 
 ## Adding a forecast source
 
-1. Add a class in `Weather.Core/Sources` implementing `IForecastSource`.
+1. Add a class in `Weather.Core/Sources` implementing `IForecastSource`, with its column from `SourceColumns` in `Weather.Core/Models`. Every source is named there once, with a header of 5 characters or fewer, so both tables show the same name. Never change an existing id.
 2. Register it in `ServiceCollectionExtensions.cs`. Columns sort by days of data, and that position only breaks ties.
 3. Add tests to `SourceTests.cs` using a stubbed response.
 4. If it needs a key, return `SourceResult.NeedsKey()` when none is set, and add its options to `WeatherOptions`.

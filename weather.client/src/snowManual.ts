@@ -24,7 +24,7 @@ export interface ManualSnow {
 const storageKey = 'snowManual';
 
 export const defaultManualRows: ManualRow[] = [
-    { id: 'ncm', label: 'NewsCenter Maine' },
+    { id: 'ncm', label: 'NCM' },
     { id: 'wmtw', label: 'WMTW' },
     { id: 'wgme', label: 'WGME' },
 ];
