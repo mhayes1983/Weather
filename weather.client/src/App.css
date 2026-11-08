@@ -1547,12 +1547,20 @@ a.daily-row:focus-visible {
     margin: 2px 0 8px 4px;
 }
 
+/* List markers sit at the end of the previous item in a flex row, so the separator is drawn instead. */
 .snow-maps ul {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 16px;
+    gap: 4px 0;
     margin: 0;
-    padding-left: 1.2em;
+    padding: 0;
+    list-style: none;
+}
+
+.snow-maps li + li::before {
+    content: '•';
+    margin: 0 10px;
+    opacity: 0.6;
 }
 
 .snow-manual .zip-form {
