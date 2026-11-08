@@ -193,7 +193,7 @@ function StationAlmanac({ station, unit }: StationAlmanacProps) {
                 {report.climateStation &&
                     <p className="almanac-source">
                         Forecast by <a href="https://open-meteo.com/">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>). Averages, records{report.recordsSince !== null && ` since ${report.recordsSince}`} and past actuals from the {climateStationName(report.climateStation)} climate station, via ACIS.
-                        {days.some(other => other.sky) && <> Sun and moon data from the <a href="https://aa.usno.navy.mil/">U.S. Naval Observatory</a>.</>}
+                        {days.some(other => other.sky) && <> Moon data, and sunrise and sunset before today, from the <a href="https://aa.usno.navy.mil/">U.S. Naval Observatory</a>.</>}
                     </p>}
             </section>
         </div>

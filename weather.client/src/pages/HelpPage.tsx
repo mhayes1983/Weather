@@ -138,7 +138,7 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 <li>Snow forecasts: <a href="https://www.weather.gov/">National Weather Service</a>, Weather Underground, <a href="https://www.weatherapi.com/" title="Free Weather API">WeatherAPI.com</a> and Open-Meteo</li>
                 <li>Alerts, radar and the weather map: <a href="https://www.weather.gov/">National Weather Service</a> and NOAA, including <a href="https://nowcoast.noaa.gov/">nowCOAST</a> satellite and lightning</li>
                 <li>Averages, records and climate station measurements: <a href="https://www.rcc-acis.org/">ACIS</a></li>
-                <li>Moon data: <a href="https://aa.usno.navy.mil/">US Naval Observatory</a></li>
+                <li>Sun and moon data: <a href="https://aa.usno.navy.mil/">US Naval Observatory</a></li>
                 <li>ZIP code locations: <a href="https://www.zippopotam.us/">Zippopotam.us</a></li>
                 <li>Map: <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</li>
             </ul>

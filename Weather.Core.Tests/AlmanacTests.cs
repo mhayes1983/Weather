@@ -100,7 +100,8 @@ public class AlmanacTests
         string? Daily = null,
         bool AcisFails = false,
         bool ForecastFails = false,
-        bool UsnoFails = false);
+        bool UsnoFails = false,
+        string Outlook = Outlook);
 
     private static (ServiceProvider Services, StubHttp Http) Services(Stubs? stubs = null, DateTimeOffset? now = null)
     {
@@ -117,7 +118,7 @@ public class AlmanacTests
             }
 
             var body = isUsno ? Usno
-                : !isAcis ? Outlook
+                : !isAcis ? stubs.Outlook
                 : url.EndsWith("MultiStnData") ? (stubs.Search ?? (_ => Search))(searches++)
                 : request.Content!.ReadAsStringAsync().Result.Contains("\"por\"") ? stubs.Records
                 : stubs.Daily ?? Daily;
@@ -203,6 +204,20 @@ public class AlmanacTests
         Assert.Equal(new AlmanacSky("07:15", "17:30", moon), report.Days[2].Sky);
         Assert.Equal(3, http.Requests.Count(request => request.RequestUri!.Host == "aa.usno.navy.mil"));
         Assert.Contains(http.Requests, request => request.RequestUri!.Query.Contains("date=2026-10-29"));
+    }
+
+    [Fact]
+    public async Task MissingForecastSunTimesFallBackToUsno()
+    {
+        var outlook = Outlook.Replace("\"2026-10-31T07:15\"", "null");
+        var (services, _) = Services(new Stubs(Outlook: outlook));
+        using var _ = services;
+
+        var report = (await services.GetRequiredService<AlmanacService>().GetAsync())!;
+
+        Assert.Equal("07:12", report.Days[2].Sky!.Sunrise);
+        Assert.Equal("17:30", report.Days[2].Sky!.Sunset);
+        Assert.Equal("07:14", report.Days[1].Sky!.Sunrise);
     }
 
     [Fact]
