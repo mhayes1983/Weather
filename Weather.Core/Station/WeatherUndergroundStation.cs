@@ -93,7 +93,11 @@ public sealed class WeatherUndergroundStation(
                     Number(imperial, "windspeedAvg"),
                     Number(imperial, "windgustHigh"),
                     (Number(imperial, "pressureMax") + Number(imperial, "pressureMin")) / 2,
-                    Number(imperial, "precipRate"));
+                    Number(imperial, "precipRate"),
+                    Number(observation, "humidityAvg"),
+                    Number(imperial, "dewptAvg"),
+                    Number(observation, "uvHigh"),
+                    Number(observation, "solarRadiationHigh"));
             })
             .OrderBy(point => point.Time)
             .ToList();

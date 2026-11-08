@@ -798,6 +798,76 @@ thead th.measure-header {
     margin: 0;
 }
 
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.panel-header h2 {
+    margin: 0;
+}
+
+.panel-collapsed {
+    align-self: start;
+}
+
+.panel-collapsed .panel-header {
+    margin-bottom: 0;
+}
+
+.panel-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    font-weight: inherit;
+    color: inherit;
+    text-align: left;
+    background: none;
+    border: 0;
+}
+
+.panel-chevron {
+    display: inline-block;
+    width: 1em;
+    color: var(--text);
+}
+
+.panel-handle {
+    padding: 0 4px;
+    line-height: 1;
+    color: var(--text);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    background: none;
+    border: 0;
+}
+
+.panel-dragging .panel-handle {
+    cursor: grabbing;
+}
+
+.panel-dragging {
+    opacity: 0.45;
+}
+
+.panel-drop-before {
+    box-shadow: inset 3px 0 0 var(--text-strong);
+}
+
+.panel-drop-after {
+    box-shadow: inset -3px 0 0 var(--text-strong);
+}
+
+.station-layout-reset {
+    margin: -8px 0 16px;
+    text-align: right;
+}
+
 .station-card dl div {
     display: flex;
     justify-content: space-between;

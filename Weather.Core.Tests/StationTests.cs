@@ -44,14 +44,43 @@ public class StationTests
                 "lastRain": "2026-10-29T12:00:00.000Z",
                 "uv": 2,
                 "solarradiation": 120.5,
-                "battout": 0
+                "battout": 0,
+                "windspdmph_avg2m": 1.2,
+                "winddir_avg2m": 60,
+                "windspdmph_avg10m": 1.5,
+                "winddir_avg10m": 70,
+                "windgustdir": 80,
+                "24hourrainin": 0.7,
+                "totalrainin": 12.34,
+                "temp2f": 40.5,
+                "humidity2": 55,
+                "batt2": 0,
+                "soiltemp1f": 50.1,
+                "soilhum1": 33,
+                "leak1": 0,
+                "leak2": 1,
+                "leak3": 2,
+                "pm25": 8.5,
+                "pm25_24h": 7.1,
+                "aqi_pm25_in": 35,
+                "co2": 612,
+                "co2_in_aqin": 540,
+                "lightning_day": 4,
+                "lightning_hour": 1,
+                "lightning_time": {{NowMs - 600_000}},
+                "lightning_distance": 10,
+                "battin": 1,
+                "batt_lightning": 0,
+                "batleak1": 0,
+                "batleak2": 1,
+                "battsm1": 0
             }
         }]
         """;
 
     private static readonly string History = $$"""
         [
-            { "dateutc": {{NowMs}}, "tempf": 66.9, "windspeedmph": 1, "windgustmph": 2, "baromrelin": 30.1, "hourlyrainin": 0 },
+            { "dateutc": {{NowMs}}, "tempf": 66.9, "windspeedmph": 1, "windgustmph": 2, "baromrelin": 30.1, "hourlyrainin": 0, "humidity": 30, "dewPoint": 34.5, "uv": 2, "solarradiation": 120.5, "tempinf": 74.1 },
             { "dateutc": {{NowMs - 300_000}}, "tempf": 65.5 },
             { "dateutc": {{NowMs - 90_000_000}}, "tempf": 50 }
         ]
@@ -119,6 +148,68 @@ public class StationTests
         Assert.Null(reading.StationName);
         Assert.Null(reading.TemperatureF);
         Assert.Null(reading.BatteryLow);
+        Assert.Null(reading.TotalRainIn);
+        Assert.Empty(reading.ExtraSensors);
+        Assert.Empty(reading.SoilSensors);
+        Assert.Empty(reading.LeakSensors);
+        Assert.Null(reading.AirQuality);
+        Assert.Null(reading.Lightning);
+        Assert.Empty(reading.LowBatteries);
+    }
+
+    [Fact]
+    public async Task ParsesWindAndRainExtras()
+    {
+        var reading = await Station(Working()).GetCurrentAsync(default);
+
+        Assert.Equal(1.2, reading.WindSpeedAvg2mMph);
+        Assert.Equal(60, reading.WindDirectionAvg2mDegrees);
+        Assert.Equal(1.5, reading.WindSpeedAvg10mMph);
+        Assert.Equal(70, reading.WindDirectionAvg10mDegrees);
+        Assert.Equal(80, reading.WindGustDirectionDegrees);
+        Assert.Equal(0.7, reading.Rain24HourIn);
+        Assert.Equal(12.34, reading.TotalRainIn);
+    }
+
+    [Fact]
+    public async Task ParsesAddOnSensorsThatReport()
+    {
+        var reading = await Station(Working()).GetCurrentAsync(default);
+
+        Assert.Equal([new ExtraSensor(2, 40.5, 55, true)], reading.ExtraSensors);
+        Assert.Equal([new SoilSensor(1, 50.1, 33)], reading.SoilSensors);
+        Assert.Equal([new LeakSensor(1, false), new LeakSensor(2, true)], reading.LeakSensors);
+        Assert.Equal(new AirQuality(8.5, 7.1, null, 35, 612, 540), reading.AirQuality);
+        Assert.Equal(new Lightning(4, 1, TestData.Now.AddMinutes(-10), 10), reading.Lightning);
+        // batt_lightning and batleak* are 1 for low, unlike battin and battsm*, so only these two are low.
+        Assert.Equal(["leak sensor 2", "soil sensor 1"], reading.LowBatteries);
+    }
+
+    [Theory]
+    [InlineData("batt_lightning", 0, false)]
+    [InlineData("batt_lightning", 1, true)]
+    [InlineData("batleak3", 0, false)]
+    [InlineData("batleak3", 1, true)]
+    [InlineData("battin", 1, false)]
+    [InlineData("battin", 0, true)]
+    [InlineData("battsm2", 0, true)]
+    public async Task BatteryFlagsFollowEachFieldsPolarity(string field, int value, bool low)
+    {
+        var http = StubHttp.Json(_ => $$$"""[{"macAddress":"{{{Mac}}}","lastData":{"dateutc":{{{NowMs}}},"{{{field}}}":{{{value}}}}}]""");
+
+        var reading = await Station(http).GetCurrentAsync(default);
+
+        Assert.Equal(low, reading.LowBatteries.Count == 1);
+    }
+
+    [Fact]
+    public async Task LightningTimeCanBeAString()
+    {
+        var http = StubHttp.Json(_ => $$$"""[{"macAddress":"{{{Mac}}}","lastData":{"dateutc":{{{NowMs}}},"lightning_time":"2026-11-08T09:30:00Z"}}]""");
+
+        var reading = await Station(http).GetCurrentAsync(default);
+
+        Assert.Equal(new DateTimeOffset(2026, 11, 8, 9, 30, 0, TimeSpan.Zero), reading.Lightning?.LastStrike);
     }
 
     [Fact]
@@ -130,6 +221,7 @@ public class StationTests
 
         Assert.Equal([65.5, 66.9], history.Select(point => point.TemperatureF));
         Assert.Null(history[0].WindSpeedMph);
+        Assert.Equal(new StationHistoryPoint(TestData.Now, 66.9, 1, 2, 30.1, 0, 30, 34.5, 2, 120.5, 74.1), history[1]);
         Assert.Contains(http.Requests, request =>
             request.RequestUri!.ToString().Contains("/devices/AA%3ABB%3ACC%3ADD%3AEE%3AFF?")
             && request.RequestUri.Query.Contains("limit=288"));

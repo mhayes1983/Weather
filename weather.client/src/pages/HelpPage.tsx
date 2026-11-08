@@ -21,7 +21,10 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <p>
                 The <RouteLink route="/" onNavigate={onNavigate}>Station</RouteLink> page shows current conditions and charts
                 of recent readings, and refreshes every minute. Charts cover the last 24 hours for the home station and the
-                current day for other stations. The description of the sky beside the temperature is modelled by Open-Meteo for
+                current day for other stations. Readings a station doesn't report are left out, and add-on sensors such as
+                extra thermometers, soil probes, air quality monitors, lightning detectors and leak sensors appear only when
+                the station has them. Select a card's or chart's title to collapse or expand it, and drag its ⠿ handle (or focus it and
+                use the arrow keys) to move it. Your layout is saved in this browser and applies to every station. The description of the sky beside the temperature is modelled by Open-Meteo for
                 the station's area, so it can occasionally differ from what the station measures.
             </p>
             <p>

@@ -23,7 +23,7 @@ public sealed class OpenMeteoStation(
     private const string Endpoint = "https://api.open-meteo.com/v1/forecast";
     private const string Query =
         "&current=temperature_2m,apparent_temperature,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,wind_direction_10m,pressure_msl,precipitation,uv_index,shortwave_radiation"
-        + "&hourly=temperature_2m,wind_speed_10m,wind_gusts_10m,pressure_msl,precipitation"
+        + "&hourly=temperature_2m,wind_speed_10m,wind_gusts_10m,pressure_msl,precipitation,relative_humidity_2m,dew_point_2m"
         + "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timeformat=unixtime&past_days=1&forecast_days=1";
     private const double InHgPerHpa = 0.02953;
     private static readonly TimeSpan HistoryLength = TimeSpan.FromHours(24);
@@ -129,7 +129,9 @@ public sealed class OpenMeteoStation(
                 Number(hourly, "wind_speed_10m", i),
                 Number(hourly, "wind_gusts_10m", i),
                 ToInHg(Number(hourly, "pressure_msl", i)),
-                Number(hourly, "precipitation", i));
+                Number(hourly, "precipitation", i),
+                Number(hourly, "relative_humidity_2m", i),
+                Number(hourly, "dew_point_2m", i));
         }
     }
 

@@ -85,9 +85,132 @@ public sealed class AmbientWeatherStation(
                 : null,
             UvIndex = Number(data, "uv"),
             SolarRadiationWm2 = Number(data, "solarradiation"),
-            BatteryLow = Number(data, "battout") is double battery ? battery == 0 : null,
+            BatteryLow = BatteryLow(data, "battout"),
+            WindSpeedAvg2mMph = Number(data, "windspdmph_avg2m"),
+            WindDirectionAvg2mDegrees = Number(data, "winddir_avg2m"),
+            WindSpeedAvg10mMph = Number(data, "windspdmph_avg10m"),
+            WindDirectionAvg10mDegrees = Number(data, "winddir_avg10m"),
+            WindGustDirectionDegrees = Number(data, "windgustdir"),
+            Rain24HourIn = Number(data, "24hourrainin"),
+            TotalRainIn = Number(data, "totalrainin"),
+            ExtraSensors = ExtraSensors(data),
+            SoilSensors = SoilSensors(data),
+            LeakSensors = LeakSensors(data),
+            AirQuality = ReadAirQuality(data),
+            Lightning = ReadLightning(data),
+            LowBatteries = LowBatteries(data),
         };
     }
+
+    private const int SensorChannels = 10;
+    private const int LeakChannels = 4;
+
+    // Other sensors' battery flags, from Ambient's Device Data Specs. Extra temperature sensors carry theirs on
+    // each channel. Most are 1 for OK and 0 for low, but the lightning detector and leak sensors are the reverse.
+    private static readonly (string Field, string Name, bool OneIsLow)[] Batteries =
+    [
+        ("battin", "indoor sensor", false),
+        ("batt_lightning", "lightning detector", true),
+        ("batt_co2", "CO2 sensor", false),
+        ("batt_25", "air quality sensor", false),
+        ("batt_cellgateway", "cellular gateway", false),
+        .. Enumerable.Range(1, LeakChannels).Select(channel => ($"batleak{channel}", $"leak sensor {channel}", true)),
+        .. Enumerable.Range(1, 4).Select(channel => ($"battsm{channel}", $"soil sensor {channel}", false)),
+    ];
+
+    private static List<ExtraSensor> ExtraSensors(JsonElement data)
+    {
+        var sensors = new List<ExtraSensor>();
+        for (var channel = 1; channel <= SensorChannels; channel++)
+        {
+            var temperature = Number(data, $"temp{channel}f");
+            var humidity = Number(data, $"humidity{channel}");
+            if (temperature is not null || humidity is not null)
+            {
+                sensors.Add(new ExtraSensor(channel, temperature, humidity, BatteryLow(data, $"batt{channel}")));
+            }
+        }
+
+        return sensors;
+    }
+
+    private static List<SoilSensor> SoilSensors(JsonElement data)
+    {
+        var sensors = new List<SoilSensor>();
+        for (var channel = 1; channel <= SensorChannels; channel++)
+        {
+            var temperature = Number(data, $"soiltemp{channel}f");
+            var moisture = Number(data, $"soilhum{channel}");
+            if (temperature is not null || moisture is not null)
+            {
+                sensors.Add(new SoilSensor(channel, temperature, moisture));
+            }
+        }
+
+        return sensors;
+    }
+
+    // Ambient sends 1 for a leak and 0 for dry. Other values mean the sensor isn't reporting.
+    private static List<LeakSensor> LeakSensors(JsonElement data)
+    {
+        var sensors = new List<LeakSensor>();
+        for (var channel = 1; channel <= LeakChannels; channel++)
+        {
+            if (Number(data, $"leak{channel}") is double value and (0 or 1))
+            {
+                sensors.Add(new LeakSensor(channel, value == 1));
+            }
+        }
+
+        return sensors;
+    }
+
+    // Ambient removed its outdoor AQI fields in 2023, so the only AQI is indoor: from the PM2.5 indoor
+    // sensor, or the AQIN monitor. `co2` is a standalone CO2 meter; the AQIN reports indoor CO2 separately.
+    private static AirQuality? ReadAirQuality(JsonElement data)
+    {
+        var air = new AirQuality(
+            Number(data, "pm25"),
+            Number(data, "pm25_24h"),
+            Number(data, "pm25_in") ?? Number(data, "pm25_in_aqin"),
+            Number(data, "aqi_pm25_in") ?? Number(data, "aqi_pm25_aqin"),
+            Number(data, "co2"),
+            Number(data, "co2_in_aqin"));
+        return air is { Pm25: null, Pm25Avg24h: null, IndoorPm25: null, IndoorAqi: null, Co2Ppm: null, IndoorCo2Ppm: null }
+            ? null
+            : air;
+    }
+
+    // Ambient gives the last strike's distance in miles. Its time is epoch milliseconds, like `dateutc`,
+    // though the specs only call it a datetime, so an ISO string is read too.
+    private static Lightning? ReadLightning(JsonElement data)
+    {
+        var today = Number(data, "lightning_day");
+        var hour = Number(data, "lightning_hour");
+        DateTimeOffset? last = data.TryGetProperty("lightning_time", out var time)
+            ? time.ValueKind switch
+            {
+                JsonValueKind.Number when time.GetDouble() > 0 => DateTimeOffset.FromUnixTimeMilliseconds((long)time.GetDouble()),
+                JsonValueKind.String when time.TryGetDateTimeOffset(out var parsed) => parsed,
+                _ => null,
+            }
+            : null;
+        var distance = Number(data, "lightning_distance");
+
+        return today is null && hour is null && last is null && distance is null
+            ? null
+            : new Lightning(today, hour, last, distance);
+    }
+
+    private static List<string> LowBatteries(JsonElement data) =>
+        Batteries
+            .Where(battery => BatteryLow(data, battery.Field, battery.OneIsLow) == true)
+            .Select(battery => battery.Name)
+            .ToList();
+
+    // Most of Ambient's battery fields are 1 for OK and 0 for low; `oneIsLow` flips that for the ones that aren't.
+    private static bool? BatteryLow(JsonElement data, string name, bool oneIsLow = false) =>
+        Number(data, name) is double battery ? battery == (oneIsLow ? 1 : 0) : null;
 
     public async Task<IReadOnlyList<StationHistoryPoint>> GetHistoryAsync(CancellationToken cancellationToken)
     {
@@ -111,7 +234,12 @@ public sealed class AmbientWeatherStation(
                 Number(data, "windspeedmph"),
                 Number(data, "windgustmph"),
                 Number(data, "baromrelin"),
-                Number(data, "hourlyrainin")))
+                Number(data, "hourlyrainin"),
+                Number(data, "humidity"),
+                Number(data, "dewPoint"),
+                Number(data, "uv"),
+                Number(data, "solarradiation"),
+                Number(data, "tempinf")))
             .Where(point => point.Time >= since)
             .OrderBy(point => point.Time)
             .ToList();

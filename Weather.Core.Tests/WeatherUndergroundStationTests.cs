@@ -40,7 +40,7 @@ public class WeatherUndergroundStationTests
 
     private const string History = """
         {"observations":[
-            {"obsTimeUtc":"2026-10-30T15:55:00Z","imperial":{"tempAvg":59,"windspeedAvg":5,"windgustHigh":9,"pressureMax":30.2,"pressureMin":30.0,"precipRate":0}},
+            {"obsTimeUtc":"2026-10-30T15:55:00Z","humidityAvg":62,"uvHigh":3,"solarRadiationHigh":410.5,"imperial":{"dewptAvg":45,"tempAvg":59,"windspeedAvg":5,"windgustHigh":9,"pressureMax":30.2,"pressureMin":30.0,"precipRate":0}},
             {"obsTimeUtc":"2026-10-30T15:50:00Z","imperial":{"tempAvg":58}}
         ]}
         """;
@@ -132,6 +132,11 @@ public class WeatherUndergroundStationTests
         Assert.Equal([58, 59], history.Select(point => point.TemperatureF));
         Assert.Null(history[0].PressureInHg);
         Assert.Equal(30.1, history[1].PressureInHg!.Value, 5);
+        Assert.Equal(62, history[1].HumidityPercent);
+        Assert.Equal(45, history[1].DewPointF);
+        Assert.Equal(3, history[1].UvIndex);
+        Assert.Equal(410.5, history[1].SolarRadiationWm2);
+        Assert.Null(history[0].HumidityPercent);
     }
 
     [Fact]
