@@ -8,7 +8,8 @@ public sealed class UsnoMoon(IHttpClientFactory httpClientFactory)
 {
     private const string Endpoint = "https://aa.usno.navy.mil/api/rstt/oneday";
 
-    public async Task<MoonInfo> GetAsync(GeoPoint location, DateOnly date, string timeZoneId, CancellationToken cancellationToken)
+    /// <summary>The sun's and moon's rise and set for one date, and the moon's phase.</summary>
+    public async Task<UsnoDay> GetAsync(GeoPoint location, DateOnly date, string timeZoneId, CancellationToken cancellationToken)
     {
         // The offset is for this date, because a forecast can cross a clock change.
         var offset = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId)
@@ -23,27 +24,41 @@ public sealed class UsnoMoon(IHttpClientFactory httpClientFactory)
         var data = document.RootElement.GetProperty("properties").GetProperty("data");
 
         // The moon doesn't rise or set every day, so either event can be missing.
-        string? moonrise = null;
-        string? moonset = null;
-        foreach (var moonEvent in data.GetProperty("moondata").EnumerateArray())
+        var (moonrise, moonset) = RiseAndSet(data, "moondata");
+        var (sunrise, sunset) = RiseAndSet(data, "sundata");
+
+        return new UsnoDay(
+            sunrise,
+            sunset,
+            new MoonInfo(
+                data.TryGetProperty("curphase", out var phase) ? phase.GetString() : null,
+                ReadPercent(data),
+                moonrise,
+                moonset));
+    }
+
+    private static (string? Rise, string? Set) RiseAndSet(JsonElement data, string property)
+    {
+        string? rise = null;
+        string? set = null;
+        if (data.TryGetProperty(property, out var events))
         {
-            var time = moonEvent.GetProperty("time").GetString();
-            switch (moonEvent.GetProperty("phen").GetString())
+            foreach (var skyEvent in events.EnumerateArray())
             {
-                case "Rise":
-                    moonrise = time;
-                    break;
-                case "Set":
-                    moonset = time;
-                    break;
+                var time = skyEvent.GetProperty("time").GetString();
+                switch (skyEvent.GetProperty("phen").GetString())
+                {
+                    case "Rise":
+                        rise = time;
+                        break;
+                    case "Set":
+                        set = time;
+                        break;
+                }
             }
         }
 
-        return new MoonInfo(
-            data.TryGetProperty("curphase", out var phase) ? phase.GetString() : null,
-            ReadPercent(data),
-            moonrise,
-            moonset);
+        return (rise, set);
     }
 
     private static int? ReadPercent(JsonElement data) =>

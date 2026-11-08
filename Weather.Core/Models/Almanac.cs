@@ -10,7 +10,10 @@ public sealed record AlmanacRow(double? Value, double? Average, double? Record, 
 }
 
 /// <summary>Each row's value is the forecast for today and later, and what was measured for an earlier day.</summary>
-public sealed record AlmanacDay(DateOnly Date, AlmanacRow High, AlmanacRow Low, AlmanacRow Precip, AlmanacRow Snow);
+public sealed record AlmanacDay(DateOnly Date, AlmanacRow High, AlmanacRow Low, AlmanacRow Precip, AlmanacRow Snow, AlmanacSky? Sky = null);
+
+/// <summary>Sun and moon times for an almanac day, as local "HH:mm". The moon doesn't rise or set every day.</summary>
+public sealed record AlmanacSky(string? Sunrise, string? Sunset, MoonInfo Moon);
 
 /// <summary>
 /// <see cref="Days"/> is yesterday, today and tomorrow, in date order. Averages and records come

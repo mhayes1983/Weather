@@ -37,13 +37,22 @@ public sealed class AlmanacService(
         // The forecast knows the station's time zone. Without it, the home time zone is close enough for the date.
         var forecast = await forecasts.GetAsync(station.Id);
         var today = forecast?.Today ?? HomeToday();
-        var (climate, message) = await GetClimateAsync(station, today);
+
+        // The sky doesn't depend on the climate station, so neither waits for the other.
+        var climateTask = GetClimateAsync(station, today);
+        var skyTask = forecasts.GetSkyAsync(station.Id, [today.AddDays(-1), today, today.AddDays(1)]);
+        await Task.WhenAll(climateTask, skyTask);
+
+        var (climate, message) = climateTask.Result;
         if (climate is null)
         {
             return new AlmanacReport(station.Name, SourceStatus.Error, message, null, null, null, []);
         }
 
-        var days = climate.Days.Select(day => day.Date < today ? day : WithForecast(day, forecast)).ToList();
+        var sky = skyTask.Result;
+        var days = climate.Days
+            .Select(day => (day.Date < today ? day : WithForecast(day, forecast)) with { Sky = sky.GetValueOrDefault(day.Date) })
+            .ToList();
         return new AlmanacReport(station.Name, SourceStatus.Ok, null, climate.Station, climate.RecordsSince, today, days);
     }
 

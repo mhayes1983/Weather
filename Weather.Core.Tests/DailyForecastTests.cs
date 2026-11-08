@@ -68,7 +68,8 @@ public class DailyForecastTests
         {"properties":{"data":{
             "curphase": "Waning Crescent",
             "fracillum": "41%",
-            "moondata": [{"phen":"Upper Transit","time":"06:15"},{"phen":"Set","time":"13:27"}]
+            "moondata": [{"phen":"Upper Transit","time":"06:15"},{"phen":"Set","time":"13:27"}],
+            "sundata": [{"phen":"Begin Civil Twilight","time":"06:46"},{"phen":"Rise","time":"07:13"},{"phen":"Set","time":"17:32"}]
         }}}
         """;
 
@@ -340,6 +341,16 @@ public class DailyForecastTests
         var detail = (await Service(StubHttp.Json(Respond)).GetDayAsync(Today))!;
 
         Assert.Equal(new MoonInfo("Waning Crescent", 41, null, "13:27"), detail.Moon);
+    }
+
+    [Fact]
+    public async Task UsnoReadsTheSunToo()
+    {
+        var day = await new UsnoMoon(StubHttp.Json(Respond)).GetAsync(new GeoPoint(43.9281, -69.9656), Today, "America/New_York", default);
+
+        Assert.Equal("07:13", day.Sunrise);
+        Assert.Equal("17:32", day.Sunset);
+        Assert.Equal("Waning Crescent", day.Moon.Phase);
     }
 
     [Theory]

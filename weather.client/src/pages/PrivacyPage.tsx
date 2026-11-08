@@ -50,7 +50,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 <li>Weather Underground: forecasts, station readings and station search</li>
                 <li>Ambient Weather: home station readings</li>
                 <li>ACIS: averages, records and climate station measurements</li>
-                <li>US Naval Observatory: moon data</li>
+                <li>US Naval Observatory: sun and moon data</li>
                 <li>Zippopotam.us: ZIP code locations</li>
                 <li>NewsCenter Maine: Maine forecasts</li>
                 <li>WeatherAPI.com: snow forecasts</li>

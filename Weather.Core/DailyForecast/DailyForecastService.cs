@@ -78,7 +78,7 @@ public sealed class DailyForecastService(
         }
 
         var descriptionsTask = GetDescriptionsAsync(location!);
-        var moonTask = GetMoonAsync(location!, date, forecast.TimeZoneId);
+        var moonTask = GetUsnoAsync(location!, date, forecast.TimeZoneId);
         await Task.WhenAll(descriptionsTask, moonTask);
 
         var description = descriptionsTask.Result?.GetValueOrDefault(date);
@@ -95,11 +95,51 @@ public sealed class DailyForecastService(
             description?.Night,
             description?.Day is null ? null : Precipitation(upcoming, morning, evening),
             description?.Night is null ? null : Precipitation(upcoming, evening, PeriodStart(nextDate, DayStartHour)),
-            moonTask.Result,
+            moonTask.Result?.Moon,
             hours,
             openable.LastOrDefault(other => other.Date < date)?.Date,
             openable.FirstOrDefault(other => other.Date > date)?.Date);
     }
+
+    /// <summary>
+    /// Sunrise, sunset and moon data for each date, from the forecast where it has the date and USNO otherwise.
+    /// Dates that couldn't be loaded are left out, and a failed forecast leaves out every date.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<DateOnly, AlmanacSky>> GetSkyAsync(string? stationId, IReadOnlyList<DateOnly> dates)
+    {
+        if (directory.Find(stationId) is not { CanLocate: true } station)
+        {
+            return new Dictionary<DateOnly, AlmanacSky>();
+        }
+
+        var (forecast, location, _) = await GetOutlookAsync(station);
+        if (forecast is null)
+        {
+            return new Dictionary<DateOnly, AlmanacSky>();
+        }
+
+        var usno = await Task.WhenAll(dates.Select(date => GetUsnoAsync(location!, date, forecast.TimeZoneId)));
+        var sky = new Dictionary<DateOnly, AlmanacSky>();
+        for (var i = 0; i < dates.Count; i++)
+        {
+            if (usno[i] is not { } day)
+            {
+                continue;
+            }
+
+            // The daily forecast shows Open-Meteo's times, so the almanac uses them too where it can.
+            var forecastDay = forecast.Days.FirstOrDefault(other => other.Date == dates[i]);
+            sky[dates[i]] = new AlmanacSky(
+                Clock(forecastDay?.Sunrise) ?? day.Sunrise,
+                Clock(forecastDay?.Sunset) ?? day.Sunset,
+                day.Moon);
+        }
+
+        return sky;
+    }
+
+    // Open-Meteo's "2026-10-30T07:14" as "07:14", to match USNO.
+    private static string? Clock(string? time) => time?[(time.IndexOf('T') + 1)..];
 
     private DateTimeOffset LocalNow(Outlook forecast) =>
         TimeZoneInfo.ConvertTime(
@@ -187,9 +227,10 @@ public sealed class DailyForecastService(
             ForecastCacheDuration,
             async token => await descriptions.GetAsync(location, token));
 
-    private Task<MoonInfo?> GetMoonAsync(GeoPoint location, DateOnly date, string timeZoneId) =>
+    // The almanac and the day page share this call.
+    private Task<UsnoDay?> GetUsnoAsync(GeoPoint location, DateOnly date, string timeZoneId) =>
         GetOptionalAsync(
-            "USNO moon",
+            "USNO",
             string.Create(CultureInfo.InvariantCulture, $"moon:{location.Latitude},{location.Longitude}:{date:yyyy-MM-dd}"),
             MoonCacheDuration,
             token => moon.GetAsync(location, date, timeZoneId, token));
