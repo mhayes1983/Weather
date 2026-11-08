@@ -82,6 +82,14 @@ test('manual input accepts only non-negative numbers', () => {
     assert.equal(parseInches('-1'), null);
 });
 
+test('a saved NewsCenter Maine row takes the short name unless it was renamed', () => {
+    saved.set('snowManual', JSON.stringify({ rows: [{ id: 'ncm', label: 'NewsCenter Maine' }, { id: 'wmtw', label: 'WMTW' }] }));
+    assert.deepEqual(loadManualSnow().rows.map(row => row.label), ['NCM', 'WMTW']);
+
+    saved.set('snowManual', JSON.stringify({ rows: [{ id: 'ncm', label: 'Channel 6' }] }));
+    assert.deepEqual(loadManualSnow().rows.map(row => row.label), ['Channel 6']);
+});
+
 test('unreadable manual storage starts with the default rows', () => {
     saved.set('snowManual', '{not json');
 

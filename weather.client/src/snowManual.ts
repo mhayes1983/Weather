@@ -38,6 +38,15 @@ function isRow(value: unknown): value is ManualRow {
     return typeof row?.id === 'string' && typeof row.label === 'string';
 }
 
+// The NewsCenter Maine row was saved as "NewsCenter Maine" before the tables switched to short names. A name the
+// person typed themselves is kept.
+const oldDefaultLabels: Record<string, string> = { ncm: 'NewsCenter Maine' };
+
+function renameOldDefault(row: ManualRow): ManualRow {
+    const current = defaultManualRows.find(fallback => fallback.id === row.id);
+    return current && row.label === oldDefaultLabels[row.id] ? { ...row, label: current.label } : row;
+}
+
 export function loadManualSnow(): ManualSnow {
     try {
         const saved = JSON.parse(window.localStorage.getItem(storageKey) ?? 'null') as Partial<ManualSnow> | null;
@@ -46,7 +55,7 @@ export function loadManualSnow(): ManualSnow {
         }
 
         return {
-            rows: Array.isArray(saved.rows) ? saved.rows.filter(isRow) : defaultManualRows,
+            rows: Array.isArray(saved.rows) ? saved.rows.filter(isRow).map(renameOldDefault) : defaultManualRows,
             values: typeof saved.values === 'object' && saved.values !== null ? saved.values : {},
             start: typeof saved.start === 'string' ? saved.start : null,
             end: typeof saved.end === 'string' ? saved.end : null,

@@ -22,17 +22,29 @@ It opens on Topsham, ME (04086) and works with any US ZIP code. It shows current
 
 ## Forecast sources
 
+Both forecast tables use the same short names, set once in `Weather.Core/Models/SourceColumns.cs`. Hovering over a name shows the full source.
+
 | Column | Source | Days | Needs a key |
 |---|---|---|---|
-| ECMWF | [Open-Meteo](https://open-meteo.com/) | 14 | No |
-| GFS | [Open-Meteo](https://open-meteo.com/) | 16 | No |
-| GEM | [Open-Meteo](https://open-meteo.com/) | 10 | No |
-| ICON | [Open-Meteo](https://open-meteo.com/) | 7 | No |
-| WeatherNext (mean) | [Open-Meteo](https://open-meteo.com/), Google WeatherNext 2 ensemble mean | 14 | No |
-| NCM Coastal | [NewsCenter Maine](https://www.newscentermaine.com/10-day), Portland 10-Day | 10 | No |
-| NCM Inland | [NewsCenter Maine](https://www.newscentermaine.com/10-day), Bangor 10-Day | 10 | No |
+| ECMWF | [Open-Meteo](https://open-meteo.com/), ECMWF IFS | About 15 | No |
+| AIFS | [Open-Meteo](https://open-meteo.com/), ECMWF AIFS | About 15 | No |
+| GFS | [Open-Meteo](https://open-meteo.com/), NOAA GFS | 16 | No |
+| NBM | [Open-Meteo](https://open-meteo.com/), National Blend of Models, US only | About 11 | No |
+| HRRR | [Open-Meteo](https://open-meteo.com/), NOAA HRRR, US only | About 2 | No |
+| GEM | [Open-Meteo](https://open-meteo.com/), Environment Canada GEM | About 10 | No |
+| HRDPS | [Open-Meteo](https://open-meteo.com/), Environment Canada HRDPS, northern US only | About 2 | No |
+| ICON | [Open-Meteo](https://open-meteo.com/), DWD ICON | About 7 | No |
+| UKMO | [Open-Meteo](https://open-meteo.com/), UK Met Office | About 7 | No |
+| JMA | [Open-Meteo](https://open-meteo.com/), Japan Meteorological Agency | About 10 | No |
+| MF | [Open-Meteo](https://open-meteo.com/), Météo-France ARPEGE | About 4 | No |
+| CMA | [Open-Meteo](https://open-meteo.com/), CMA GRAPES | About 5 | No |
+| WN | [Open-Meteo](https://open-meteo.com/), Google WeatherNext 2 ensemble mean | About 14 | No |
+| NCM-C | [NewsCenter Maine](https://www.newscentermaine.com/10-day), Portland 10-Day | 10 | No |
+| NCM-I | [NewsCenter Maine](https://www.newscentermaine.com/10-day), Bangor 10-Day | 10 | No |
 | WU | Weather Underground | 6 | Yes, a personal weather station key |
 | NWS | [National Weather Service](https://www.weather.gov/documentation/services-web-api) | About 7 | No |
+
+The Snow Forecast page also uses WAPI ([WeatherAPI.com](https://www.weatherapi.com/), 3 days on the free plan, needs a key), and has manual rows for NCM, WMTW and WGME.
 
 Average highs come from [ACIS](https://www.rcc-acis.org/), and ZIP codes are looked up with [Zippopotam](https://www.zippopotam.us/).
 
