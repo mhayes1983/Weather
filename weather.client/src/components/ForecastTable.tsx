@@ -22,6 +22,10 @@ interface ColumnDrag {
 
 const dragThreshold = 5;
 
+// Widths in rem. Source names are at most 5 characters (SourceColumns in Core), and the full name is in the hover text.
+const dateColumnRem = 6;
+const sourceColumnRem = (measures: number) => Math.max(4.5, measures * 2.75);
+
 const anomalyClasses: Record<Anomaly, string | undefined> = {
     None: undefined,
     Above: 'anomaly-above',
@@ -114,7 +118,13 @@ function ForecastTable({ columns, rows, measures, unit, onMoveColumn }: Forecast
 
     return (
         <div className="table-scroll">
-            <table>
+            {/* A fixed layout gives every source the same width, whatever its name. The minimum width makes narrow
+                screens scroll instead of squeezing the columns. */}
+            <table className="forecast-table" style={{ minWidth: `${dateColumnRem + columns.length * sourceColumnRem(measures.length)}rem` }}>
+                <colgroup>
+                    <col style={{ width: `${dateColumnRem}rem` }} />
+                    {columns.map(column => measures.map(measure => <col key={`${column.id}-${measure}`} />))}
+                </colgroup>
                 <thead>
                     <tr ref={headerRow}>
                         <th scope="col" rowSpan={2} className="date-column">Date</th>

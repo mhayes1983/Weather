@@ -84,6 +84,7 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <ul>
                 <li>Enter a ZIP code and press <strong>Go</strong> to load the table. The box starts on the current station's ZIP code.</li>
                 <li>Each source has a Low and a High column. Use <strong>Show</strong> to hide either one.</li>
+                <li>Sources go by short names, the same on the Snow Forecast page. Hover over a name, or press and hold it, to see what the source is.</li>
                 <li>
                     The low is that morning's low, from 7pm the evening before to 9am, and the high is that afternoon's, from
                     9am to 7pm. A day's coldest or warmest hour can fall outside those times when a front passes, so they

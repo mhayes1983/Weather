@@ -72,9 +72,9 @@ public static class ServiceCollectionExtensions
             AddOpenMeteo(services, column, model, forecastModels);
         }
 
-        AddOpenMeteo(services, WeatherNext, WeatherNextModel, [WeatherNextModel], OpenMeteoSource.EnsembleEndpoint);
-        AddNewsCenterMaine(services, new ColumnDescriptor("ncm-coastal", "NCM Coastal"), "Portland 10-Day");
-        AddNewsCenterMaine(services, new ColumnDescriptor("ncm-inland", "NCM Inland"), "Bangor 10-Day");
+        AddOpenMeteo(services, SourceColumns.WeatherNext, WeatherNextModel, [WeatherNextModel], OpenMeteoSource.EnsembleEndpoint);
+        AddNewsCenterMaine(services, SourceColumns.NewsCenterMaineCoastal, "Portland 10-Day");
+        AddNewsCenterMaine(services, SourceColumns.NewsCenterMaineInland, "Bangor 10-Day");
         services.AddSingleton<IForecastSource, WeatherUndergroundSource>();
         services.AddSingleton<IForecastSource, NwsSource>();
 
@@ -88,12 +88,11 @@ public static class ServiceCollectionExtensions
             AddOpenMeteoSnow(services, column, model, forecastModels);
         }
 
-        AddOpenMeteoSnow(services, WeatherNext, WeatherNextModel, [WeatherNextModel], OpenMeteoSource.EnsembleEndpoint);
+        AddOpenMeteoSnow(services, SourceColumns.WeatherNext, WeatherNextModel, [WeatherNextModel], OpenMeteoSource.EnsembleEndpoint);
 
         return services;
     }
 
-    private static readonly ColumnDescriptor WeatherNext = new("weathernext", "WeatherNext (mean)");
     private const string WeatherNextModel = "google_weathernext2_ensemble_mean";
 
     // Open-Meteo's forecast endpoint models, grouped by agency. Each covers a different number of days:
@@ -101,18 +100,18 @@ public static class ServiceCollectionExtensions
     // GEM and JMA about 10, and ECMWF, AIFS and GFS 15 or 16. GraphCast, BOM and KMA return no snowfall.
     private static readonly (ColumnDescriptor Column, string Model)[] OpenMeteoModels =
     [
-        (new("ecmwf", "ECMWF"), "ecmwf_ifs025"),
-        (new("ecmwf-aifs", "ECMWF AIFS"), "ecmwf_aifs025_single"),
-        (new("gfs", "GFS"), "gfs_seamless"),
-        (new("nbm", "NBM"), "ncep_nbm_conus"),
-        (new("hrrr", "HRRR"), "ncep_hrrr_conus"),
-        (new("gem", "GEM"), "gem_seamless"),
-        (new("hrdps", "HRDPS"), "gem_hrdps_continental"),
-        (new("icon", "ICON"), "icon_seamless"),
-        (new("ukmo", "UKMO"), "ukmo_seamless"),
-        (new("jma", "JMA"), "jma_seamless"),
-        (new("meteofrance", "Météo-France"), "meteofrance_seamless"),
-        (new("cma", "CMA"), "cma_grapes_global"),
+        (SourceColumns.Ecmwf, "ecmwf_ifs025"),
+        (SourceColumns.EcmwfAifs, "ecmwf_aifs025_single"),
+        (SourceColumns.Gfs, "gfs_seamless"),
+        (SourceColumns.Nbm, "ncep_nbm_conus"),
+        (SourceColumns.Hrrr, "ncep_hrrr_conus"),
+        (SourceColumns.Gem, "gem_seamless"),
+        (SourceColumns.Hrdps, "gem_hrdps_continental"),
+        (SourceColumns.Icon, "icon_seamless"),
+        (SourceColumns.Ukmo, "ukmo_seamless"),
+        (SourceColumns.Jma, "jma_seamless"),
+        (SourceColumns.MeteoFrance, "meteofrance_seamless"),
+        (SourceColumns.Cma, "cma_grapes_global"),
     ];
 
     // "home" must always be a registered station, or StationDirectory would treat it as a Weather Underground ID.

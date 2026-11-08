@@ -13,7 +13,7 @@ public sealed class WeatherApiSnowSource(
 {
     private const double CentimetresPerInch = 2.54;
 
-    public ColumnDescriptor Column { get; } = new("weatherapi", "WeatherAPI");
+    public ColumnDescriptor Column => SourceColumns.WeatherApi;
 
     public TimeSpan CacheDuration => TimeSpan.FromMinutes(options.Value.WeatherApi.CacheMinutes);
 

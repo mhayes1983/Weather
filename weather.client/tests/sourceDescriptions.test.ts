@@ -15,6 +15,17 @@ test('added manual rows are described, and unknown sources have none', () => {
 });
 
 test('titles put the description before status details, skipping blanks', () => {
-    assert.equal(sourceTitle('weatherapi', 'Needs key', null), "WeatherAPI.com's forecast. The free plan covers 3 days.\nNeeds key");
+    assert.equal(sourceTitle('weatherapi', 'Needs key', null), "WAPI: WeatherAPI.com's forecast. The free plan covers 3 days.\nNeeds key");
     assert.equal(sourceTitle('unknown', null), undefined);
+});
+
+test('each description starts with the short name shown in the tables', () => {
+    const names: Record<string, string> = {
+        ecmwf: 'ECMWF', 'ecmwf-aifs': 'AIFS', gfs: 'GFS', nbm: 'NBM', hrrr: 'HRRR', gem: 'GEM', hrdps: 'HRDPS', icon: 'ICON',
+        ukmo: 'UKMO', jma: 'JMA', meteofrance: 'MF', cma: 'CMA', weathernext: 'WN', nws: 'NWS', wu: 'WU', weatherapi: 'WAPI',
+        'ncm-coastal': 'NCM-C', 'ncm-inland': 'NCM-I', ncm: 'NCM', wmtw: 'WMTW', wgme: 'WGME',
+    };
+    for (const [id, name] of Object.entries(names)) {
+        assert.ok(sourceDescription(id)?.startsWith(name), id);
+    }
 });

@@ -1,3 +1,5 @@
+import { sourceDescription } from '../sourceDescriptions';
+
 interface FilterColumn {
     id: string;
     label: string;
@@ -17,7 +19,7 @@ function ColumnFilters({ columns, hidden, onToggle }: ColumnFiltersProps) {
             <summary>Data sources ({shown} of {columns.length})</summary>
             <div className="column-filter-list">
                 {columns.map(column =>
-                    <label key={column.id}>
+                    <label key={column.id} title={sourceDescription(column.id)}>
                         <input
                             type="checkbox"
                             checked={!hidden.includes(column.id)}
