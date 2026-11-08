@@ -43,7 +43,10 @@ public sealed class AlmanacService(
             return new AlmanacReport(station.Name, SourceStatus.Error, message, null, null, null, []);
         }
 
-        var days = climate.Days.Select(day => day.Date < today ? day : WithForecast(day, forecast)).ToList();
+        var sky = await forecasts.GetSkyAsync(station.Id, climate.Days.Select(day => day.Date).ToList());
+        var days = climate.Days
+            .Select(day => (day.Date < today ? day : WithForecast(day, forecast)) with { Sky = sky.GetValueOrDefault(day.Date) })
+            .ToList();
         return new AlmanacReport(station.Name, SourceStatus.Ok, null, climate.Station, climate.RecordsSince, today, days);
     }
 

@@ -973,6 +973,40 @@ thead th.measure-header {
     opacity: 0.75;
 }
 
+.almanac-sky {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px 32px;
+    margin-top: 10px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+}
+
+.almanac-sky h3 {
+    margin: 0 0 2px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    opacity: 0.75;
+}
+
+.almanac-sky dl {
+    margin: 0;
+}
+
+.almanac-sky dl div {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px 0;
+}
+
+.almanac-sky dd {
+    margin: 0;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
 .almanac-source {
     margin: 8px 0 0;
     font-size: 0.8rem;

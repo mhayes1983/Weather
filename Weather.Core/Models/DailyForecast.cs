@@ -38,6 +38,9 @@ public sealed record PeriodPrecip(int? ChancePercent, double? AmountIn, double? 
 
 public sealed record MoonInfo(string? Phase, int? IlluminationPercent, string? Moonrise, string? Moonset);
 
+/// <summary>USNO's answer for one date. Times are local "HH:mm", and any can be missing.</summary>
+public sealed record UsnoDay(string? Sunrise, string? Sunset, MoonInfo Moon);
+
 public sealed record DailyForecastReport(
     string StationName,
     SourceStatus Status,

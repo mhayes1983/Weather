@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { fetchAlmanac, type AlmanacDay, type AlmanacReport } from '../api/almanac';
+import { fetchAlmanac, type AlmanacDay, type AlmanacReport, type AlmanacSky } from '../api/almanac';
 import { almanacAmount, almanacDate, almanacTabLabel, almanacTemperature, climateStationName, selectedAlmanacDate } from '../almanac';
+import { formatTime } from '../localTime';
 import type { Unit } from '../temperature';
 
 // The data changes once a day, but a page left open overnight should move on to the new day.
@@ -44,6 +45,51 @@ function AlmanacTable({ day, valueLabel, unit }: { day: AlmanacDay; valueLabel: 
                 )}
             </tbody>
         </table>
+    );
+}
+
+function presentRows(rows: [string, string | null][]): [string, string][] {
+    return rows.filter((row): row is [string, string] => row[1] !== null);
+}
+
+function SkyGroup({ title, rows }: { title: string; rows: [string, string][] }) {
+    return (
+        <div>
+            <h3>{title}</h3>
+            <dl>
+                {rows.map(([label, value]) =>
+                    <div key={label}>
+                        <dt>{label}</dt>
+                        <dd>{value}</dd>
+                    </div>
+                )}
+            </dl>
+        </div>
+    );
+}
+
+function AlmanacSkyTimes({ sky }: { sky: AlmanacSky }) {
+    const { moon } = sky;
+    const sunRows = presentRows([
+        ['Sunrise', sky.sunrise && formatTime(sky.sunrise)],
+        ['Sunset', sky.sunset && formatTime(sky.sunset)],
+    ]);
+    const moonRows = presentRows([
+        ['Moonrise', moon.moonrise && formatTime(moon.moonrise)],
+        ['Moonset', moon.moonset && formatTime(moon.moonset)],
+        ['Phase', moon.phase],
+        ['Visible', moon.illuminationPercent === null ? null : `${moon.illuminationPercent}%`],
+    ]);
+
+    if (sunRows.length === 0 && moonRows.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="almanac-sky">
+            {sunRows.length > 0 && <SkyGroup title="Sun" rows={sunRows} />}
+            {moonRows.length > 0 && <SkyGroup title="Moon" rows={moonRows} />}
+        </div>
     );
 }
 
@@ -141,11 +187,13 @@ function StationAlmanac({ station, unit }: StationAlmanacProps) {
                         valueLabel={report.today !== null && day.date < report.today ? 'Actual' : 'Forecast'}
                         unit={unit}
                     />
+                    {day.sky && <AlmanacSkyTimes sky={day.sky} />}
                 </div>
 
                 {report.climateStation &&
                     <p className="almanac-source">
                         Forecast by <a href="https://open-meteo.com/">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>). Averages, records{report.recordsSince !== null && ` since ${report.recordsSince}`} and past actuals from the {climateStationName(report.climateStation)} climate station, via ACIS.
+                        {days.some(other => other.sky) && <> Sun and moon data from the <a href="https://aa.usno.navy.mil/">U.S. Naval Observatory</a>.</>}
                     </p>}
             </section>
         </div>

@@ -84,13 +84,23 @@ public class AlmanacTests
         }
         """;
 
-    /// <summary>Stubbed ACIS and Open-Meteo answers. <see cref="Search"/> gets the zero-based search attempt.</summary>
+    private const string Usno = """
+        {"properties":{"data":{
+            "curphase": "Waxing Gibbous",
+            "fracillum": "78%",
+            "moondata": [{"phen":"Rise","time":"15:02"}],
+            "sundata": [{"phen":"Rise","time":"07:12"},{"phen":"Set","time":"17:33"}]
+        }}}
+        """;
+
+    /// <summary>Stubbed ACIS, Open-Meteo and USNO answers. <see cref="Search"/> gets the zero-based search attempt.</summary>
     private sealed record Stubs(
         Func<int, string>? Search = null,
         string Records = Records,
         string? Daily = null,
         bool AcisFails = false,
-        bool ForecastFails = false);
+        bool ForecastFails = false,
+        bool UsnoFails = false);
 
     private static (ServiceProvider Services, StubHttp Http) Services(Stubs? stubs = null, DateTimeOffset? now = null)
     {
@@ -100,12 +110,14 @@ public class AlmanacTests
         {
             var url = request.RequestUri!.ToString();
             var isAcis = url.Contains("rcc-acis.org");
-            if ((isAcis && stubs.AcisFails) || (url.Contains("open-meteo.com") && stubs.ForecastFails))
+            var isUsno = url.Contains("aa.usno.navy.mil");
+            if ((isAcis && stubs.AcisFails) || (url.Contains("open-meteo.com") && stubs.ForecastFails) || (isUsno && stubs.UsnoFails))
             {
                 return new HttpResponseMessage(HttpStatusCode.InternalServerError);
             }
 
-            var body = !isAcis ? Outlook
+            var body = isUsno ? Usno
+                : !isAcis ? Outlook
                 : url.EndsWith("MultiStnData") ? (stubs.Search ?? (_ => Search))(searches++)
                 : request.Content!.ReadAsStringAsync().Result.Contains("\"por\"") ? stubs.Records
                 : stubs.Daily ?? Daily;
@@ -174,6 +186,36 @@ public class AlmanacTests
         Assert.Contains("\"10-29\"", records);
         Assert.Contains("\"10-30\"", records);
         Assert.Contains("\"10-31\"", records);
+    }
+
+    [Fact]
+    public async Task EachDayHasSunAndMoon()
+    {
+        var (services, http) = Services();
+        using var _ = services;
+
+        var report = (await services.GetRequiredService<AlmanacService>().GetAsync())!;
+
+        var moon = new MoonInfo("Waxing Gibbous", 78, "15:02", null);
+        // Yesterday isn't in the forecast, so its sun is USNO's. Later days match the daily forecast.
+        Assert.Equal(new AlmanacSky("07:12", "17:33", moon), report.Days[0].Sky);
+        Assert.Equal(new AlmanacSky("07:14", "17:31", moon), report.Days[1].Sky);
+        Assert.Equal(new AlmanacSky("07:15", "17:30", moon), report.Days[2].Sky);
+        Assert.Equal(3, http.Requests.Count(request => request.RequestUri!.Host == "aa.usno.navy.mil"));
+        Assert.Contains(http.Requests, request => request.RequestUri!.Query.Contains("date=2026-10-29"));
+    }
+
+    [Fact]
+    public async Task UsnoFailureOnlyHidesSunAndMoon()
+    {
+        var (services, _) = Services(new Stubs(UsnoFails: true));
+        using var __ = services;
+
+        var report = (await services.GetRequiredService<AlmanacService>().GetAsync())!;
+
+        Assert.Equal(SourceStatus.Ok, report.Status);
+        Assert.All(report.Days, day => Assert.Null(day.Sky));
+        Assert.Equal(66, report.Days[1].High.Value);
     }
 
     [Theory]
@@ -328,6 +370,7 @@ public class AlmanacTests
         Assert.Equal(new AlmanacRow(null, 52, 79, 2024), report.Days[1].High);
         Assert.Null(report.Days[2].High.Value);
         Assert.Equal(72, report.Days[0].High.Value);
+        Assert.All(report.Days, day => Assert.Null(day.Sky));
     }
 
     [Fact]

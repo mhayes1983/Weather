@@ -1,3 +1,4 @@
+import type { MoonInfo } from './dailyForecast';
 import type { SourceStatus } from './forecast';
 
 /** Temperatures are °F and amounts inches. `value` is the forecast for today and later, and what was measured before today. */
@@ -14,6 +15,15 @@ export interface AlmanacDay {
     low: AlmanacRow;
     precip: AlmanacRow;
     snow: AlmanacRow;
+    /** Null when sun and moon times couldn't be loaded. */
+    sky: AlmanacSky | null;
+}
+
+/** Local times as "HH:mm". The moon doesn't rise or set every day. */
+export interface AlmanacSky {
+    sunrise: string | null;
+    sunset: string | null;
+    moon: MoonInfo;
 }
 
 export interface AlmanacReport {
