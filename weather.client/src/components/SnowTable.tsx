@@ -1,5 +1,5 @@
 import { sourceTitle } from '../sourceDescriptions';
-import type { SnowCell, SnowSourceRow, SnowTown } from '../api/snow';
+import type { SnowCell, SnowSourceRow, SnowTown, SnowTownReports } from '../api/snow';
 import { averageSnow, formatInches, type SnowRange } from '../snowAverages';
 import { parseInches, type ManualRow, type ManualSnow, type ManualValue } from '../snowManual';
 
@@ -7,6 +7,8 @@ interface SnowTableProps {
     towns: SnowTown[];
     sources: SnowSourceRow[];
     cells: SnowCell[];
+    /** What has been measured near each town so far, shown under the averages and never part of them. */
+    reports: SnowTownReports[];
     manualRows: ManualRow[];
     manual: ManualSnow;
     /** Changes when values are cleared, so the inputs start empty again. */
@@ -21,7 +23,7 @@ function cellText(value: number | null, partial: boolean) {
     return text && partial ? `≥${text}` : text;
 }
 
-function SnowTable({ towns, sources, cells, manualRows, manual, manualGeneration, onManualChange, onManualRename, onManualRemove }: SnowTableProps) {
+function SnowTable({ towns, sources, cells, reports, manualRows, manual, manualGeneration, onManualChange, onManualRename, onManualRemove }: SnowTableProps) {
     const byKey = new Map(cells.map(cell => [`${cell.sourceId}|${cell.zip}`, cell]));
 
     function rangesFor(zip: string): SnowRange[] {
@@ -34,6 +36,12 @@ function SnowTable({ towns, sources, cells, manualRows, manual, manualGeneration
     }
 
     const averages = towns.map(town => averageSnow(rangesFor(town.zip)));
+
+    // Ice only gets a row when a source expects some, so a snow-only storm keeps a short table.
+    const iceSources = sources.filter(source =>
+        towns.some(town => (byKey.get(`${source.id}|${town.zip}`)?.iceInches ?? 0) > 0));
+    const reported = new Map(reports.map(town => [town.zip, town]));
+    const anyReported = towns.some(town => (reported.get(town.zip)?.reports.length ?? 0) > 0);
 
     return (
         <div className="table-scroll">
@@ -129,6 +137,36 @@ function SnowTable({ towns, sources, cells, manualRows, manual, manualGeneration
                             </td>
                         )}
                     </tr>
+                    {iceSources.map(source =>
+                        <tr key={`${source.id}-ice`} className="snow-extra">
+                            <th scope="row" className="date-column" title="Ice build-up from freezing rain, in inches. It isn't part of the snow averages.">
+                                {source.label} ice
+                            </th>
+                            {towns.map(town => {
+                                const ice = byKey.get(`${source.id}|${town.zip}`)?.iceInches;
+                                return (
+                                    <td key={town.zip} colSpan={2} className="group-start">
+                                        {ice === null || ice === undefined ? '' : ice === 0 ? '0' : ice.toFixed(2)}
+                                    </td>
+                                );
+                            })}
+                        </tr>
+                    )}
+                    {anyReported &&
+                        <tr className="snow-extra">
+                            <th scope="row" className="date-column" title="The lowest and highest totals reported near each town so far. They aren't part of the averages.">
+                                Reported
+                            </th>
+                            {towns.map(town => {
+                                const report = reported.get(town.zip);
+                                const count = report?.reports.length ?? 0;
+                                const title = count > 0 ? `From ${count} ${count === 1 ? 'place' : 'places'} nearby` : undefined;
+                                return [
+                                    <td key={`${town.zip}-low`} className="group-start" title={title}>{formatInches(report?.lowInches ?? null)}</td>,
+                                    <td key={`${town.zip}-high`} title={title}>{formatInches(report?.highInches ?? null)}</td>,
+                                ];
+                            })}
+                        </tr>}
                 </tbody>
             </table>
         </div>

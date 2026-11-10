@@ -16,7 +16,7 @@ public static class SnowWindow
     /// Null when the source has nothing for the window. Partial when it starts after the window does or ends before it.
     /// </summary>
     public static (double Low, double High, bool Partial)? Total(
-        IReadOnlyList<SnowPeriod> periods, DateTimeOffset start, DateTimeOffset end)
+        IReadOnlyList<SnowPeriod> periods, DateTimeOffset start, DateTimeOffset end, int digits = 1)
     {
         double low = 0, high = 0;
         var any = false;
@@ -45,10 +45,35 @@ public static class SnowWindow
         // source can miss the start of the window as well as its end.
         var coversFrom = periods.Min(period => period.Start);
         var coversUntil = periods.Max(period => period.End);
-        return (Round(low), Round(high), coversFrom > start || coversUntil < end);
+        return (Round(low, digits), Round(high, digits), coversFrom > start || coversUntil < end);
     }
 
-    private static double Round(double inches) => Math.Round(inches, 1, MidpointRounding.AwayFromZero);
+    /// <summary>
+    /// When snow first and last falls inside the window, or null when none does. A period counts when its
+    /// high amount is at least <see cref="FallingInchesPerHour"/> for each hour it lasts, which leaves out
+    /// flurries. Sources with 12-hour periods can only place the snow to the nearest 12 hours.
+    /// </summary>
+    public static (DateTimeOffset Start, DateTimeOffset End)? Timing(
+        IReadOnlyList<SnowPeriod> periods, DateTimeOffset start, DateTimeOffset end)
+    {
+        var falling = periods
+            .Where(period => period.End > start && period.Start < end)
+            .Where(period => period.End > period.Start
+                && period.HighInches / (period.End - period.Start).TotalHours >= FallingInchesPerHour)
+            .ToList();
+        if (falling.Count == 0)
+        {
+            return null;
+        }
+
+        var first = falling.Min(period => period.Start);
+        var last = falling.Max(period => period.End);
+        return (first > start ? first : start, last < end ? last : end);
+    }
+
+    public const double FallingInchesPerHour = 0.01;
+
+    private static double Round(double inches, int digits) => Math.Round(inches, digits, MidpointRounding.AwayFromZero);
 
     private static DateTimeOffset LocalMidnight(DateOnly date, TimeZoneInfo zone)
     {

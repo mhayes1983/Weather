@@ -1,10 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { fetchSnow, fetchSnowAlerts, fetchSnowTowns, type SnowAlertReport, type SnowTable as SnowData, type SnowTownSummary } from '../api/snow';
+import {
+    fetchSnow, fetchSnowAlerts, fetchSnowReports, fetchSnowTowns,
+    type SnowAlertReport, type SnowReportTable, type SnowTable as SnowData, type SnowTownSummary,
+} from '../api/snow';
 import { isApp } from '../appBridge';
 import AlertPanel from '../components/AlertPanel';
 import ColumnFilters from '../components/ColumnFilters';
+import SnowReports from '../components/SnowReports';
 import SnowTable from '../components/SnowTable';
+import SnowTiming from '../components/SnowTiming';
 import { addDays, isoDate } from '../snowAverages';
+import { readSnowLink, snowLinkPath } from '../snowLink';
 import {
     addManualRow, clearManualValues, hasManualValues, loadManualSnow, removeManualRow, renameManualRow, saveManualSnow, setManualValue,
     type ManualSnow, type ManualValue,
@@ -52,16 +58,22 @@ function shortDate(iso: string) {
 
 function SnowPage({ hidden }: { hidden: boolean }) {
     const today = isoDate(new Date());
+    // A shared link fills in its storm's dates and towns. Go still has to be pressed, so opening it uses no quota.
+    const [link] = useState(() => readSnowLink(window.location.search));
+    const [linkZips, setLinkZips] = useState(link.zips);
+    const [copied, setCopied] = useState(false);
     const [configured, setConfigured] = useState<SnowTownSummary[]>();
     const [townsError, setTownsError] = useState<string>();
     const [choices, setChoices] = useState(loadSnowTowns);
     const [newZip, setNewZip] = useState('');
-    const [start, setStart] = useState(today);
-    const [end, setEnd] = useState(() => addDays(today, 1));
+    const [start, setStart] = useState(link.start ?? today);
+    const [end, setEnd] = useState(() => link.end ?? addDays(link.start ?? today, 1));
     const [request, setRequest] = useState<SnowRequest>();
     const [table, setTable] = useState<SnowData>();
     const [alerts, setAlerts] = useState<SnowAlertReport>();
     const [alertsError, setAlertsError] = useState<string>();
+    const [reports, setReports] = useState<SnowReportTable>();
+    const [reportsError, setReportsError] = useState<string>();
     const [error, setError] = useState<string>();
     const [loading, setLoading] = useState(false);
     const [hiddenRows, setHiddenRows] = useState<string[]>([]);
@@ -117,11 +129,24 @@ function SnowPage({ hidden }: { hidden: boolean }) {
                 }
             });
 
+        // Reports only add detail, so a failure says so and leaves the table alone.
+        fetchSnowReports(request.zips, request.start, request.end, controller.signal)
+            .then(data => {
+                setReports(data);
+                setReportsError(undefined);
+            })
+            .catch((reason: Error) => {
+                if (!controller.signal.aborted) {
+                    setReports(undefined);
+                    setReportsError(reason.message);
+                }
+            });
+
         return () => controller.abort();
     }, [request]);
 
     const configuredZips = configured?.map(town => town.zip) ?? [];
-    const zips = townZips(configuredZips, choices);
+    const zips = linkZips ?? townZips(configuredZips, choices);
     const names = new Map<string, string>([
         ...(table?.towns.map(town => [town.zip, town.name] as [string, string]) ?? []),
         ...(configured?.map(town => [town.zip, town.name] as [string, string]) ?? []),
@@ -139,7 +164,20 @@ function SnowPage({ hidden }: { hidden: boolean }) {
         }
 
         setLoading(true);
+        setCopied(false);
         setRequest(current => ({ zips, start, end, attempt: (current?.attempt ?? 0) + 1 }));
+
+        // The address then names this storm, so it can be bookmarked or shared. The app has no address to share.
+        if (!isApp) {
+            window.history.replaceState(null, '', snowLinkPath(start, end, zips));
+        }
+    }
+
+    function handleCopyLink() {
+        if (request) {
+            const url = window.location.origin + snowLinkPath(request.start, request.end, request.zips);
+            navigator.clipboard.writeText(url).then(() => setCopied(true), () => setCopied(false));
+        }
     }
 
     function handleAddTown(event: FormEvent) {
@@ -179,6 +217,10 @@ function SnowPage({ hidden }: { hidden: boolean }) {
     const filterRows = [...available, ...manual.rows.map(row => ({ id: row.id, label: row.label || 'Manual row' }))];
     const shownTowns = table?.towns.filter(town => zips.includes(town.zip)) ?? [];
     const addedFull = choices.added.length >= maxAddedTowns;
+    const shownSources = available.filter(source => !hiddenRows.includes(source.id));
+
+    // Browsers only offer the clipboard on HTTPS and localhost. Without it, the address bar still has the link.
+    const canCopy = !isApp && typeof navigator.clipboard?.writeText === 'function';
 
     return (
         <main hidden={hidden}>
@@ -205,11 +247,16 @@ function SnowPage({ hidden }: { hidden: boolean }) {
                     {zips.map(zip =>
                         <li key={zip}>
                             {names.get(zip) ?? zip}
-                            <button type="button" className="icon-button" aria-label={`Remove ${names.get(zip) ?? zip}`} onClick={() => setChoices(removeSnowTown(configuredZips, choices, zip))}>×</button>
+                            {!linkZips &&
+                                <button type="button" className="icon-button" aria-label={`Remove ${names.get(zip) ?? zip}`} onClick={() => setChoices(removeSnowTown(configuredZips, choices, zip))}>×</button>}
                         </li>
                     )}
                 </ul>
-                <form className="zip-form" onSubmit={handleAddTown}>
+                {linkZips &&
+                    <p className="table-note snow-link-note">
+                        These towns came from a link. <button type="button" onClick={() => setLinkZips(undefined)}>Use my towns</button>
+                    </p>}
+                <form className="zip-form" hidden={!!linkZips} onSubmit={handleAddTown}>
                     <label htmlFor="snow-zip">Add ZIP</label>
                     <input id="snow-zip" inputMode="numeric" pattern="\d{5}" maxLength={5} value={newZip} onChange={event => setNewZip(event.target.value)} disabled={addedFull} />
                     <button type="submit" disabled={addedFull || !/^\d{5}$/.test(newZip.trim())}>Add</button>
@@ -235,8 +282,9 @@ function SnowPage({ hidden }: { hidden: boolean }) {
                     </p>
                     <SnowTable
                         towns={shownTowns}
-                        sources={available.filter(source => !hiddenRows.includes(source.id))}
+                        sources={shownSources}
                         cells={table.cells}
+                        reports={reports?.towns ?? []}
                         manualRows={manual.rows.filter(row => !hiddenRows.includes(row.id))}
                         manual={manual}
                         manualGeneration={manualGeneration}
@@ -256,6 +304,13 @@ function SnowPage({ hidden }: { hidden: boolean }) {
                         <p className="table-note">
                             Manual values were entered for {shortDate(manual.start)}{manual.end && manual.end !== manual.start && ` through ${shortDate(manual.end)}`}.
                         </p>}
+                    {canCopy &&
+                        <p className="snow-share">
+                            <button type="button" onClick={handleCopyLink}>Copy link to this storm</button>
+                            {copied && <span role="status">Copied</span>}
+                        </p>}
+                    <SnowTiming towns={shownTowns} sources={shownSources} cells={table.cells} start={table.start} end={table.end} />
+                    <SnowReports reports={reports} error={reportsError} names={names} />
                 </>}
 
             {(alerts || alertsError) &&
@@ -282,7 +337,8 @@ function SnowPage({ hidden }: { hidden: boolean }) {
 
             <footer className="attribution">
                 Weather data by <a href="https://open-meteo.com/">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>),
-                the National Weather Service, The Weather Company and <a href="https://www.weatherapi.com/" title="Free Weather API">WeatherAPI.com</a>
+                the National Weather Service, The Weather Company and <a href="https://www.weatherapi.com/" title="Free Weather API">WeatherAPI.com</a>.
+                Snow reports from the <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>
             </footer>
         </main>
     );

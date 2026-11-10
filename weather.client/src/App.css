@@ -1522,6 +1522,120 @@ a.daily-row:focus-visible {
     border-top: 2px solid var(--border);
 }
 
+.snow-extra th,
+.snow-extra td {
+    font-style: italic;
+}
+
+.snow-share {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 0;
+}
+
+.snow-link-note button {
+    margin-left: 6px;
+}
+
+.snow-timing,
+.snow-reports {
+    margin-top: 24px;
+}
+
+.snow-timing h2,
+.snow-reports h2 {
+    margin: 0 0 8px;
+    font-size: 1.1rem;
+    color: var(--text-strong);
+}
+
+.snow-timing-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin-bottom: 8px;
+}
+
+.snow-timing-heading h2 {
+    margin: 0;
+}
+
+.snow-timing-heading label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+}
+
+.snow-timing table {
+    width: 100%;
+}
+
+.snow-timing-text {
+    white-space: nowrap;
+    text-align: left;
+    color: var(--text-strong);
+}
+
+.snow-timing-days,
+.snow-timing-track {
+    width: 55%;
+    min-width: 200px;
+}
+
+.snow-timing-days div {
+    display: grid;
+    font-size: 0.75rem;
+    font-weight: 400;
+    text-align: center;
+}
+
+/* The repeating gradient draws a line at the start of each day. */
+.snow-timing-track div {
+    position: relative;
+    height: 10px;
+    background-color: var(--border);
+    background-image: linear-gradient(90deg, var(--bg) 0, var(--bg) 1px, transparent 1px);
+    border-radius: 3px;
+}
+
+.snow-timing-track span {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    min-width: 3px;
+    background: var(--chart-1);
+    border-radius: 3px;
+}
+
+.snow-report-town h3 {
+    margin: 12px 0 4px;
+    font-size: 0.95rem;
+    color: var(--text-strong);
+}
+
+.snow-report-town ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.snow-report-town li {
+    display: flex;
+    gap: 10px;
+    padding: 2px 0;
+}
+
+.snow-report-town strong {
+    flex: 0 0 4.5em;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
 .snow-manual {
     display: flex;
     flex-wrap: wrap;

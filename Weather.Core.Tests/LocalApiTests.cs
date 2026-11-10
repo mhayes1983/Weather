@@ -174,8 +174,25 @@ public class LocalApiTests
         Assert.Contains("Portland", response.Json);
     }
 
+    [Theory]
+    [InlineData("04086", "2026-10-30", "2026-10-30")]
+    [InlineData("04086", "2026-11-05", "2026-11-06")]
+    [InlineData("abc", null, null)]
+    [InlineData("04086", "soon", null)]
+    public async Task SnowReportsMatchTheController(string zips, string? start, string? end)
+    {
+        using var services = Services("""{"features":[]}""");
+
+        AssertSame(
+            await SnowApi(services).GetReports(zips, start, end),
+            await Ask(services, "/api/snow/reports", ("zips", zips), ("start", start), ("end", end)));
+    }
+
     private static SnowController SnowApi(ServiceProvider services) =>
-        new(services.GetRequiredService<SnowTableService>(), services.GetRequiredService<SnowAlertService>());
+        new(
+            services.GetRequiredService<SnowTableService>(),
+            services.GetRequiredService<SnowAlertService>(),
+            services.GetRequiredService<SnowReportService>());
 
     [Fact]
     public async Task DailyForecastMatchesTheController()

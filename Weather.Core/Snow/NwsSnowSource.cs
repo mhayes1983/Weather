@@ -8,7 +8,7 @@ namespace Weather.Core.Snow;
 
 /// <summary>
 /// NWS snow: the forecast text's range ("1 to 3 inches") for each 12-hour period that gives one,
-/// and the gridpoint <c>snowfallAmount</c> for the rest.
+/// and the gridpoint <c>snowfallAmount</c> for the rest. Ice is the gridpoint <c>iceAccumulation</c>.
 /// </summary>
 public sealed class NwsSnowSource(
     IHttpClientFactory httpClientFactory,
@@ -37,9 +37,10 @@ public sealed class NwsSnowSource(
         var gridTask = client.GetStringAsync(gridUrl, cancellationToken);
         await Task.WhenAll(textTask, gridTask);
 
+        var grid = await gridTask;
         var ranges = ReadTextRanges(await textTask);
         var periods = new List<SnowPeriod>(ranges);
-        foreach (var amount in ReadGrid(await gridTask))
+        foreach (var amount in ReadGrid(grid, "snowfallAmount"))
         {
             var middle = amount.Start + ((amount.End - amount.Start) / 2);
             if (!ranges.Any(range => range.Start <= middle && middle < range.End))
@@ -48,7 +49,7 @@ public sealed class NwsSnowSource(
             }
         }
 
-        return SnowResult.Ok(periods, timeProvider.GetUtcNow());
+        return SnowResult.Ok(periods, timeProvider.GetUtcNow(), ReadGrid(grid, "iceAccumulation"));
     }
 
     internal static List<SnowPeriod> ReadTextRanges(string json)
@@ -71,11 +72,11 @@ public sealed class NwsSnowSource(
     }
 
     // Values look like { "validTime": "2026-11-07T12:00:00+00:00/PT6H", "value": 25.4 } in millimetres.
-    internal static List<SnowPeriod> ReadGrid(string json)
+    internal static List<SnowPeriod> ReadGrid(string json, string name)
     {
         using var document = JsonDocument.Parse(json);
         var periods = new List<SnowPeriod>();
-        if (!document.RootElement.GetProperty("properties").TryGetProperty("snowfallAmount", out var snowfall))
+        if (!document.RootElement.GetProperty("properties").TryGetProperty(name, out var snowfall))
         {
             return periods;
         }

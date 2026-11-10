@@ -24,6 +24,7 @@ public sealed class LocalApi(
     AlmanacService almanac,
     SnowTableService snowTables,
     SnowAlertService snowAlerts,
+    SnowReportService snowReports,
     ILogger<LocalApi> logger)
 {
     private const string OpenMeteoSource = "open-meteo";
@@ -48,6 +49,7 @@ public sealed class LocalApi(
                 "/api/snow/towns" => Ok(snowTables.Towns, LocalApiJson.Default.IReadOnlyListSnowTownSummary),
                 "/api/snow" => await GetSnowAsync(value("zips"), value("start"), value("end")),
                 "/api/snow/alerts" => await GetSnowAlertsAsync(value("zips")),
+                "/api/snow/reports" => await GetSnowReportsAsync(value("zips"), value("start"), value("end")),
                 _ when path.StartsWith(DayPrefix, StringComparison.Ordinal) => await GetDayAsync(path[DayPrefix.Length..], value("station")),
                 _ => Problem(404, "Not found."),
             };
@@ -183,6 +185,14 @@ public sealed class LocalApi(
         return request is null
             ? Problem(400, error!)
             : Ok(await snowTables.GetAsync(request), LocalApiJson.Default.SnowTable);
+    }
+
+    private async Task<LocalApiResponse> GetSnowReportsAsync(string? zips, string? start, string? end)
+    {
+        var (request, error) = snowTables.Parse(zips, start, end);
+        return request is null
+            ? Problem(400, error!)
+            : Ok(await snowReports.GetAsync(request), LocalApiJson.Default.SnowReportTable);
     }
 
     private async Task<LocalApiResponse> GetSnowAlertsAsync(string? zips)

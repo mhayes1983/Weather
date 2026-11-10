@@ -10,7 +10,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         <main className="prose">
             <header>
                 <h1>Privacy Policy</h1>
-                <p className="location">Effective November 8, 2026</p>
+                <p className="location">Effective November 10, 2026</p>
             </header>
 
             <p>
@@ -54,6 +54,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 <li>Zippopotam.us: ZIP code locations</li>
                 <li>NewsCenter Maine: Maine forecasts</li>
                 <li>WeatherAPI.com: snow forecasts</li>
+                <li>Iowa Environmental Mesonet: snow totals reported to the National Weather Service. It's sent a state and dates, not a ZIP code</li>
             </ul>
 
             <h2>Services your browser contacts directly</h2>

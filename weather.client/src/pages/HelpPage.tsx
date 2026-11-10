@@ -112,6 +112,10 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 <li>≥ marks a forecast that doesn't cover all of your dates, so it's a minimum. That happens when a forecast ends first, such as WeatherAPI.com's 3 days, or when it has dropped hours already past, as NWS and Weather Underground do with today. The averages leave these out.</li>
                 <li>NewsCenter Maine, WMTW and WGME publish snow totals only as maps, so their rows are for typing in their numbers. Those values are saved in this browser until you press <strong>Clear manual values</strong>, and count towards the averages. You can rename, add or remove these rows.</li>
                 <li>Use the source list to hide rows from the table and the averages. Links below the alerts open each outlet's snow maps.</li>
+                <li><strong>Storm timing</strong> shows, for one town at a time, when each source first and last has snow falling on your dates, leaving out flurries. NWS and Weather Underground forecast in 6 to 12-hour blocks, so their times are approximate.</li>
+                <li>An <strong>ice</strong> row appears under the averages when the National Weather Service expects ice from freezing rain. It's in inches, covers about the next 3 days, and isn't part of the snow averages.</li>
+                <li>Once your dates have begun, <strong>Reported</strong> shows the lowest and highest snow totals sent to the National Weather Service from within 10 miles of each town, and <strong>Snow reports</strong> lists them, nearest first. Each place shows its highest report so far, so early reports can be lower than the final total. Reports up to 12 hours after your end date are included, because totals are often sent the next morning. They aren't part of the averages.</li>
+                <li>After you press Go, the page's address holds your dates and towns, so you can bookmark it or send it to someone. <strong>Copy link to this storm</strong> copies it where the browser allows. Opening a link fills in the dates and towns, and you still press Go. Its towns don't replace your saved ones.</li>
             </ul>
 
             <h2>Settings</h2>
@@ -136,6 +140,7 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 <li>Station readings: Ambient Weather and <a href="https://www.wunderground.com/">Weather Underground</a>, with modelled estimates from <a href="https://open-meteo.com/">Open-Meteo</a></li>
                 <li>Forecasts: <a href="https://open-meteo.com/">Open-Meteo</a> (ECMWF, ECMWF AIFS, GFS, NBM, HRRR, GEM, HRDPS, ICON, UKMO, JMA, Météo-France, CMA and WeatherNext models, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>), <a href="https://www.weather.gov/">National Weather Service</a>, Weather Underground and <a href="https://www.newscentermaine.com/">NewsCenter Maine</a></li>
                 <li>Snow forecasts: <a href="https://www.weather.gov/">National Weather Service</a>, Weather Underground, <a href="https://www.weatherapi.com/" title="Free Weather API">WeatherAPI.com</a> and Open-Meteo</li>
+                <li>Snow reports: National Weather Service Local Storm Reports, from the <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a></li>
                 <li>Alerts, radar and the weather map: <a href="https://www.weather.gov/">National Weather Service</a> and NOAA, including <a href="https://nowcoast.noaa.gov/">nowCOAST</a> satellite and lightning</li>
                 <li>Averages, records and climate station measurements: <a href="https://www.rcc-acis.org/">ACIS</a></li>
                 <li>Sun and moon data: <a href="https://aa.usno.navy.mil/">US Naval Observatory</a></li>

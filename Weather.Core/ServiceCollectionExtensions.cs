@@ -43,6 +43,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<KeyCheck>();
         services.AddSingleton<SnowTableService>();
         services.AddSingleton<SnowAlertService>();
+        services.AddSingleton<SnowReportService>();
         services.AddSingleton<LocalApi>();
 
         // The home station comes first in the dropdown, then the configured stations in order.

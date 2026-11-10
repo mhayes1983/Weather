@@ -28,6 +28,36 @@ export interface SnowCell {
     partial: boolean;
     status: SourceStatus;
     message: string | null;
+    /** When the source first and last has snow falling on these dates, in the town's local time. */
+    snowStart: string | null;
+    snowEnd: string | null;
+    /** Null for a source that doesn't forecast ice. */
+    iceInches: number | null;
+}
+
+/** A snow total someone reported to the NWS. `observedAt` is in the town's local time. */
+export interface SnowReport {
+    place: string;
+    inches: number;
+    observedAt: string;
+    distanceMiles: number;
+    source: string | null;
+    estimated: boolean;
+}
+
+export interface SnowTownReports {
+    zip: string;
+    lowInches: number | null;
+    highInches: number | null;
+    reports: SnowReport[];
+}
+
+/** Towns are missing until their dates begin, and when their reports couldn't be loaded. */
+export interface SnowReportTable {
+    status: SourceStatus;
+    message: string | null;
+    radiusMiles: number;
+    towns: SnowTownReports[];
 }
 
 export interface SnowTable {
@@ -67,6 +97,11 @@ export function fetchSnowTowns(signal: AbortSignal) {
 export function fetchSnow(zips: string[], start: string, end: string, signal: AbortSignal) {
     const query = new URLSearchParams({ zips: zips.join(','), start, end });
     return getJson<SnowTable>(`/api/snow?${query}`, signal, 'The snow forecast could not be loaded.');
+}
+
+export function fetchSnowReports(zips: string[], start: string, end: string, signal: AbortSignal) {
+    const query = new URLSearchParams({ zips: zips.join(','), start, end });
+    return getJson<SnowReportTable>(`/api/snow/reports?${query}`, signal, 'Snow reports are unavailable right now.');
 }
 
 export function fetchSnowAlerts(zips: string[], signal: AbortSignal) {
