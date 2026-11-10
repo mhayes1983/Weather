@@ -23,7 +23,9 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 of recent readings, and refreshes every minute. Charts cover the last 24 hours for the home station and the
                 current day for other stations. Readings a station doesn't report are left out, and add-on sensors such as
                 extra thermometers, soil probes, air quality monitors, lightning detectors and leak sensors appear only when
-                the station has them. Select a card's or chart's title to collapse or expand it, and drag its ⠿ handle (or focus it and
+                the station has them. The Temperature card shows the highest and lowest readings over the same period as the
+                charts, with the time of each, and the pressure trend is the change over the last 3 hours: steady is under
+                0.02 inHg, and rapid is 0.06 inHg or more. Select a card's or chart's title to collapse or expand it, and drag its ⠿ handle (or focus it and
                 use the arrow keys) to move it. Your layout is saved in this browser and applies to every station. The description of the sky beside the temperature is modelled by Open-Meteo for
                 the station's area, so it can occasionally differ from what the station measures.
             </p>
@@ -34,7 +36,8 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <p>
                 Below the charts, the almanac compares the high, low, precipitation and snow with the average and record
                 for the date. It opens on today, and its tabs switch to yesterday, which shows what was measured, or
-                tomorrow, which shows the forecast like today. The average, record and actual come from the nearest
+                tomorrow, which shows the forecast like today. The line under the table says how far that day's high
+                and low are above or below average. The average, record and actual come from the nearest
                 climate station that still reports and has at least 30 years of records, so they can differ from the
                 station's own readings. Temperature Forecast uses the same station for its averages. A dash means that
                 value isn't available, and amounts the station only reported as part of a several-day total aren't
@@ -56,6 +59,13 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 The <RouteLink route="/daily" onNavigate={onNavigate}>Daily Forecast</RouteLink> page shows 16 days for the
                 selected station. Select a day to see its hourly forecast, sun and moon times, and a written description where
                 one is available. Written descriptions cover about the first 7 days.
+            </p>
+            <p>
+                Below the days, <strong>Forecasters' discussion</strong> opens the latest Area Forecast Discussion from the
+                National Weather Service office for the station's area. It's the forecasters' own explanation of the
+                weather pattern and how confident they are, written for other forecasters, so it uses technical terms. Its list
+                of watches and warnings is left out, because alerts are checked separately. It's hidden when it can't be
+                loaded.
             </p>
             <p>
                 Precipitation amounts are the rain and melted snow combined. When snow is expected, its depth is shown
@@ -95,6 +105,7 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                     NWS and NewsCenter Maine, show each night's low on the morning it ends.
                 </li>
                 <li>Coloured cells are well above or below the average low or high for the date. The legend shows the thresholds.</li>
+                <li><strong>Consensus</strong> is the average of the sources shown, with the lowest and highest of them beneath. Hiding a source leaves it out, and it needs at least two sources for a date. It isn't coloured.</li>
                 <li>Sources with the most days of forecast come first. Use the column list to hide sources, and drag a column heading to move it. These changes reset when you reload the page.</li>
                 <li>Blank cells are normal. Sources forecast different numbers of days (HRRR and HRDPS only about 2), NBM and HRRR cover the US only, and NewsCenter Maine covers Maine ZIP codes only.</li>
                 <li>A source that can't be reached shows an error in its column, or its last good data if it has any.</li>

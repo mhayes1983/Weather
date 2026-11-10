@@ -17,6 +17,21 @@ export function almanacAmount(inches: number | null, digits: number): string {
     return inches > 0 && inches < largestTraceIn ? 'Trace' : `${inches.toFixed(digits)} in`;
 }
 
+/**
+ * "6° above average", or null when either value is missing. Worked out from the rounded values
+ * the table shows, so the difference always matches them.
+ */
+export function almanacDeparture(fahrenheit: number | null, averageF: number | null, unit: Unit): string | null {
+    if (fahrenheit === null || averageF === null) {
+        return null;
+    }
+
+    const difference = Math.round(displayTemperature(fahrenheit, unit)) - Math.round(displayTemperature(averageF, unit));
+    return difference === 0
+        ? 'at the average'
+        : `${Math.abs(difference)}° ${difference > 0 ? 'above' : 'below'} average`;
+}
+
 // Built from its parts, so no time zone shifts the day.
 function localDate(date: string): Date {
     const [year, month, day] = date.split('-').map(Number);

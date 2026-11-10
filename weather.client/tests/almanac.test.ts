@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { almanacAmount, almanacDate, almanacTabLabel, almanacTemperature, climateStationName, selectedAlmanacDate } from '../src/almanac.ts';
+import { almanacAmount, almanacDate, almanacDeparture, almanacTabLabel, almanacTemperature, climateStationName, selectedAlmanacDate } from '../src/almanac.ts';
 
 test('temperatures follow the unit and missing ones show a dash', () => {
     assert.equal(almanacTemperature(79, 'F'), '79°');
@@ -41,4 +41,13 @@ test('a chosen date that has gone falls back to today', () => {
     const dates = ['2026-11-06', '2026-11-07', '2026-11-08'];
     assert.equal(selectedAlmanacDate(dates, '2026-11-05', '2026-11-07'), '2026-11-07');
     assert.equal(selectedAlmanacDate(dates, undefined, null), '2026-11-06');
+});
+
+test('a departure is the difference between the values shown', () => {
+    assert.equal(almanacDeparture(56, 50, 'F'), '6° above average');
+    assert.equal(almanacDeparture(48, 50.4, 'F'), '2° below average');
+    assert.equal(almanacDeparture(50, 50, 'F'), 'at the average');
+    assert.equal(almanacDeparture(59, 50, 'C'), '5° above average');
+    assert.equal(almanacDeparture(null, 50, 'F'), null);
+    assert.equal(almanacDeparture(50, null, 'F'), null);
 });

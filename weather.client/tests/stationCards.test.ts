@@ -71,3 +71,31 @@ test('leaks come before low batteries', () => {
         "The extra sensor 3's battery is low.",
     ]);
 });
+
+test('the high and low say which range they cover', () => {
+    const trends = { highF: 62.1, highAt: null, lowF: 41.5, lowAt: '2026-11-08T12:00:00Z', pressureChangeInHg: null, pressureTrend: null };
+
+    const day = stationCards(bare, 'F', trends, 'Today')[0];
+    assert.equal(day.title, 'Temperature');
+    assert.deepEqual(day.rows[0], ["Today's high", '62.1°F']);
+    assert.match(day.rows[1][1], /^41\.5°F, \d{1,2}:\d{2}\s?[AP]M$/);
+
+    const rolling = stationCards(bare, 'C', trends)[0];
+    assert.deepEqual(rolling.rows[0], ['24-hour high', '16.7°C']);
+});
+
+test('a time from the day before says so', () => {
+    const trends = { highF: 62.1, highAt: '2026-11-07T12:30:00Z', lowF: null, lowAt: null, pressureChangeInHg: null, pressureTrend: null };
+
+    assert.match(stationCards(bare, 'F', trends)[0].rows[0][1], /^62\.1°F, .+ yesterday$/);
+});
+
+test('the pressure trend shows its change over three hours', () => {
+    const row = (pressureChangeInHg: number, pressureTrend: 'Rising' | 'Steady' | 'FallingRapidly') =>
+        stationCards({ ...bare, pressureInHg: 30 }, 'F', { highF: null, highAt: null, lowF: null, lowAt: null, pressureChangeInHg, pressureTrend })
+            .find(card => card.title === 'Atmosphere')!.rows.find(([label]) => label === '3-hour trend');
+
+    assert.deepEqual(row(0.03, 'Rising'), ['3-hour trend', 'Rising, +0.03 inHg']);
+    assert.deepEqual(row(-0.08, 'FallingRapidly'), ['3-hour trend', 'Falling rapidly, −0.08 inHg']);
+    assert.deepEqual(row(0, 'Steady'), ['3-hour trend', 'Steady']);
+});

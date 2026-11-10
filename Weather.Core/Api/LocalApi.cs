@@ -44,6 +44,7 @@ public sealed class LocalApi(
                 "/api/station" => await GetStationAsync(value("id")),
                 "/api/alerts" => await GetAlertsAsync(value("station")),
                 "/api/daily-forecast" => await GetDailyForecastAsync(value("station")),
+                "/api/discussion" => await GetDiscussionAsync(value("station")),
                 "/api/almanac" => await GetAlmanacAsync(value("station")),
                 "/api/snow/towns" => Ok(snowTables.Towns, LocalApiJson.Default.IReadOnlyListSnowTownSummary),
                 "/api/snow" => await GetSnowAsync(value("zips"), value("start"), value("end")),
@@ -151,6 +152,11 @@ public sealed class LocalApi(
     private async Task<LocalApiResponse> GetDailyForecastAsync(string? station) =>
         await dailyForecasts.GetAsync(Station(station)) is { } report
             ? Ok(report, LocalApiJson.Default.DailyForecastReport)
+            : InvalidStation();
+
+    private async Task<LocalApiResponse> GetDiscussionAsync(string? station) =>
+        await dailyForecasts.GetDiscussionAsync(Station(station)) is { } report
+            ? Ok(report, LocalApiJson.Default.DiscussionReport)
             : InvalidStation();
 
     private async Task<LocalApiResponse> GetAlmanacAsync(string? station) =>

@@ -544,6 +544,18 @@ thead th.measure-header {
     border-left: 1px solid var(--border);
 }
 
+.consensus-cell {
+    font-weight: 600;
+    color: var(--text-strong);
+}
+
+.consensus-range {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 400;
+    opacity: 0.75;
+}
+
 .column-dragging {
     opacity: 0.45;
 }
@@ -1007,9 +1019,35 @@ thead th.measure-header {
     text-align: right;
 }
 
+.almanac-departure {
+    margin: 6px 0 0;
+    font-size: 0.85rem;
+}
+
 .almanac-source {
     margin: 8px 0 0;
     font-size: 0.8rem;
+    opacity: 0.75;
+}
+
+.discussion-card {
+    margin-top: 16px;
+}
+
+.discussion-card h3 {
+    margin: 12px 0 4px;
+    font-size: 0.85rem;
+    color: var(--text-strong);
+}
+
+.discussion-card section p {
+    margin: 0 0 8px;
+    line-height: 1.45;
+}
+
+.discussion-issued {
+    margin: 0;
+    font-size: 0.85rem;
     opacity: 0.75;
 }
 

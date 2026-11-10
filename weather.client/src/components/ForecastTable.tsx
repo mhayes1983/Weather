@@ -1,6 +1,7 @@
 import { sourceTitle } from '../sourceDescriptions';
 import { useRef, useState, type PointerEvent } from 'react';
 import type { Anomaly, ForecastCell, ForecastColumn, ForecastRow } from '../api/forecast';
+import { consensus, consensusRange, consensusValue } from '../consensus';
 import { measureLabels, type Measure } from '../measures';
 import { displayTemperature, type Unit } from '../temperature';
 
@@ -25,6 +26,8 @@ const dragThreshold = 5;
 // Widths in rem. Source names are at most 5 characters (SourceColumns in Core), and the full name is in the hover text.
 const dateColumnRem = 6;
 const sourceColumnRem = (measures: number) => Math.max(4.5, measures * 2.75);
+
+const consensusTitle = 'The average of the sources shown, with the lowest and highest beneath. Hiding a source leaves it out.';
 
 const anomalyClasses: Record<Anomaly, string | undefined> = {
     None: undefined,
@@ -116,18 +119,27 @@ function ForecastTable({ columns, rows, measures, unit, onMoveColumn }: Forecast
         return classes;
     }
 
+    // Columns in error have no values, so they don't count towards a consensus.
+    const columnIds = columns.map(column => column.id);
+    const showConsensus = rows.some(row => measures.some(measure => consensus(row, columnIds, measure) !== null));
+
     return (
         <div className="table-scroll">
             {/* A fixed layout gives every source the same width, whatever its name. The minimum width makes narrow
                 screens scroll instead of squeezing the columns. */}
-            <table className="forecast-table" style={{ minWidth: `${dateColumnRem + columns.length * sourceColumnRem(measures.length)}rem` }}>
+            <table className="forecast-table" style={{ minWidth: `${dateColumnRem + (columns.length + (showConsensus ? 1 : 0)) * sourceColumnRem(measures.length)}rem` }}>
                 <colgroup>
                     <col style={{ width: `${dateColumnRem}rem` }} />
+                    {showConsensus && measures.map(measure => <col key={`consensus-${measure}`} />)}
                     {columns.map(column => measures.map(measure => <col key={`${column.id}-${measure}`} />))}
                 </colgroup>
                 <thead>
                     <tr ref={headerRow}>
                         <th scope="col" rowSpan={2} className="date-column">Date</th>
+                        {showConsensus &&
+                            <th scope="colgroup" colSpan={measures.length} className="group-start" title={consensusTitle}>
+                                Consensus
+                            </th>}
                         {columns.map((column, index) =>
                             <th
                                 key={column.id}
@@ -150,6 +162,11 @@ function ForecastTable({ columns, rows, measures, unit, onMoveColumn }: Forecast
                         )}
                     </tr>
                     <tr>
+                        {showConsensus && measures.map((measure, position) =>
+                            <th key={measure} scope="col" className={position === 0 ? 'measure-header group-start' : 'measure-header'}>
+                                {measureLabels[measure]}
+                            </th>
+                        )}
                         {columns.map((column, index) => measures.map((measure, position) =>
                             <th
                                 key={`${column.id}-${measure}`}
@@ -169,6 +186,20 @@ function ForecastTable({ columns, rows, measures, unit, onMoveColumn }: Forecast
                                 <th scope="row" className="date-column" title={averageTitle(row, unit)}>
                                     <span className="weekday">{date.weekday}</span> {date.short}
                                 </th>
+                                {showConsensus && measures.map((measure, position) => {
+                                    const value = consensus(row, columnIds, measure);
+                                    const range = value && consensusRange(value, unit);
+                                    return (
+                                        <td
+                                            key={measure}
+                                            className={position === 0 ? 'consensus-cell group-start' : 'consensus-cell'}
+                                            title={value ? `From ${value.count} sources` : undefined}
+                                        >
+                                            {value && consensusValue(value, unit)}
+                                            {range && <span className="consensus-range">{range}</span>}
+                                        </td>
+                                    );
+                                })}
                                 {columns.map((column, index) => {
                                     const cell = row.cells[column.id] as ForecastCell | undefined;
                                     return measures.map((measure, position) => {

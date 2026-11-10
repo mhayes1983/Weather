@@ -189,6 +189,18 @@ public class LocalApiTests
     [Theory]
     [InlineData("not/valid")]
     [InlineData("KMETEST1")]
+    [InlineData("om-04086")]
+    public async Task DiscussionMatchesTheController(string station)
+    {
+        using var services = Services("{}");
+        var controller = new DiscussionController(services.GetRequiredService<DailyForecastService>());
+
+        AssertSame(await controller.Get(station), await Ask(services, "/api/discussion", ("station", station)));
+    }
+
+    [Theory]
+    [InlineData("not/valid")]
+    [InlineData("KMETEST1")]
     [InlineData("home")]
     public async Task AlmanacMatchesTheController(string station)
     {

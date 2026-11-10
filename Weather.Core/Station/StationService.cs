@@ -43,6 +43,11 @@ public sealed class StationService(
         // A description of the sky now shouldn't sit beside readings that are hours old.
         var sky = status == StationStatus.Ok ? await skies.GetAsync(station) : null;
 
+        // A trend up to "now" would mislead the same way.
+        var trends = status == StationStatus.Ok && current.Value is not null
+            ? TrendCalculator.From(current.Value, history.Value ?? [])
+            : null;
+
         return new StationReport(
             status,
             offline ? "The station has stopped reporting." : current.Message,
@@ -54,7 +59,8 @@ public sealed class StationService(
             history.Message,
             station.Modelled,
             station.HistoryMaxGapMinutes,
-            sky);
+            sky,
+            trends);
     }
 
     /// <summary>The latest reading, from the same cache as the station's page.</summary>

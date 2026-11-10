@@ -68,6 +68,22 @@ export interface ForecastDayDetail {
     nextDate: string | null;
 }
 
+export interface DiscussionSection {
+    title: string;
+    paragraphs: string[];
+}
+
+/** The local NWS office's Area Forecast Discussion. `office` is its code, such as GYX. */
+export interface ForecastDiscussion {
+    office: string;
+    issuedAt: string;
+    sections: DiscussionSection[];
+}
+
+export interface DiscussionReport {
+    discussion: ForecastDiscussion | null;
+}
+
 async function fetchJson<T>(url: string, signal: AbortSignal, fallback: string): Promise<T> {
     const response = await fetch(url, { signal });
     if (!response.ok) {
@@ -84,4 +100,8 @@ export function fetchDailyForecast(station: string, signal: AbortSignal): Promis
 
 export function fetchForecastDay(date: string, station: string, signal: AbortSignal): Promise<ForecastDayDetail> {
     return fetchJson(`/api/daily-forecast/${date}?station=${encodeURIComponent(station)}`, signal, 'That day could not be loaded.');
+}
+
+export function fetchDiscussion(station: string, signal: AbortSignal): Promise<DiscussionReport> {
+    return fetchJson(`/api/discussion?station=${encodeURIComponent(station)}`, signal, 'The forecast discussion could not be loaded.');
 }

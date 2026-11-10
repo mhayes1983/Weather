@@ -1,4 +1,4 @@
-import type { StationReading } from './api/station.ts';
+import type { PressureTrend, StationHistoryRange, StationReading, StationTrends } from './api/station.ts';
 import { displayStationTemperature, type Unit } from './temperature.ts';
 import { compass } from './wind.ts';
 
@@ -28,18 +28,69 @@ function windWith(speed: number | null | undefined, direction: number | null | u
     return point ? `${speed.toFixed(1)} mph ${point}` : `${speed.toFixed(1)} mph`;
 }
 
+const pressureTrendLabels: Record<PressureTrend, string> = {
+    RisingRapidly: 'Rising rapidly',
+    Rising: 'Rising',
+    Steady: 'Steady',
+    Falling: 'Falling',
+    FallingRapidly: 'Falling rapidly',
+};
+
+function pressureTrend(trends: StationTrends | null | undefined): string {
+    if (!trends?.pressureTrend) {
+        return missing;
+    }
+
+    const change = trends.pressureChangeInHg ?? 0;
+    const label = pressureTrendLabels[trends.pressureTrend];
+    return change === 0 ? label : `${label}, ${change > 0 ? '+' : '−'}${Math.abs(change).toFixed(2)} inHg`;
+}
+
+// A 24-hour range reaches back into yesterday, where a time alone could read as later today.
+function extreme(fahrenheit: number | null | undefined, at: string | null | undefined, observedAt: string, unit: Unit): string {
+    if (fahrenheit === null || fahrenheit === undefined) {
+        return missing;
+    }
+
+    const value = stationTemperature(fahrenheit, unit);
+    if (!at) {
+        return value;
+    }
+
+    const time = new Date(at);
+    const earlierDay = time.toDateString() !== new Date(observedAt).toDateString();
+    return `${value}, ${time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${earlierDay ? ' yesterday' : ''}`;
+}
+
 function joined(...parts: string[]): string {
     const present = parts.filter(part => part !== missing);
     return present.length > 0 ? present.join(', ') : missing;
 }
 
-/** The station's reading as cards, leaving out anything the station doesn't report. */
-export function stationCards(reading: StationReading, unit: Unit): StationCard[] {
+/**
+ * The station's reading as cards, leaving out anything the station doesn't report.
+ * The high and low cover the same range as the charts, so their labels say which.
+ */
+export function stationCards(
+    reading: StationReading,
+    unit: Unit,
+    trends?: StationTrends | null,
+    range: StationHistoryRange = 'Last24Hours',
+): StationCard[] {
     const temperature = (fahrenheit: number | null | undefined) => stationTemperature(fahrenheit, unit);
     const lightning = reading.lightning;
     const air = reading.airQuality;
 
+    const period = range === 'Today' ? "Today's" : '24-hour';
+
     const cards: StationCard[] = [
+        {
+            title: 'Temperature',
+            rows: [
+                [`${period} high`, extreme(trends?.highF, trends?.highAt, reading.observedAt, unit)],
+                [`${period} low`, extreme(trends?.lowF, trends?.lowAt, reading.observedAt, unit)],
+            ],
+        },
         {
             title: 'Wind',
             rows: [
@@ -72,6 +123,7 @@ export function stationCards(reading: StationReading, unit: Unit): StationCard[]
                 ['Humidity', measure(reading.humidityPercent, '%')],
                 ['Dew point', temperature(reading.dewPointF)],
                 ['Pressure', measure(reading.pressureInHg, ' inHg', 2)],
+                ['3-hour trend', pressureTrend(trends)],
             ],
         },
         {

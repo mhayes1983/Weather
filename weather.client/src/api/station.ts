@@ -103,6 +103,18 @@ export interface CurrentSky {
     icon: string;
 }
 
+export type PressureTrend = 'RisingRapidly' | 'Rising' | 'Steady' | 'Falling' | 'FallingRapidly';
+
+/** The high and low cover the history's range, and the pressure change is over 3 hours. */
+export interface StationTrends {
+    highF: number | null;
+    highAt: string | null;
+    lowF: number | null;
+    lowAt: string | null;
+    pressureChangeInHg: number | null;
+    pressureTrend: PressureTrend | null;
+}
+
 export interface StationReport {
     status: StationStatus;
     message: string | null;
@@ -115,6 +127,7 @@ export interface StationReport {
     modelled: boolean;
     historyMaxGapMinutes: number;
     sky: CurrentSky | null;
+    trends: StationTrends | null;
 }
 
 export interface StationMatch {

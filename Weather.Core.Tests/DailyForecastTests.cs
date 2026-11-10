@@ -77,8 +77,52 @@ public class DailyForecastTests
         {"observations":[{"obsTimeUtc":"2026-10-30T16:00:00Z","lat":42.3601,"lon":-71.0589,"neighborhood":"Private Road","imperial":{}}]}
         """;
 
+    private const string DiscussionList = """
+        {"@graph":[
+            {"id":"older","issuanceTime":"2026-10-30T08:00:00+00:00"},
+            {"id":"newer","issuanceTime":"2026-10-30T15:00:00+00:00"}
+        ]}
+        """;
+
+    private const string DiscussionText = """
+
+        000
+        FXUS61 KGYX 301500
+        AFDGYX
+
+        Area Forecast Discussion
+        National Weather Service Gray ME
+
+        .KEY MESSAGES...
+        1. A coastal storm remains possible with rain
+        and snow.
+
+        2. Cold through the weekend.
+
+        &&
+
+        .NEAR TERM /THROUGH TONIGHT/...Showers end
+        this evening.
+
+        &&
+
+        .GYX WATCHES/WARNINGS/ADVISORIES...
+        ME...None.
+        NH...None.
+
+        &&
+
+        $$
+
+        Forecaster Name
+        """;
+
+    private static readonly string DiscussionProduct = JsonSerializer.Serialize(new { productText = DiscussionText });
+
     private static string Respond(string url) =>
         url.Contains("api.open-meteo.com") ? Outlook
+        : url.Contains("/products/types/AFD/locations/GYX") ? DiscussionList
+        : url.Contains("/products/newer") ? DiscussionProduct
         : url.Contains("/points/") ? Points
         : url.Contains("gridpoints") ? Periods
         : url.Contains("aa.usno.navy.mil") ? Moon
@@ -107,6 +151,7 @@ public class DailyForecastTests
             new StationLocator(cache),
             new OpenMeteoOutlook(http, options),
             new NwsDescriptions(http, cache),
+            new NwsDiscussion(http, cache),
             new UsnoMoon(http),
             cache,
             options,
@@ -525,6 +570,56 @@ public class DailyForecastTests
         Assert.DoesNotContain("Private Road", json);
         Assert.DoesNotContain("42.36", json);
         Assert.DoesNotContain("71.05", json);
+    }
+
+    [Fact]
+    public async Task DiscussionIsTheNewestFromTheStationsOffice()
+    {
+        var report = (await Service(StubHttp.Json(Respond)).GetDiscussionAsync())!;
+
+        var discussion = report.Discussion!;
+        Assert.Equal("GYX", discussion.Office);
+        Assert.Equal(new DateTimeOffset(2026, 10, 30, 15, 0, 0, TimeSpan.Zero), discussion.IssuedAt);
+        Assert.Equal(["KEY MESSAGES", "NEAR TERM /THROUGH TONIGHT/"], discussion.Sections.Select(section => section.Title));
+        Assert.Equal(
+            ["1. A coastal storm remains possible with rain and snow.", "2. Cold through the weekend."],
+            discussion.Sections[0].Paragraphs);
+        Assert.Equal(["Showers end this evening."], discussion.Sections[1].Paragraphs);
+    }
+
+    [Fact]
+    public async Task DiscussionLeavesOutWarningsAndForecasters()
+    {
+        var report = (await Service(StubHttp.Json(Respond)).GetDiscussionAsync())!;
+
+        var json = JsonSerializer.Serialize(report);
+        Assert.DoesNotContain("None.", json);
+        Assert.DoesNotContain("Forecaster", json);
+    }
+
+    [Fact]
+    public async Task FailedDiscussionIsLeftOut()
+    {
+        var report = await Service(Failing(url => url.Contains("/products/"))).GetDiscussionAsync();
+
+        Assert.NotNull(report);
+        Assert.Null(report.Discussion);
+    }
+
+    [Fact]
+    public async Task DiscussionForABadStationIdIsNull()
+    {
+        Assert.Null(await Service(StubHttp.Json(Respond)).GetDiscussionAsync("not/valid"));
+    }
+
+    [Theory]
+    [InlineData("https://api.weather.gov/gridpoints/GYX/80,72/forecast", "GYX")]
+    [InlineData("https://api.weather.gov/gridpoints/box/1,2/forecast", "BOX")]
+    [InlineData("https://api.weather.gov/points/43,-70", null)]
+    [InlineData("https://api.weather.gov/gridpoints/", null)]
+    public void OfficeComesFromTheForecastUrl(string url, string? expected)
+    {
+        Assert.Equal(expected, NwsDiscussion.Office(url));
     }
 
     private sealed class CapturingLogger : ILogger<DailyForecastService>

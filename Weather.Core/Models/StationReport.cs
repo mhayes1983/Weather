@@ -102,9 +102,31 @@ public sealed record StationReport(
     string? HistoryMessage,
     bool Modelled = false,
     int HistoryMaxGapMinutes = StationReport.DefaultHistoryMaxGapMinutes,
-    CurrentSky? Sky = null)
+    CurrentSky? Sky = null,
+    StationTrends? Trends = null)
 {
     public const int DefaultHistoryMaxGapMinutes = 30;
 }
 
 public sealed record CurrentSky(string Conditions, string Icon);
+
+public enum PressureTrend
+{
+    RisingRapidly,
+    Rising,
+    Steady,
+    Falling,
+    FallingRapidly,
+}
+
+/// <summary>
+/// Worked out from the history and the latest reading, so the high and low cover the same
+/// range as the charts (<see cref="StationReport.HistoryRange"/>). The pressure change is over 3 hours.
+/// </summary>
+public sealed record StationTrends(
+    double? HighF,
+    DateTimeOffset? HighAt,
+    double? LowF,
+    DateTimeOffset? LowAt,
+    double? PressureChangeInHg,
+    PressureTrend? PressureTrend);
