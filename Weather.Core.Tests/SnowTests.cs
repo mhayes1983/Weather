@@ -252,7 +252,7 @@ public class SnowTests
         var table = await service.GetAsync(request!);
 
         Assert.Equal(new SnowTown("04086", "Topsham", null), Assert.Single(table.Towns));
-        Assert.Equal(new SnowCell("good", "04086", 2, 4, false, SourceStatus.Ok, null), table.Cells[0]);
+        Assert.Equal(new SnowCell("good", "04086", 2, 4, false, SourceStatus.Ok, null, Midnight, Midnight.AddHours(24)), table.Cells[0]);
         Assert.Equal(SourceStatus.Error, table.Sources[1].Status);
         Assert.Equal("Source returned HTTP 503", table.Cells[1].Message);
     }
@@ -329,5 +329,200 @@ public class SnowTests
         Assert.Equal(SourceStatus.Error, report.Status);
         Assert.Equal("Alerts are unavailable right now.", report.Message);
         Assert.Empty(report.Alerts);
+    }
+
+    [Fact]
+    public void TimingRunsFromTheFirstSnowToTheLastAndLeavesOutFlurries()
+    {
+        SnowPeriod[] periods =
+        [
+            new(Midnight.AddHours(2), Midnight.AddHours(3), 0.005, 0.005),
+            new(Midnight.AddHours(10), Midnight.AddHours(11), 0.2, 0.2),
+            new(Midnight.AddHours(11), Midnight.AddHours(12), 0, 0),
+            new(Midnight.AddHours(20), Midnight.AddHours(21), 0.1, 0.1),
+        ];
+
+        Assert.Equal((Midnight.AddHours(10), Midnight.AddHours(21)), SnowWindow.Timing(periods, Midnight, Midnight.AddHours(24)));
+    }
+
+    [Fact]
+    public void TimingStaysInsideTheWindow()
+    {
+        SnowPeriod[] periods =
+        [
+            new(Midnight.AddHours(-6), Midnight.AddHours(6), 0, 4),
+            new(Midnight.AddHours(18), Midnight.AddHours(30), 1, 3),
+            new(Midnight.AddHours(40), Midnight.AddHours(41), 1, 1),
+        ];
+
+        Assert.Equal((Midnight, Midnight.AddHours(24)), SnowWindow.Timing(periods, Midnight, Midnight.AddHours(24)));
+    }
+
+    [Fact]
+    public void NoSnowHasNoTiming()
+    {
+        SnowPeriod[] periods = [new(Midnight, Midnight.AddHours(12), 0, 0), new(Midnight.AddHours(30), Midnight.AddHours(31), 1, 1)];
+
+        Assert.Null(SnowWindow.Timing(periods, Midnight, Midnight.AddHours(24)));
+        Assert.Null(SnowWindow.Timing([], Midnight, Midnight.AddHours(24)));
+    }
+
+    [Fact]
+    public async Task CellsCarryTimingInTheTownsTimeAndIceToHundredths()
+    {
+        var service = Service(
+        [
+            new FakeSnowSource("icy", () => SnowResult.Ok(
+                [new SnowPeriod(Midnight.AddHours(15), Midnight.AddHours(16), 1, 1)],
+                TestData.Now,
+                [new SnowPeriod(Midnight, Midnight.AddHours(6), 0.127, 0.127), new SnowPeriod(Midnight.AddHours(6), Midnight.AddHours(12), 0.127, 0.127)])),
+            new FakeSnowSource("plain", () => SnowResult.Ok([], TestData.Now)),
+        ]);
+        var (request, _) = service.Parse(null, "2026-10-30", "2026-10-30");
+
+        var table = await service.GetAsync(request!);
+
+        var icy = table.Cells[0];
+        Assert.Equal(Midnight.AddHours(15), icy.SnowStart);
+        Assert.Equal(TimeSpan.FromHours(-4), icy.SnowStart!.Value.Offset);
+        Assert.Equal(15, icy.SnowStart.Value.Hour);
+        Assert.Equal(Midnight.AddHours(16), icy.SnowEnd);
+        Assert.Equal(0.25, icy.IceInches);
+
+        var plain = table.Cells[1];
+        Assert.Null(plain.SnowStart);
+        Assert.Null(plain.IceInches);
+    }
+
+    [Fact]
+    public async Task NwsReadsIceFromTheGrid()
+    {
+        var http = StubHttp.Json(url => url switch
+        {
+            _ when url.Contains("/points/") => """
+                { "properties": { "forecast": "https://api.weather.gov/gridpoints/GYX/1,2/forecast", "forecastGridData": "https://api.weather.gov/gridpoints/GYX/1,2" } }
+                """,
+            _ when url.EndsWith("/forecast") => """{ "properties": { "periods": [] } }""",
+            _ => """
+                { "properties": {
+                  "snowfallAmount": { "values": [] },
+                  "iceAccumulation": { "uom": "wmoUnit:mm", "values": [
+                    { "validTime": "2026-10-30T12:00:00+00:00/PT6H", "value": 2.54 },
+                    { "validTime": "2026-10-30T18:00:00+00:00/PT6H", "value": null }
+                  ] }
+                } }
+                """,
+        });
+
+        var result = await new NwsSnowSource(http, new WeatherCache(), TestData.Options(), Time).GetSnowAsync(TestData.Topsham, default);
+
+        var ice = Assert.Single(result.Ice!);
+        Assert.Equal(DateTimeOffset.Parse("2026-10-30T12:00:00Z"), ice.Start);
+        Assert.Equal(DateTimeOffset.Parse("2026-10-30T18:00:00Z"), ice.End);
+        Assert.Equal(0.1, ice.HighInches, 6);
+    }
+
+    // Topsham is at 43.9281, -69.9656.
+    private const string StormReports = """
+        { "type": "FeatureCollection", "features": [
+          { "properties": { "type": "S", "magf": 3.5, "unit": "Inch", "city": "Topsham", "source": "Public", "qualifier": "M", "valid": "2026-10-30T14:00:00Z", "lat": 43.93, "lon": -69.96 } },
+          { "properties": { "type": "S", "magf": 5.0, "unit": "Inch", "city": "Topsham", "source": "Public", "qualifier": "M", "valid": "2026-10-30T15:00:00Z", "lat": 43.93, "lon": -69.96 } },
+          { "properties": { "type": "S", "magf": 2.0, "unit": "Inch", "city": "3 N Bowdoinham", "source": "Trained Spotter", "qualifier": "E", "valid": "2026-10-30T13:00:00Z", "lat": 44.02, "lon": -69.90 } },
+          { "properties": { "type": "S", "magf": 9.0, "unit": "Inch", "city": "Topsham", "source": "Public", "qualifier": "M", "valid": "2026-10-29T15:00:00Z", "lat": 43.93, "lon": -69.96 } },
+          { "properties": { "type": "S", "magf": 12.0, "unit": "Inch", "city": "1 NNE Enfield", "source": "Trained Spotter", "qualifier": "M", "valid": "2026-10-30T14:00:00Z", "lat": 45.26, "lon": -68.56 } },
+          { "properties": { "type": "N", "magf": 45, "unit": "MPH", "city": "Topsham", "source": "Public", "qualifier": "M", "valid": "2026-10-30T14:00:00Z", "lat": 43.93, "lon": -69.96 } },
+          { "properties": { "type": "S", "magf": null, "unit": "Inch", "city": "Topsham", "valid": "2026-10-30T14:00:00Z", "lat": 43.93, "lon": -69.96 } }
+        ] }
+        """;
+
+    private static (SnowReportService Reports, SnowTableService Tables) ReportServices(StubHttp http)
+    {
+        var cache = new WeatherCache();
+        var options = TestData.Options();
+        var locations = new LocationResolver(http, cache, options);
+        return (
+            new SnowReportService(http, locations, cache, options, Time, NullLogger<SnowReportService>.Instance),
+            new SnowTableService([], locations, cache, options, Time, NullLogger<SnowTableService>.Instance));
+    }
+
+    [Fact]
+    public async Task ReportsNearATownGiveItsLowestAndHighestTotals()
+    {
+        var http = StubHttp.Json(_ => StormReports);
+        var (reports, tables) = ReportServices(http);
+        var (request, _) = tables.Parse("04086", "2026-10-30", "2026-10-30");
+
+        var table = await reports.GetAsync(request!);
+
+        Assert.Equal(SourceStatus.Ok, table.Status);
+        var town = Assert.Single(table.Towns);
+        Assert.Equal("04086", town.Zip);
+        Assert.Equal(2.0, town.LowInches);
+        Assert.Equal(5.0, town.HighInches);
+        Assert.Equal(["Topsham", "3 N Bowdoinham"], town.Reports.Select(report => report.Place));
+
+        // A place's highest report is its total so far, and times are the town's.
+        Assert.Equal(5.0, town.Reports[0].Inches);
+        Assert.Equal(11, town.Reports[0].ObservedAt.Hour);
+        Assert.False(town.Reports[0].Estimated);
+        Assert.True(town.Reports[1].Estimated);
+        Assert.InRange(town.Reports[1].DistanceMiles, 6, 8);
+
+        var url = Assert.Single(http.Requests).RequestUri!.ToString();
+        Assert.Contains("sts=202610300400", url);
+        Assert.Contains("ets=202610311600", url);
+        Assert.Contains("states=ME", url);
+    }
+
+    [Fact]
+    public async Task ReportsNeverGiveCoordinates()
+    {
+        var (reports, tables) = ReportServices(StubHttp.Json(_ => StormReports));
+        var (request, _) = tables.Parse("04086", "2026-10-30", "2026-10-30");
+
+        var json = System.Text.Json.JsonSerializer.Serialize(await reports.GetAsync(request!));
+
+        Assert.DoesNotContain("43.93", json);
+        Assert.DoesNotContain("69.96", json);
+    }
+
+    [Fact]
+    public async Task DatesThatHaveNotStartedAskForNoReports()
+    {
+        var http = StubHttp.Json(_ => StormReports);
+        var (reports, tables) = ReportServices(http);
+        var (request, _) = tables.Parse("04086", "2026-11-02", "2026-11-03");
+
+        var table = await reports.GetAsync(request!);
+
+        Assert.Equal(SourceStatus.Ok, table.Status);
+        Assert.Empty(table.Towns);
+        Assert.Empty(http.Requests);
+    }
+
+    [Fact]
+    public async Task ATownWithNoReportsNearbyHasNoTotals()
+    {
+        var (reports, tables) = ReportServices(StubHttp.Json(_ => """{ "features": [] }"""));
+        var (request, _) = tables.Parse("04086", "2026-10-30", "2026-10-30");
+
+        var town = Assert.Single((await reports.GetAsync(request!)).Towns);
+
+        Assert.Null(town.LowInches);
+        Assert.Null(town.HighInches);
+        Assert.Empty(town.Reports);
+    }
+
+    [Fact]
+    public async Task FailedReportsSaySoWithoutThrowing()
+    {
+        var (reports, tables) = ReportServices(new StubHttp(_ => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)));
+        var (request, _) = tables.Parse("04086", "2026-10-30", "2026-10-30");
+
+        var table = await reports.GetAsync(request!);
+
+        Assert.Equal(SourceStatus.Error, table.Status);
+        Assert.Equal("Snow reports are unavailable for some towns right now.", table.Message);
+        Assert.Empty(table.Towns);
     }
 }

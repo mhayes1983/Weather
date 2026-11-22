@@ -6,7 +6,7 @@ namespace Weather.Server.Controllers;
 
 [ApiController]
 [Route("api/snow")]
-public class SnowController(SnowTableService snowTables, SnowAlertService snowAlerts) : ControllerBase
+public class SnowController(SnowTableService snowTables, SnowAlertService snowAlerts, SnowReportService snowReports) : ControllerBase
 {
     [HttpGet("towns")]
     public IReadOnlyList<SnowTownSummary> GetTowns() => snowTables.Towns;
@@ -18,6 +18,15 @@ public class SnowController(SnowTableService snowTables, SnowAlertService snowAl
         return request is null
             ? Problem(error, statusCode: StatusCodes.Status400BadRequest)
             : await snowTables.GetAsync(request);
+    }
+
+    [HttpGet("reports")]
+    public async Task<ActionResult<SnowReportTable>> GetReports([FromQuery] string? zips, [FromQuery] string? start, [FromQuery] string? end)
+    {
+        var (request, error) = snowTables.Parse(zips, start, end);
+        return request is null
+            ? Problem(error, statusCode: StatusCodes.Status400BadRequest)
+            : await snowReports.GetAsync(request);
     }
 
     [HttpGet("alerts")]

@@ -122,6 +122,11 @@ public sealed class SnowTableService(
 
         var (start, end) = SnowWindow.Bounds(request.Start, request.End, location.TimeZoneId);
         var total = SnowWindow.Total(result.Periods, start, end);
+        var timing = SnowWindow.Timing(result.Periods, start, end);
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(location.TimeZoneId);
+
+        // Ice is thin, so it keeps hundredths of an inch.
+        var ice = result.Ice is null ? null : SnowWindow.Total(result.Ice, start, end, digits: 2);
         return new SnowCell(
             source.Column.Id,
             location.Zip,
@@ -129,7 +134,10 @@ public sealed class SnowTableService(
             total?.High,
             total?.Partial ?? false,
             SourceStatus.Ok,
-            total is null ? "No forecast for these dates" : result.Message);
+            total is null ? "No forecast for these dates" : result.Message,
+            timing is null ? null : TimeZoneInfo.ConvertTime(timing.Value.Start, zone),
+            timing is null ? null : TimeZoneInfo.ConvertTime(timing.Value.End, zone),
+            ice?.High);
     }
 
     // A row only shows Needs key or an error when every town has it; otherwise the cells say which failed.
