@@ -888,6 +888,7 @@ thead th.measure-header {
 
 .station-card dd {
     margin: 0;
+    text-align: right;
     color: var(--text-strong);
     font-variant-numeric: tabular-nums;
 }
