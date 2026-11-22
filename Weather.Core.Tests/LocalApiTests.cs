@@ -154,6 +154,22 @@ public class LocalApiTests
     }
 
     [Theory]
+    [InlineData("04086", "2026-10-30", "2026-10-31")]
+    [InlineData("04086", null, null)]
+    [InlineData("04086,04011", null, null)]
+    [InlineData("abc", null, null)]
+    [InlineData("04086", "2026-10-31", "2026-10-30")]
+    [InlineData("04086", "soon", null)]
+    public async Task SnowHourlyMatchesTheController(string zip, string? start, string? end)
+    {
+        using var services = Services("{}");
+
+        AssertSame(
+            await SnowApi(services).GetHourly(zip, start, end),
+            await Ask(services, "/api/snow/hourly", ("zip", zip), ("start", start), ("end", end)));
+    }
+
+    [Theory]
     [InlineData("04086")]
     [InlineData("abc")]
     public async Task SnowAlertsMatchTheController(string zips)

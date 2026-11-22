@@ -34,3 +34,28 @@ export function readSnowLink(search: string): SnowLink {
 export function snowLinkPath(start: string, end: string, zips: string[]): string {
     return `/snow?start=${start}&end=${end}&zips=${zips.join(',')}`;
 }
+
+/** One source's hourly snow for one town, carried in the hourly page's address. */
+export interface HourlyLink {
+    zip: string;
+    source: string;
+    start: string;
+    end: string;
+}
+
+/** Reads `?zip=&source=&start=&end=`, or undefined when any part is missing or malformed. */
+export function readHourlyLink(search: string): HourlyLink | undefined {
+    const query = new URLSearchParams(search);
+    const zip = query.get('zip') ?? '';
+    const source = query.get('source') ?? '';
+    const start = query.get('start') ?? '';
+    const end = query.get('end') ?? '';
+    return zipPattern.test(zip) && /^[\w-]{1,40}$/.test(source) && datePattern.test(start) && datePattern.test(end) && end >= start
+        ? { zip, source, start, end }
+        : undefined;
+}
+
+/** "?zip=04086&source=icon&start=2026-11-12&end=2026-11-13", the search part of the hourly page's address. */
+export function hourlyLinkSearch({ zip, source, start, end }: HourlyLink): string {
+    return `?${new URLSearchParams({ zip, source, start, end })}`;
+}

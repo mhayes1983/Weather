@@ -16,6 +16,7 @@ namespace Weather.Core.Api;
 [JsonSerializable(typeof(DiscussionReport))]
 [JsonSerializable(typeof(AlmanacReport))]
 [JsonSerializable(typeof(SnowTable))]
+[JsonSerializable(typeof(SnowHourly))]
 [JsonSerializable(typeof(IReadOnlyList<SnowTownSummary>))]
 [JsonSerializable(typeof(SnowAlertReport))]
 [JsonSerializable(typeof(SnowReportTable))]

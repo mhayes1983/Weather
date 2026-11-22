@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const fixedRoutes = ['/alerts', '/forecast', '/snow', '/radar', '/daily', '/help', '/terms', '/privacy', '/setup'] as const;
+const fixedRoutes = ['/alerts', '/forecast', '/snow', '/snow/hourly', '/radar', '/daily', '/help', '/terms', '/privacy', '/setup'] as const;
 
 export type Route = '/' | (typeof fixedRoutes)[number] | `/daily/${string}`;
 
@@ -20,7 +20,12 @@ export function forecastDate(route: Route): string | undefined {
     return route.startsWith('/daily/') ? route.slice('/daily/'.length) : undefined;
 }
 
-export function useRoute(): [Route, (route: Route) => void] {
+/** History state for a page opened from another, so its Back link can return to it unchanged. */
+export interface RouteState {
+    from: Route;
+}
+
+export function useRoute(): [Route, (route: Route, search?: string) => void] {
     const [route, setRoute] = useState(currentRoute);
 
     useEffect(() => {
@@ -32,9 +37,11 @@ export function useRoute(): [Route, (route: Route) => void] {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
-    function navigate(next: Route) {
+    // A search string, such as the hourly snow page's source and town, travels in the address.
+    function navigate(next: Route, search = '') {
         if (next !== route) {
-            window.history.pushState(null, '', next);
+            const state: RouteState = { from: route };
+            window.history.pushState(state, '', next + search);
             setRoute(next);
             window.scrollTo(0, 0);
         }

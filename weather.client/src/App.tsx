@@ -32,6 +32,7 @@ const titles: Partial<Record<Route, string>> = {
     '/alerts': 'Weather Alerts',
     '/forecast': 'Temperature Forecast',
     '/snow': 'Snow Forecast',
+    '/snow/hourly': 'Hourly Snow',
     '/radar': 'Weather Maps',
     '/help': 'Help & About',
     '/terms': 'Terms of Use',
@@ -47,14 +48,15 @@ function App() {
     const [station, setStation] = useState(defaultStation);
     const [savedStations, setSavedStations] = useState(loadSavedStations);
     const [forecastOpened, setForecastOpened] = useState(route === '/forecast');
-    const [snowOpened, setSnowOpened] = useState(route === '/snow');
+    const onSnow = route === '/snow' || route === '/snow/hourly';
+    const [snowOpened, setSnowOpened] = useState(onSnow);
 
     // The forecast page mounts on first visit, then stays mounted to keep its table and columns.
     if (route === '/forecast' && !forecastOpened) {
         setForecastOpened(true);
     }
 
-    if (route === '/snow' && !snowOpened) {
+    if (onSnow && !snowOpened) {
         setSnowOpened(true);
     }
 
@@ -153,7 +155,7 @@ function App() {
             {route === '/daily' && <DailyForecastPage station={station} stationControls={stationControls} unit={unit} onNavigate={navigate} />}
             {date && <ForecastDayPage date={date} station={station} unit={unit} onNavigate={navigate} />}
             {forecastOpened && <ForecastPage hidden={route !== '/forecast'} unit={unit} station={station} savedStations={savedStations} />}
-            {snowOpened && <SnowPage hidden={route !== '/snow'} />}
+            {snowOpened && <SnowPage route={route} onNavigate={navigate} />}
             {route === '/help' && <HelpPage onNavigate={navigate} />}
             {route === '/terms' && <TermsPage onNavigate={navigate} />}
             {route === '/privacy' && <PrivacyPage onNavigate={navigate} />}

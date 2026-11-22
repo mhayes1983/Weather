@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-    fetchSnow, fetchSnowAlerts, fetchSnowReports, fetchSnowTowns,
+    fetchSnow, fetchSnowAlerts, fetchSnowHourly, fetchSnowReports, fetchSnowTowns,
     type SnowAlertReport, type SnowReportTable, type SnowTable as SnowData, type SnowTownSummary,
 } from '../api/snow';
 import { isApp } from '../appBridge';
@@ -8,15 +8,17 @@ import AlertPanel from '../components/AlertPanel';
 import ColumnFilters from '../components/ColumnFilters';
 import SnowReports from '../components/SnowReports';
 import SnowTable from '../components/SnowTable';
-import SnowTiming from '../components/SnowTiming';
+import SnowHourly from '../components/SnowHourly';
+import SnowTiming, { type HourlyState } from '../components/SnowTiming';
 import { addDays, isoDate } from '../snowAverages';
-import { readSnowLink, snowLinkPath } from '../snowLink';
+import { hourlyLinkSearch, readHourlyLink, readSnowLink, snowLinkPath, type HourlyLink } from '../snowLink';
 import {
     addManualRow, clearManualValues, hasManualValues, loadManualSnow, removeManualRow, renameManualRow, saveManualSnow, setManualValue,
     type ManualSnow, type ManualValue,
 } from '../snowManual';
 import { addSnowTown, loadSnowTowns, maxAddedTowns, removeSnowTown, resetSnowTowns, townZips } from '../snowTowns';
 import { formatDate } from '../localTime';
+import type { Route, RouteState } from '../useRoute';
 
 const maxDays = 7;
 const maxDaysAhead = 15;
@@ -56,7 +58,17 @@ function shortDate(iso: string) {
     return formatDate(iso, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function SnowPage({ hidden }: { hidden: boolean }) {
+function hourlyKey(zip: string, start: string, end: string) {
+    return `${zip}|${start}|${end}`;
+}
+
+interface SnowPageProps {
+    route: Route;
+    onNavigate: (route: Route, search?: string) => void;
+}
+
+function SnowPage({ route, onNavigate }: SnowPageProps) {
+    const hidden = route !== '/snow';
     const today = isoDate(new Date());
     // A shared link fills in its storm's dates and towns. Go still has to be pressed, so opening it uses no quota.
     const [link] = useState(() => readSnowLink(window.location.search));
@@ -80,6 +92,36 @@ function SnowPage({ hidden }: { hidden: boolean }) {
     const [manual, setManual] = useState(loadManualSnow);
     const [manualGeneration, setManualGeneration] = useState(0);
     const [newRow, setNewRow] = useState('');
+    // Each town's hourly data, by town and dates. It comes from the same cached results as the table.
+    const [hourly, setHourly] = useState<Record<string, HourlyState>>({});
+    const [hourlyLoading, setHourlyLoading] = useState<string[]>([]);
+    const requested = useRef(new Set<string>());
+    const [hourlyLink, setHourlyLink] = useState<HourlyLink>();
+    const [hourlyRoute, setHourlyRoute] = useState<Route>();
+
+    // The hourly page's source and town come from its address, which changes on each visit.
+    if (route !== hourlyRoute) {
+        setHourlyRoute(route);
+        setHourlyLink(route === '/snow/hourly' ? readHourlyLink(window.location.search) : undefined);
+    }
+
+    const loadHourly = useCallback((zip: string, from: string, to: string) => {
+        const key = hourlyKey(zip, from, to);
+        if (requested.current.has(key)) {
+            return;
+        }
+
+        requested.current.add(key);
+        setHourlyLoading(current => [...current, key]);
+        fetchSnowHourly(zip, from, to, new AbortController().signal)
+            .then(data => setHourly(current => ({ ...current, [key]: { data } })))
+            .catch((reason: Error) => {
+                // A failure can be tried again.
+                requested.current.delete(key);
+                setHourly(current => ({ ...current, [key]: { error: reason.message } }));
+            })
+            .finally(() => setHourlyLoading(current => current.filter(other => other !== key)));
+    }, []);
 
     // The configured towns use no forecast quota.
     useEffect(() => {
@@ -165,6 +207,9 @@ function SnowPage({ hidden }: { hidden: boolean }) {
 
         setLoading(true);
         setCopied(false);
+        // Go refreshes the table, so the hourly data loads again with it.
+        requested.current.clear();
+        setHourly({});
         setRequest(current => ({ zips, start, end, attempt: (current?.attempt ?? 0) + 1 }));
 
         // The address then names this storm, so it can be bookmarked or shared. The app has no address to share.
@@ -219,10 +264,56 @@ function SnowPage({ hidden }: { hidden: boolean }) {
     const addedFull = choices.added.length >= maxAddedTowns;
     const shownSources = available.filter(source => !hiddenRows.includes(source.id));
 
+    const handleTownShown = useCallback((zip: string) => {
+        if (table) {
+            loadHourly(zip, table.start, table.end);
+        }
+    }, [table, loadHourly]);
+
+    function handleOpenSource(sourceId: string, zip: string) {
+        if (table) {
+            onNavigate('/snow/hourly', hourlyLinkSearch({ zip, source: sourceId, start: table.start, end: table.end }));
+        }
+    }
+
+    function handleHourlySource(sourceId: string) {
+        if (hourlyLink) {
+            const next = { ...hourlyLink, source: sourceId };
+            window.history.replaceState(window.history.state, '', `/snow/hourly${hourlyLinkSearch(next)}`);
+            setHourlyLink(next);
+        }
+    }
+
+    // Back returns to the table as it was when the page came from it.
+    function handleHourlyBack() {
+        if ((window.history.state as RouteState | null)?.from === '/snow') {
+            window.history.back();
+        } else {
+            onNavigate('/snow');
+        }
+    }
+
     // Browsers only offer the clipboard on HTTPS and localhost. Without it, the address bar still has the link.
     const canCopy = !isApp && typeof navigator.clipboard?.writeText === 'function';
 
+    const hourlyLinkKey = hourlyLink && hourlyKey(hourlyLink.zip, hourlyLink.start, hourlyLink.end);
+    const hourlyView = route === '/snow/hourly' && (hourlyLink && hourlyLinkKey
+        ? <SnowHourly
+            link={hourlyLink}
+            state={hourly[hourlyLinkKey]}
+            loading={hourlyLoading.includes(hourlyLinkKey)}
+            onLoad={() => loadHourly(hourlyLink.zip, hourlyLink.start, hourlyLink.end)}
+            onSourceChange={handleHourlySource}
+            onBack={handleHourlyBack}
+        />
+        : <main>
+            <p className="back-link"><a href="/snow" onClick={event => { event.preventDefault(); onNavigate('/snow'); }}>← Snow Forecast</a></p>
+            <p className="error" role="alert">This link doesn't name a source, town and dates.</p>
+        </main>);
+
     return (
+        <>
+        {hourlyView}
         <main hidden={hidden}>
             <header>
                 <h1>Snow Forecast</h1>
@@ -309,7 +400,16 @@ function SnowPage({ hidden }: { hidden: boolean }) {
                             <button type="button" onClick={handleCopyLink}>Copy link to this storm</button>
                             {copied && <span role="status">Copied</span>}
                         </p>}
-                    <SnowTiming towns={shownTowns} sources={shownSources} cells={table.cells} start={table.start} end={table.end} />
+                    <SnowTiming
+                        towns={shownTowns}
+                        sources={shownSources}
+                        cells={table.cells}
+                        start={table.start}
+                        end={table.end}
+                        hourly={zip => hourly[hourlyKey(zip, table.start, table.end)]}
+                        onTownShown={handleTownShown}
+                        onOpenSource={handleOpenSource}
+                    />
                     <SnowReports reports={reports} error={reportsError} names={names} />
                 </>}
 
@@ -341,6 +441,7 @@ function SnowPage({ hidden }: { hidden: boolean }) {
                 Snow reports from the <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a>
             </footer>
         </main>
+        </>
     );
 }
 

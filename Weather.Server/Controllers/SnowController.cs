@@ -20,6 +20,15 @@ public class SnowController(SnowTableService snowTables, SnowAlertService snowAl
             : await snowTables.GetAsync(request);
     }
 
+    [HttpGet("hourly")]
+    public async Task<ActionResult<SnowHourly>> GetHourly([FromQuery] string? zip, [FromQuery] string? start, [FromQuery] string? end)
+    {
+        var (request, error) = snowTables.ParseHourly(zip, start, end);
+        return request is null
+            ? Problem(error, statusCode: StatusCodes.Status400BadRequest)
+            : await snowTables.GetHourlyAsync(request);
+    }
+
     [HttpGet("reports")]
     public async Task<ActionResult<SnowReportTable>> GetReports([FromQuery] string? zips, [FromQuery] string? start, [FromQuery] string? end)
     {
