@@ -10,23 +10,24 @@ namespace Weather.Core.DailyForecast;
 public sealed partial class NwsDiscussion(IHttpClientFactory httpClientFactory, WeatherCache cache)
 {
     private const string GridMarker = "/gridpoints/";
-    private static readonly TimeSpan GridCacheDuration = TimeSpan.FromDays(30);
 
     // ".SYNOPSIS...", ".NEAR TERM /THROUGH TONIGHT/...", sometimes with text after the dots.
     [GeneratedRegex(@"^\.(?<title>[A-Z0-9][^.]*?)\s*\.\.\.(?<rest>.*)$")]
     private static partial Regex SectionStart();
 
-    /// <exception cref="InvalidOperationException">The office has no discussion to show.</exception>
-    public async Task<ForecastDiscussion> GetAsync(GeoPoint location, CancellationToken cancellationToken)
+    /// <summary>The office that forecasts for a location, read from the cached gridpoint forecast URL.</summary>
+    /// <exception cref="InvalidOperationException">The office couldn't be read.</exception>
+    public async Task<string> GetOfficeAsync(GeoPoint location, CancellationToken cancellationToken)
     {
         var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
+        var forecastUrl = await NwsSource.GetCachedForecastUrlAsync(client, cache, location, cancellationToken);
+        return Office(forecastUrl) ?? throw new InvalidOperationException("The NWS office couldn't be read.");
+    }
 
-        // The same cached lookup as the day descriptions, so this adds no /points call.
-        var forecastUrl = await cache.GetOrCreateAsync(
-            string.Create(CultureInfo.InvariantCulture, $"nws-grid:{location.Latitude:0.####},{location.Longitude:0.####}"),
-            async () => (await NwsSource.GetForecastUrlAsync(client, location.Latitude, location.Longitude, cancellationToken), GridCacheDuration));
-
-        var office = Office(forecastUrl) ?? throw new InvalidOperationException("The NWS office couldn't be read.");
+    /// <exception cref="InvalidOperationException">The office has no discussion to show.</exception>
+    public async Task<ForecastDiscussion> GetAsync(string office, CancellationToken cancellationToken)
+    {
+        var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
 
         using var list = JsonDocument.Parse(await client.GetStringAsync(
             $"https://api.weather.gov/products/types/AFD/locations/{office}", cancellationToken));
@@ -69,7 +70,7 @@ public sealed partial class NwsDiscussion(IHttpClientFactory httpClientFactory, 
     /// The header, the forecasters' names after "$$" and the watches and warnings list are left out:
     /// alerts have their own check, and a list from an older discussion could be wrong.
     /// </summary>
-    internal static IReadOnlyList<DiscussionSection> Parse(string text)
+    public static IReadOnlyList<DiscussionSection> Parse(string text)
     {
         var sections = new List<DiscussionSection>();
         string? title = null;
@@ -88,7 +89,7 @@ public sealed partial class NwsDiscussion(IHttpClientFactory httpClientFactory, 
         void EndSection()
         {
             EndParagraph();
-            if (title is not null && paragraphs.Count > 0 && !title.Contains("WATCHES/WARNINGS", StringComparison.Ordinal))
+            if (title is not null && paragraphs.Count > 0 && !title.Contains("WATCHES/WARNINGS", StringComparison.OrdinalIgnoreCase))
             {
                 sections.Add(new DiscussionSection(title, [.. paragraphs]));
             }

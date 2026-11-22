@@ -52,6 +52,16 @@ public sealed class NwsSource(
         return SourceResult.Ok(DayParts.Merge(highs, lows), timeProvider.GetUtcNow());
     }
 
+    /// <summary>
+    /// The gridpoint forecast URL for a location, cached by its coordinates. The day descriptions and the
+    /// discussion share this entry, so the discussion adds no /points call.
+    /// </summary>
+    internal static Task<string> GetCachedForecastUrlAsync(
+        HttpClient client, WeatherCache cache, GeoPoint location, CancellationToken cancellationToken) =>
+        cache.GetOrCreateAsync(
+            string.Create(CultureInfo.InvariantCulture, $"nws-grid:{location.Latitude:0.####},{location.Longitude:0.####}"),
+            async () => (await GetForecastUrlAsync(client, location.Latitude, location.Longitude, cancellationToken), GridCacheDuration));
+
     internal static async Task<string> GetForecastUrlAsync(
         HttpClient client, double latitude, double longitude, CancellationToken cancellationToken)
     {

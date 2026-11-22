@@ -155,11 +155,22 @@ public sealed class DailyForecastService(
             return new DiscussionReport(null);
         }
 
+        var office = await GetOptionalAsync(
+            "NWS office",
+            $"nws-office:{station.Id}",
+            ForecastCacheDuration,
+            async token => await discussion.GetOfficeAsync(await locator.GetAsync(station, token), token));
+        if (office is null)
+        {
+            return new DiscussionReport(null);
+        }
+
+        // Cached per office, so stations that share one make its two calls once.
         return new DiscussionReport(await GetOptionalAsync(
             "NWS discussion",
-            $"discussion:{station.Id}",
+            $"discussion:{office}",
             ForecastCacheDuration,
-            async token => await discussion.GetAsync(await locator.GetAsync(station, token), token)));
+            token => discussion.GetAsync(office, token)));
     }
 
     private DateTimeOffset LocalNow(Outlook forecast) =>

@@ -90,6 +90,12 @@ test('a time from the day before says so', () => {
     assert.match(stationCards(bare, 'F', trends)[0].rows[0][1], /^62\.1°F, .+ yesterday$/);
 });
 
+test("today's range never says yesterday, whatever the browser's time zone", () => {
+    const trends = { highF: 62.1, highAt: '2026-11-07T12:30:00Z', lowF: null, lowAt: null, pressureChangeInHg: null, pressureTrend: null };
+
+    assert.match(stationCards(bare, 'F', trends, 'Today')[0].rows[0][1], /^62\.1°F, \d{1,2}:\d{2}\s?[AP]M$/);
+});
+
 test('the pressure trend shows its change over three hours', () => {
     const row = (pressureChangeInHg: number, pressureTrend: 'Rising' | 'Steady' | 'FallingRapidly') =>
         stationCards({ ...bare, pressureInHg: 30 }, 'F', { highF: null, highAt: null, lowF: null, lowAt: null, pressureChangeInHg, pressureTrend })

@@ -612,6 +612,98 @@ public class DailyForecastTests
         Assert.Null(await Service(StubHttp.Json(Respond)).GetDiscussionAsync("not/valid"));
     }
 
+    [Fact]
+    public async Task DiscussionIsFetchedOncePerOffice()
+    {
+        var http = StubHttp.Json(Respond);
+        var service = Service(http);
+
+        await service.GetDiscussionAsync();
+        await service.GetDiscussionAsync(Id);
+
+        Assert.Single(http.Requests, request => request.RequestUri!.AbsolutePath.EndsWith("/AFD/locations/GYX", StringComparison.Ordinal));
+        Assert.Single(http.Requests, request => request.RequestUri!.AbsolutePath.EndsWith("/products/newer", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(".GYX WATCHES/WARNINGS/ADVISORIES...")]
+    [InlineData(".Watches/Warnings/Advisories...")]
+    [InlineData(".BOX Watches/Warnings/Advisories...")]
+    public void WatchesAndWarningsAreLeftOutInAnyCase(string heading)
+    {
+        var sections = NwsDiscussion.Parse($"""
+            .DISCUSSION...
+            Snow tonight.
+
+            &&
+
+            {heading}
+            ME...Winter Storm Warning.
+
+            &&
+
+            $$
+            """);
+
+        Assert.Equal(["DISCUSSION"], sections.Select(section => section.Title));
+    }
+
+    [Fact]
+    public void SectionCanEndAtTheSignatureWithoutAmpersands()
+    {
+        var sections = NwsDiscussion.Parse("""
+            .AVIATION /18Z SUNDAY THROUGH FRIDAY/...
+            VFR through the period.
+            $$
+            Forecaster Name
+            """);
+
+        var section = Assert.Single(sections);
+        Assert.Equal("AVIATION /18Z SUNDAY THROUGH FRIDAY/", section.Title);
+        Assert.Equal(["VFR through the period."], section.Paragraphs);
+    }
+
+    [Fact]
+    public void TextAfterTheTitleStartsTheFirstParagraph()
+    {
+        var section = Assert.Single(NwsDiscussion.Parse("""
+            .UPDATE...Issued at 1015 AM EST Sun Nov 22 2026
+            No changes.
+
+            Still dry.
+            &&
+            """));
+
+        Assert.Equal(["Issued at 1015 AM EST Sun Nov 22 2026 No changes.", "Still dry."], section.Paragraphs);
+    }
+
+    [Fact]
+    public void SectionWithOnlyATitleIsLeftOut()
+    {
+        var sections = NwsDiscussion.Parse("""
+            .MARINE...
+
+            &&
+
+            .OUTLOOK FOR 18Z Monday through Thursday...
+            Mainly VFR.
+            &&
+            """);
+
+        Assert.Equal(["OUTLOOK FOR 18Z Monday through Thursday"], sections.Select(section => section.Title));
+    }
+
+    [Fact]
+    public void WindowsLineEndingsReadTheSame()
+    {
+        var unix = NwsDiscussion.Parse(DiscussionText.ReplaceLineEndings("\n"));
+        var windows = NwsDiscussion.Parse(DiscussionText.ReplaceLineEndings("\r\n"));
+
+        Assert.Equal(unix.Select(section => section.Title), windows.Select(section => section.Title));
+        Assert.Equal(unix.SelectMany(section => section.Paragraphs), windows.SelectMany(section => section.Paragraphs));
+        Assert.DoesNotContain(windows.SelectMany(section => section.Paragraphs), paragraph => paragraph.Contains('\r'));
+    }
+
     [Theory]
     [InlineData("https://api.weather.gov/gridpoints/GYX/80,72/forecast", "GYX")]
     [InlineData("https://api.weather.gov/gridpoints/box/1,2/forecast", "BOX")]

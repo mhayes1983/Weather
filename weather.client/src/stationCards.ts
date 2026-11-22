@@ -47,7 +47,14 @@ function pressureTrend(trends: StationTrends | null | undefined): string {
 }
 
 // A 24-hour range reaches back into yesterday, where a time alone could read as later today.
-function extreme(fahrenheit: number | null | undefined, at: string | null | undefined, observedAt: string, unit: Unit): string {
+// A Today range never does: it's the station's own day, which the browser's time zone can't judge.
+function extreme(
+    fahrenheit: number | null | undefined,
+    at: string | null | undefined,
+    observedAt: string,
+    unit: Unit,
+    range: StationHistoryRange,
+): string {
     if (fahrenheit === null || fahrenheit === undefined) {
         return missing;
     }
@@ -58,7 +65,7 @@ function extreme(fahrenheit: number | null | undefined, at: string | null | unde
     }
 
     const time = new Date(at);
-    const earlierDay = time.toDateString() !== new Date(observedAt).toDateString();
+    const earlierDay = range !== 'Today' && time.toDateString() !== new Date(observedAt).toDateString();
     return `${value}, ${time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}${earlierDay ? ' yesterday' : ''}`;
 }
 
@@ -87,8 +94,8 @@ export function stationCards(
         {
             title: 'Temperature',
             rows: [
-                [`${period} high`, extreme(trends?.highF, trends?.highAt, reading.observedAt, unit)],
-                [`${period} low`, extreme(trends?.lowF, trends?.lowAt, reading.observedAt, unit)],
+                [`${period} high`, extreme(trends?.highF, trends?.highAt, reading.observedAt, unit, range)],
+                [`${period} low`, extreme(trends?.lowF, trends?.lowAt, reading.observedAt, unit, range)],
             ],
         },
         {

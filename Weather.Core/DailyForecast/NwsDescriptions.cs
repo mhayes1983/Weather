@@ -10,15 +10,12 @@ public sealed record DayDescription(string? Day, string? Night);
 public sealed class NwsDescriptions(IHttpClientFactory httpClientFactory, WeatherCache cache)
 {
     private const int LastHourOfPreviousNight = 6;
-    private static readonly TimeSpan GridCacheDuration = TimeSpan.FromDays(30);
 
     public async Task<IReadOnlyDictionary<DateOnly, DayDescription>> GetAsync(GeoPoint location, CancellationToken cancellationToken)
     {
         var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
 
-        var forecastUrl = await cache.GetOrCreateAsync(
-            string.Create(CultureInfo.InvariantCulture, $"nws-grid:{location.Latitude:0.####},{location.Longitude:0.####}"),
-            async () => (await NwsSource.GetForecastUrlAsync(client, location.Latitude, location.Longitude, cancellationToken), GridCacheDuration));
+        var forecastUrl = await NwsSource.GetCachedForecastUrlAsync(client, cache, location, cancellationToken);
 
         using var document = JsonDocument.Parse(await client.GetStringAsync(forecastUrl, cancellationToken));
 
