@@ -11,6 +11,7 @@ public sealed class DailyForecastService(
     StationLocator locator,
     OpenMeteoOutlook outlook,
     NwsDescriptions descriptions,
+    NwsDiscussion discussion,
     UsnoMoon moon,
     WeatherCache cache,
     IOptions<WeatherOptions> options,
@@ -140,6 +141,37 @@ public sealed class DailyForecastService(
 
     // Open-Meteo's "2026-10-30T07:14" as "07:14", to match USNO.
     private static string? Clock(string? time) => time?[(time.IndexOf('T') + 1)..];
+
+    /// <summary>Returns null when the ID is badly formed. A discussion that can't be loaded is left out.</summary>
+    public async Task<DiscussionReport?> GetDiscussionAsync(string? stationId = null)
+    {
+        if (directory.Find(stationId) is not { } station)
+        {
+            return null;
+        }
+
+        if (!station.CanLocate)
+        {
+            return new DiscussionReport(null);
+        }
+
+        var office = await GetOptionalAsync(
+            "NWS office",
+            $"nws-office:{station.Id}",
+            ForecastCacheDuration,
+            async token => await discussion.GetOfficeAsync(await locator.GetAsync(station, token), token));
+        if (office is null)
+        {
+            return new DiscussionReport(null);
+        }
+
+        // Cached per office, so stations that share one make its two calls once.
+        return new DiscussionReport(await GetOptionalAsync(
+            "NWS discussion",
+            $"discussion:{office}",
+            ForecastCacheDuration,
+            token => discussion.GetAsync(office, token)));
+    }
 
     private DateTimeOffset LocalNow(Outlook forecast) =>
         TimeZoneInfo.ConvertTime(

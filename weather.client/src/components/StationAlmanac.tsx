@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { fetchAlmanac, type AlmanacDay, type AlmanacReport, type AlmanacSky } from '../api/almanac';
-import { almanacAmount, almanacDate, almanacTabLabel, almanacTemperature, climateStationName, selectedAlmanacDate } from '../almanac';
+import { almanacAmount, almanacDate, almanacDeparture, almanacTabLabel, almanacTemperature, climateStationName, selectedAlmanacDate } from '../almanac';
 import { formatTime } from '../localTime';
 import type { Unit } from '../temperature';
 
@@ -20,31 +20,42 @@ function AlmanacTable({ day, valueLabel, unit }: { day: AlmanacDay; valueLabel: 
         ['Snow', almanacAmount(day.snow.value, 1), almanacAmount(day.snow.average, 1), almanacAmount(day.snow.record, 1), day.snow.recordYear],
     ];
 
+    const departures = [
+        ['High', almanacDeparture(day.high.value, day.high.average, unit)],
+        ['Low', almanacDeparture(day.low.value, day.low.average, unit)],
+    ].filter(([, departure]) => departure !== null);
+
     return (
-        <table>
-            <caption>{almanacDate(day.date)}</caption>
-            <thead>
-                <tr>
-                    <td />
-                    <th scope="col">{valueLabel}</th>
-                    <th scope="col">Average</th>
-                    <th scope="col">Record</th>
-                </tr>
-            </thead>
-            <tbody>
-                {rows.map(([label, value, average, record, year]) =>
-                    <tr key={label}>
-                        <th scope="row">{label}</th>
-                        <td>{value}</td>
-                        <td>{average}</td>
-                        <td>
-                            {record}
-                            {year !== null && <span className="almanac-year">{year}</span>}
-                        </td>
+        <>
+            <table>
+                <caption>{almanacDate(day.date)}</caption>
+                <thead>
+                    <tr>
+                        <td />
+                        <th scope="col">{valueLabel}</th>
+                        <th scope="col">Average</th>
+                        <th scope="col">Record</th>
                     </tr>
-                )}
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    {rows.map(([label, value, average, record, year]) =>
+                        <tr key={label}>
+                            <th scope="row">{label}</th>
+                            <td>{value}</td>
+                            <td>{average}</td>
+                            <td>
+                                {record}
+                                {year !== null && <span className="almanac-year">{year}</span>}
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+            {departures.length > 0 &&
+                <p className="almanac-departure">
+                    {departures.map(([label, departure]) => `${label} ${departure}.`).join(' ')}
+                </p>}
+        </>
     );
 }
 

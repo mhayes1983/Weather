@@ -41,6 +41,14 @@ public sealed record MoonInfo(string? Phase, int? IlluminationPercent, string? M
 /// <summary>USNO's answer for one date. Times are local "HH:mm", and any can be missing.</summary>
 public sealed record UsnoDay(string? Sunrise, string? Sunset, MoonInfo Moon);
 
+public sealed record DiscussionSection(string Title, IReadOnlyList<string> Paragraphs);
+
+/// <summary>The local NWS office's Area Forecast Discussion. <c>Office</c> is its code, such as GYX.</summary>
+public sealed record ForecastDiscussion(string Office, DateTimeOffset IssuedAt, IReadOnlyList<DiscussionSection> Sections);
+
+/// <summary><c>Discussion</c> is null when there isn't one to show.</summary>
+public sealed record DiscussionReport(ForecastDiscussion? Discussion);
+
 public sealed record DailyForecastReport(
     string StationName,
     SourceStatus Status,

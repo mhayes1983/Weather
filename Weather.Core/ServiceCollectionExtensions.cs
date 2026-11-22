@@ -36,6 +36,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<AlertService>();
         services.AddSingleton<OpenMeteoOutlook>();
         services.AddSingleton<NwsDescriptions>();
+        services.AddSingleton<NwsDiscussion>();
         services.AddSingleton<UsnoMoon>();
         services.AddSingleton<DailyForecastService>();
         services.AddSingleton<AcisAlmanac>();

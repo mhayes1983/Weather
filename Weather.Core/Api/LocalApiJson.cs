@@ -13,6 +13,7 @@ namespace Weather.Core.Api;
 [JsonSerializable(typeof(AlertReport))]
 [JsonSerializable(typeof(DailyForecastReport))]
 [JsonSerializable(typeof(ForecastDayDetail))]
+[JsonSerializable(typeof(DiscussionReport))]
 [JsonSerializable(typeof(AlmanacReport))]
 [JsonSerializable(typeof(SnowTable))]
 [JsonSerializable(typeof(IReadOnlyList<SnowTownSummary>))]

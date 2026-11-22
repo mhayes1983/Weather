@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchDailyForecast, type DailyForecastReport, type ForecastDay } from '../api/dailyForecast';
+import ForecastDiscussion from '../components/ForecastDiscussion';
 import RouteLink from '../components/RouteLink';
 import StationHeader, { type StationControls } from '../components/StationHeader';
 import { formatDate } from '../localTime';
@@ -112,6 +113,7 @@ function DailyForecastPage({ station, stationControls, unit, onNavigate }: Daily
                             </li>
                         )}
                     </ol>
+                    <ForecastDiscussion station={station} />
                     <footer className="attribution">
                         Weather data by <a href="https://open-meteo.com/">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>)
                     </footer>

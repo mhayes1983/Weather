@@ -284,6 +284,9 @@ public class StationTests
         Assert.Null(report.Message);
         Assert.Equal(66.9, report.Current!.TemperatureF);
         Assert.Equal(2, report.History.Count);
+        Assert.Equal(66.9, report.Trends!.HighF);
+        Assert.Equal(65.5, report.Trends.LowF);
+        Assert.Equal(TestData.Now.AddMinutes(-5), report.Trends.LowAt);
     }
 
     [Fact]
@@ -293,6 +296,7 @@ public class StationTests
 
         Assert.Equal(StationStatus.Offline, report.Status);
         Assert.NotNull(report.Current);
+        Assert.Null(report.Trends);
     }
 
     [Fact]

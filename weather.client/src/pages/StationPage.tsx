@@ -85,7 +85,14 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
             {report && report.status !== 'Ok' && report.status !== 'NeedsKey' && <p className="error" role="alert">{report.message}</p>}
             {warnings.map(warning => <p key={warning} className="error" role="alert">{warning}</p>)}
 
-            {current && <CurrentConditions reading={current} sky={report?.sky ?? null} unit={unit} />}
+            {current && report &&
+                <CurrentConditions
+                    reading={current}
+                    sky={report.sky}
+                    trends={report.trends}
+                    range={report.historyRange}
+                    unit={unit}
+                />}
 
             {report?.historyMessage && <p className="error" role="alert">History: {report.historyMessage}</p>}
             {history.length > 0 && <StationCharts history={history} range={range} unit={unit} maxGapMinutes={maxGapMinutes} />}

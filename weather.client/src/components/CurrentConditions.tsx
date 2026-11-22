@@ -1,4 +1,4 @@
-import type { CurrentSky, StationReading } from '../api/station';
+import type { CurrentSky, StationHistoryRange, StationReading, StationTrends } from '../api/station';
 import { stationCards, stationTemperature } from '../stationCards';
 import type { Unit } from '../temperature';
 import { useSortableLayout } from '../useSortableLayout';
@@ -8,12 +8,14 @@ import SortablePanel from './SortablePanel';
 interface CurrentConditionsProps {
     reading: StationReading;
     sky: CurrentSky | null;
+    trends: StationTrends | null;
+    range: StationHistoryRange;
     unit: Unit;
 }
 
-function CurrentConditions({ reading, sky, unit }: CurrentConditionsProps) {
+function CurrentConditions({ reading, sky, trends, range, unit }: CurrentConditionsProps) {
     // Stations report different readings, so anything a station lacks is left out.
-    const cards = new Map(stationCards(reading, unit).map(card => [card.title, card]));
+    const cards = new Map(stationCards(reading, unit, trends, range).map(card => [card.title, card]));
     const layout = useSortableLayout('stationCards', [...cards.keys()]);
 
     return (
