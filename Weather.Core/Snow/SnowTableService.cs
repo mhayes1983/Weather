@@ -123,6 +123,8 @@ public sealed class SnowTableService(
         var (start, end) = SnowWindow.Bounds(request.Start, request.End, location.TimeZoneId);
         var total = SnowWindow.Total(result.Periods, start, end);
         var timing = SnowWindow.Timing(result.Periods, start, end);
+        var span = timing is null ? null : SnowWindow.Total(result.Periods, timing.Value.Start, timing.Value.End);
+        var peak = SnowWindow.Peak(result.Periods, start, end);
         var zone = TimeZoneInfo.FindSystemTimeZoneById(location.TimeZoneId);
 
         // Ice is thin, so it keeps hundredths of an inch.
@@ -137,7 +139,66 @@ public sealed class SnowTableService(
             total is null ? "No forecast for these dates" : result.Message,
             timing is null ? null : TimeZoneInfo.ConvertTime(timing.Value.Start, zone),
             timing is null ? null : TimeZoneInfo.ConvertTime(timing.Value.End, zone),
-            ice?.High);
+            ice?.High,
+            span?.Low,
+            span?.High,
+            peak is null ? null : TimeZoneInfo.ConvertTime(peak.Value.Start, zone),
+            peak is null ? null : TimeZoneInfo.ConvertTime(peak.Value.End, zone),
+            peak?.InchesPerHour);
+    }
+
+    /// <summary>
+    /// Reads the hourly query: one ZIP and the same dates as <see cref="Parse"/>.
+    /// </summary>
+    public (SnowRequest? Request, string? Error) ParseHourly(string? zip, string? start, string? end)
+    {
+        if (string.IsNullOrWhiteSpace(zip) || !LocationResolver.IsValidZip(zip.Trim()))
+        {
+            return (null, "Enter a 5-digit ZIP code.");
+        }
+
+        return Parse(zip.Trim(), start, end);
+    }
+
+    /// <summary>
+    /// Every source's periods for one town over the request's dates, from the same cached results as the
+    /// table, so a town the table has loaded costs no more calls. One bad source only fails its own entry.
+    /// </summary>
+    public async Task<SnowHourly> GetHourlyAsync(SnowRequest request)
+    {
+        var zip = request.Zips[0];
+        var configured = Towns.ToDictionary(town => town.Zip, town => town.Name);
+        var (town, location) = await LocateAsync(zip, configured);
+        if (location is null)
+        {
+            return new SnowHourly(zip, town.Name, town.Message, request.Start, request.End, timeProvider.GetUtcNow(), []);
+        }
+
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(location.TimeZoneId);
+        var (start, end) = SnowWindow.Bounds(request.Start, request.End, location.TimeZoneId);
+        var applicable = sources.Where(source => source.AppliesTo(location)).ToList();
+        var results = await Task.WhenAll(applicable.Select(source => GetSourceResultAsync(source, location)));
+
+        IReadOnlyList<SnowPeriod> local(IReadOnlyList<SnowPeriod> periods) => SnowWindow.Clip(periods, start, end)
+            .Select(period => period with
+            {
+                Start = TimeZoneInfo.ConvertTime(period.Start, zone),
+                End = TimeZoneInfo.ConvertTime(period.End, zone),
+            })
+            .ToList();
+
+        var entries = applicable.Select((source, i) =>
+        {
+            var result = results[i];
+            return result.Status == SourceStatus.Ok
+                ? new SnowHourlySource(source.Column.Id, source.Column.Label, result.Status, result.Message,
+                    local(result.Periods), result.Ice is null ? null : local(result.Ice),
+                    SnowWindow.Total(result.Periods, start, end)?.Partial ?? false)
+                : new SnowHourlySource(source.Column.Id, source.Column.Label, result.Status, result.Message, [], null);
+        }).ToList();
+
+        return new SnowHourly(
+            zip, town.Name, null, request.Start, request.End, TimeZoneInfo.ConvertTime(timeProvider.GetUtcNow(), zone), entries);
     }
 
     // A row only shows Needs key or an error when every town has it; otherwise the cells say which failed.

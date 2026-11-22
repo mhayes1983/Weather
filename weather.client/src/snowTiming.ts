@@ -89,3 +89,172 @@ export function datesBetween(first: string, last: string): string[] {
 export function dayLabel(date: string): string {
     return `${weekday(date)} ${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
 }
+
+/** Snow expected over one period, in the town's local time. */
+export interface TimedAmount {
+    start: string;
+    end: string;
+    lowInches: number;
+    highInches: number;
+}
+
+/** Below this rate a period is flurries, matching Core's `SnowWindow.FallingInchesPerHour`. */
+export const fallingInchesPerHour = 0.01;
+
+/**
+ * Real hours between two times, using their offsets. Unlike the wall clock, this is right across a clock
+ * change, when 1 AM to 3 AM can be one hour or three.
+ */
+export function elapsedHours(start: string, end: string): number {
+    return (Date.parse(end) - Date.parse(start)) / 3_600_000;
+}
+
+/** Inches an hour for a period, by its high amount, over the time that really passes. */
+export function hourlyRate(period: TimedAmount): number {
+    const hours = elapsedHours(period.start, period.end);
+    return hours > 0 ? period.highInches / hours : 0;
+}
+
+/**
+ * The high amount of `part` that falls between `from` and `to`, taking a share of a part that crosses
+ * either edge. NWS ice comes in its own 6-hour blocks that rarely line up with its snow periods.
+ */
+export function overlapInches(part: TimedAmount, from: string, to: string): number {
+    const start = Math.max(Date.parse(part.start), Date.parse(from));
+    const end = Math.min(Date.parse(part.end), Date.parse(to));
+    const length = Date.parse(part.end) - Date.parse(part.start);
+    return end > start && length > 0 ? part.highInches * (end - start) / length : 0;
+}
+
+/**
+ * The town's time now, worked out from the offset in the server's `now` so it keeps moving after the
+ * data loads. A clock change since then leaves it an hour out until the data loads again.
+ */
+export function townNow(serverNow: string, nowMs: number): string {
+    const offset = serverNow.slice(19).match(/([+-])(\d{2}):(\d{2})$/);
+    const minutes = offset ? (offset[1] === '-' ? -1 : 1) * (Number(offset[2]) * 60 + Number(offset[3])) : 0;
+    const wall = new Date(nowMs + minutes * 60_000).toISOString().slice(0, 16);
+    return `${wall}:00${offset ? offset[0] : 'Z'}`;
+}
+
+export type Intensity = 'light' | 'moderate' | 'heavy';
+
+/** Light below a quarter inch an hour, heavy from an inch an hour, as the NWS describes snowfall rates. */
+export function intensity(inchesPerHour: number): Intensity {
+    return inchesPerHour >= 1 ? 'heavy' : inchesPerHour >= 0.25 ? 'moderate' : 'light';
+}
+
+/** Each period with snow falling, placed on the timing chart, oldest first. */
+export function periodSegments(periods: TimedAmount[], firstDate: string, lastDate: string) {
+    return periods
+        .filter(period => hourlyRate(period) >= fallingInchesPerHour)
+        .map(period => ({ ...timingSpan(period.start, period.end, firstDate, lastDate), rate: hourlyRate(period), period }))
+        .filter(segment => segment.width > 0);
+}
+
+/** How many hours the chart covers, from midnight starting `firstDate` to midnight ending `lastDate`. */
+export function hoursBetween(firstDate: string, lastDate: string): number {
+    return datesBetween(firstDate, lastDate).length * 24;
+}
+
+/** The wall-clock time `hour` hours after midnight starting `firstDate`, as "YYYY-MM-DDTHH:00". */
+export function hourAt(firstDate: string, hour: number): string {
+    const date = new Date(wallMinutes(`${firstDate}T00:00`) * 60_000 + hour * 3_600_000);
+    return date.toISOString().slice(0, 13) + ':00';
+}
+
+/** For each hour of the chart, how many of the sources have snow falling at some point in it. */
+export function agreementByHour(sources: TimedAmount[][], firstDate: string, lastDate: string): number[] {
+    const from = wallMinutes(`${firstDate}T00:00`);
+    const counts = new Array<number>(hoursBetween(firstDate, lastDate)).fill(0);
+    for (const periods of sources) {
+        const falling = new Set<number>();
+        for (const period of periods) {
+            if (hourlyRate(period) < fallingInchesPerHour) {
+                continue;
+            }
+
+            const first = Math.max(0, Math.floor((wallMinutes(period.start) - from) / 60));
+            const last = Math.min(counts.length, Math.ceil((wallMinutes(period.end) - from) / 60));
+            for (let hour = first; hour < last; hour++) {
+                falling.add(hour);
+            }
+        }
+
+        falling.forEach(hour => counts[hour]++);
+    }
+
+    return counts;
+}
+
+/**
+ * The running total at each hour of the chart, from 0 at the first midnight, taking a share of any
+ * period an hour falls inside. Null after the source's last period ends, so its line stops there.
+ */
+export function cumulativeByHour(periods: TimedAmount[], firstDate: string, lastDate: string): (number | null)[] {
+    const from = wallMinutes(`${firstDate}T00:00`);
+    const hours = hoursBetween(firstDate, lastDate);
+    const spans = periods.map(period => ({
+        start: (wallMinutes(period.start) - from) / 60,
+        end: (wallMinutes(period.end) - from) / 60,
+        inches: period.highInches,
+    }));
+    const lastEnd = Math.max(0, ...spans.map(span => span.end));
+
+    const values: (number | null)[] = [];
+    for (let hour = 0; hour <= hours; hour++) {
+        if (hour > Math.ceil(lastEnd) || spans.length === 0) {
+            values.push(null);
+            continue;
+        }
+
+        const total = spans.reduce((sum, span) => {
+            const length = span.end - span.start;
+            const covered = Math.min(hour, span.end) - span.start;
+            return length <= 0 || covered <= 0 ? sum : sum + span.inches * Math.min(1, covered / length);
+        }, 0);
+        values.push(Math.round(total * 100) / 100);
+    }
+
+    return values;
+}
+
+/** "1.5–2 in", or "2 in" when the low and high agree. */
+export function inchesText(low: number, high: number, digits = 1): string {
+    const format = (value: number) => String(Number(value.toFixed(digits)));
+    return low === high || format(low) === format(high) ? `${format(high)} in` : `${format(low)}–${format(high)} in`;
+}
+
+/** The parts of a snow cell the timing summary reads. */
+export interface TimingCell {
+    snowStart: string | null;
+    snowEnd: string | null;
+    timingLowInches: number | null;
+    timingHighInches: number | null;
+    peakStart: string | null;
+    peakEnd: string | null;
+    peakInchesPerHour: number | null;
+}
+
+/** "Thu 7 PM – Fri 1 AM: 1.5–2 in · heaviest 0.8 in/hr Thu 8 PM" for a source's timing bar. */
+export function spanSummary(cell: TimingCell): string {
+    if (!cell.snowStart || !cell.snowEnd) {
+        return '';
+    }
+
+    let span = timingText(cell.snowStart, cell.snowEnd);
+    if (cell.timingHighInches !== null) {
+        span += `: ${inchesText(cell.timingLowInches ?? cell.timingHighInches, cell.timingHighInches)}`;
+    }
+
+    if (!cell.peakStart || !cell.peakEnd || cell.peakInchesPerHour === null) {
+        return span;
+    }
+
+    // NWS and Weather Underground blocks only give an average rate.
+    const hours = elapsedHours(cell.peakStart, cell.peakEnd);
+    const peak = hours > 1
+        ? `heaviest ${cell.peakInchesPerHour} in/hr on average, ${timingText(cell.peakStart, cell.peakEnd)}`
+        : `heaviest ${cell.peakInchesPerHour} in/hr ${localDayTime(cell.peakStart)}`;
+    return `${span} · ${peak}`;
+}

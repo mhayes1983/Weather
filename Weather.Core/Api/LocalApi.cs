@@ -49,6 +49,7 @@ public sealed class LocalApi(
                 "/api/almanac" => await GetAlmanacAsync(value("station")),
                 "/api/snow/towns" => Ok(snowTables.Towns, LocalApiJson.Default.IReadOnlyListSnowTownSummary),
                 "/api/snow" => await GetSnowAsync(value("zips"), value("start"), value("end")),
+                "/api/snow/hourly" => await GetSnowHourlyAsync(value("zip"), value("start"), value("end")),
                 "/api/snow/alerts" => await GetSnowAlertsAsync(value("zips")),
                 "/api/snow/reports" => await GetSnowReportsAsync(value("zips"), value("start"), value("end")),
                 _ when path.StartsWith(DayPrefix, StringComparison.Ordinal) => await GetDayAsync(path[DayPrefix.Length..], value("station")),
@@ -191,6 +192,14 @@ public sealed class LocalApi(
         return request is null
             ? Problem(400, error!)
             : Ok(await snowTables.GetAsync(request), LocalApiJson.Default.SnowTable);
+    }
+
+    private async Task<LocalApiResponse> GetSnowHourlyAsync(string? zip, string? start, string? end)
+    {
+        var (request, error) = snowTables.ParseHourly(zip, start, end);
+        return request is null
+            ? Problem(400, error!)
+            : Ok(await snowTables.GetHourlyAsync(request), LocalApiJson.Default.SnowHourly);
     }
 
     private async Task<LocalApiResponse> GetSnowReportsAsync(string? zips, string? start, string? end)

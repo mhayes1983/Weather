@@ -40,7 +40,10 @@ public sealed record SnowSourceRow(
 /// source's forecast doesn't cover the whole range, so the total is a minimum.
 /// <see cref="SnowStart"/> and <see cref="SnowEnd"/> are when it first and last has snow falling inside
 /// the range, in the town's local time, and are null when it has none. <see cref="IceInches"/> is null
-/// for a source that doesn't forecast ice.
+/// for a source that doesn't forecast ice. <see cref="TimingLowInches"/> and <see cref="TimingHighInches"/>
+/// are the snow from <see cref="SnowStart"/> to <see cref="SnowEnd"/>. <see cref="PeakStart"/> to
+/// <see cref="PeakEnd"/> is the source's heaviest period, which is an hour for hourly sources and a
+/// 6 to 12-hour block for NWS and Weather Underground.
 /// </summary>
 public sealed record SnowCell(
     string SourceId,
@@ -52,7 +55,40 @@ public sealed record SnowCell(
     string? Message,
     DateTimeOffset? SnowStart = null,
     DateTimeOffset? SnowEnd = null,
-    double? IceInches = null);
+    double? IceInches = null,
+    double? TimingLowInches = null,
+    double? TimingHighInches = null,
+    DateTimeOffset? PeakStart = null,
+    DateTimeOffset? PeakEnd = null,
+    double? PeakInchesPerHour = null);
+
+/// <summary>
+/// One source's snow periods for one town, trimmed to the range and in the town's local time.
+/// Hourly sources give hours; NWS and Weather Underground give longer blocks. <see cref="Ice"/> is
+/// null for a source that doesn't forecast ice. <see cref="Partial"/> means the forecast doesn't cover
+/// the whole range, as in <see cref="SnowCell.Partial"/>, so its total is a minimum.
+/// </summary>
+public sealed record SnowHourlySource(
+    string Id,
+    string Label,
+    SourceStatus Status,
+    string? Message,
+    IReadOnlyList<SnowPeriod> Periods,
+    IReadOnlyList<SnowPeriod>? Ice,
+    bool Partial = false);
+
+/// <summary>
+/// Every source's snow periods for one town. <see cref="Now"/> is the town's local time.
+/// <see cref="Message"/> says why the town has no sources, such as an unknown ZIP.
+/// </summary>
+public sealed record SnowHourly(
+    string Zip,
+    string Name,
+    string? Message,
+    DateOnly Start,
+    DateOnly End,
+    DateTimeOffset Now,
+    IReadOnlyList<SnowHourlySource> Sources);
 
 public sealed record SnowTable(
     DateOnly Start,

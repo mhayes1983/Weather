@@ -252,7 +252,10 @@ public class SnowTests
         var table = await service.GetAsync(request!);
 
         Assert.Equal(new SnowTown("04086", "Topsham", null), Assert.Single(table.Towns));
-        Assert.Equal(new SnowCell("good", "04086", 2, 4, false, SourceStatus.Ok, null, Midnight, Midnight.AddHours(24)), table.Cells[0]);
+        Assert.Equal(
+            new SnowCell("good", "04086", 2, 4, false, SourceStatus.Ok, null, Midnight, Midnight.AddHours(24),
+                TimingLowInches: 2, TimingHighInches: 4, PeakStart: Midnight, PeakEnd: Midnight.AddHours(24), PeakInchesPerHour: 0.17),
+            table.Cells[0]);
         Assert.Equal(SourceStatus.Error, table.Sources[1].Status);
         Assert.Equal("Source returned HTTP 503", table.Cells[1].Message);
     }
@@ -365,6 +368,141 @@ public class SnowTests
 
         Assert.Null(SnowWindow.Timing(periods, Midnight, Midnight.AddHours(24)));
         Assert.Null(SnowWindow.Timing([], Midnight, Midnight.AddHours(24)));
+    }
+
+    [Fact]
+    public void ClipCutsPeriodsAtTheWindowAndSharesTheirAmounts()
+    {
+        SnowPeriod[] periods =
+        [
+            new(Midnight.AddHours(18), Midnight.AddHours(30), 2, 3),
+            new(Midnight.AddHours(-6), Midnight.AddHours(6), 1, 2),
+            new(Midnight.AddHours(40), Midnight.AddHours(41), 1, 1),
+        ];
+
+        var clipped = SnowWindow.Clip(periods, Midnight, Midnight.AddHours(24));
+
+        Assert.Equal(
+            [
+                new SnowPeriod(Midnight, Midnight.AddHours(6), 0.5, 1),
+                new SnowPeriod(Midnight.AddHours(18), Midnight.AddHours(24), 1, 1.5),
+            ],
+            clipped);
+    }
+
+    [Fact]
+    public void PeakIsTheHeaviestRateAndLeavesOutFlurries()
+    {
+        SnowPeriod[] periods =
+        [
+            new(Midnight.AddHours(-1), Midnight.AddHours(1), 0, 3),
+            new(Midnight.AddHours(6), Midnight.AddHours(18), 2, 6),
+            new(Midnight.AddHours(20), Midnight.AddHours(21), 0.4, 0.8),
+        ];
+
+        Assert.Equal((Midnight, Midnight.AddHours(1), 1.5), SnowWindow.Peak(periods, Midnight, Midnight.AddHours(24)));
+        Assert.Equal((Midnight.AddHours(20), Midnight.AddHours(21), 0.8), SnowWindow.Peak(periods, Midnight.AddHours(2), Midnight.AddHours(24)));
+        Assert.Null(SnowWindow.Peak([new(Midnight, Midnight.AddHours(12), 0, 0.05)], Midnight, Midnight.AddHours(24)));
+    }
+
+    [Fact]
+    public async Task CellsCarryTheSpanTotalAndPeak()
+    {
+        var service = Service(
+        [
+            new FakeSnowSource("storm", () => SnowResult.Ok(
+                [
+                    new SnowPeriod(Midnight.AddHours(1), Midnight.AddHours(2), 0.001, 0.001),
+                    new SnowPeriod(Midnight.AddHours(10), Midnight.AddHours(11), 1, 1.5),
+                    new SnowPeriod(Midnight.AddHours(11), Midnight.AddHours(12), 0.4, 0.5),
+                ],
+                TestData.Now)),
+        ]);
+        var (request, _) = service.Parse(null, "2026-10-30", "2026-10-30");
+
+        var cell = Assert.Single((await service.GetAsync(request!)).Cells);
+
+        Assert.Equal(1.4, cell.TimingLowInches);
+        Assert.Equal(2, cell.TimingHighInches);
+        Assert.Equal(Midnight.AddHours(10), cell.PeakStart);
+        Assert.Equal(10, cell.PeakStart!.Value.Hour);
+        Assert.Equal(Midnight.AddHours(11), cell.PeakEnd);
+        Assert.Equal(1.5, cell.PeakInchesPerHour);
+    }
+
+    [Fact]
+    public async Task HourlyGivesEverySourcesPeriodsInTheTownsTime()
+    {
+        var calls = 0;
+        var service = Service(
+        [
+            new FakeSnowSource("good", () =>
+            {
+                calls++;
+                return SnowResult.Ok(
+                    [new SnowPeriod(Midnight.AddHours(-2), Midnight.AddHours(2), 1, 2), new SnowPeriod(Midnight.AddHours(30), Midnight.AddHours(31), 1, 1)],
+                    TestData.Now,
+                    [new SnowPeriod(Midnight, Midnight.AddHours(6), 0.1, 0.1)]);
+            }),
+            new FakeSnowSource("bad", () => throw new HttpRequestException("Down", null, HttpStatusCode.ServiceUnavailable)),
+        ]);
+        var (request, _) = service.ParseHourly("04086", "2026-10-30", "2026-10-30");
+        var (tableRequest, _) = service.Parse("04086", "2026-10-30", "2026-10-30");
+        await service.GetAsync(tableRequest!);
+
+        var hourly = await service.GetHourlyAsync(request!);
+
+        Assert.Equal(1, calls);
+        Assert.Equal("Topsham", hourly.Name);
+        Assert.Equal(TimeSpan.FromHours(-4), hourly.Now.Offset);
+        var good = hourly.Sources[0];
+        var period = Assert.Single(good.Periods);
+        Assert.Equal(new SnowPeriod(Midnight, Midnight.AddHours(2), 0.5, 1), period);
+        Assert.Equal(0, period.Start.Hour);
+        Assert.Equal(0.1, Assert.Single(good.Ice!).HighInches);
+        Assert.False(good.Partial);
+        Assert.Equal(SourceStatus.Error, hourly.Sources[1].Status);
+        Assert.Empty(hourly.Sources[1].Periods);
+    }
+
+    [Fact]
+    public async Task HourlyMarksASourceThatStartsLateAsPartial()
+    {
+        var service = Service(
+        [
+            new FakeSnowSource("late", () => SnowResult.Ok([new SnowPeriod(Midnight.AddHours(12), Midnight.AddHours(36), 1, 2)], TestData.Now)),
+        ]);
+        var (request, _) = service.ParseHourly("04086", "2026-10-30", "2026-10-30");
+
+        var hourly = await service.GetHourlyAsync(request!);
+
+        Assert.True(Assert.Single(hourly.Sources).Partial);
+    }
+
+    [Fact]
+    public async Task HourlyNamesAnUnknownTown()
+    {
+        var http = new StubHttp(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+        var service = Service([new FakeSnowSource("good", () => SnowResult.Ok([], TestData.Now))], http);
+        var (request, _) = service.ParseHourly("99999", null, null);
+
+        var hourly = await service.GetHourlyAsync(request!);
+
+        Assert.Equal("That ZIP code wasn't found.", hourly.Message);
+        Assert.Empty(hourly.Sources);
+    }
+
+    [Theory]
+    [InlineData("04086", null)]
+    [InlineData(null, "Enter a 5-digit ZIP code.")]
+    [InlineData("04086,04011", "Enter a 5-digit ZIP code.")]
+    [InlineData("0408", "Enter a 5-digit ZIP code.")]
+    public void HourlyTakesOneTown(string? zip, string? error)
+    {
+        var (request, message) = Service([]).ParseHourly(zip, null, null);
+
+        Assert.Equal(error, message);
+        Assert.Equal(error is null, request is not null);
     }
 
     [Fact]
