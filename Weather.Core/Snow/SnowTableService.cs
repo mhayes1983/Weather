@@ -192,7 +192,8 @@ public sealed class SnowTableService(
             var result = results[i];
             return result.Status == SourceStatus.Ok
                 ? new SnowHourlySource(source.Column.Id, source.Column.Label, result.Status, result.Message,
-                    local(result.Periods), result.Ice is null ? null : local(result.Ice))
+                    local(result.Periods), result.Ice is null ? null : local(result.Ice),
+                    SnowWindow.Total(result.Periods, start, end)?.Partial ?? false)
                 : new SnowHourlySource(source.Column.Id, source.Column.Label, result.Status, result.Message, [], null);
         }).ToList();
 

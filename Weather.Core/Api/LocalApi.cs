@@ -50,7 +50,7 @@ public sealed class LocalApi(
                 "/api/snow/towns" => Ok(snowTables.Towns, LocalApiJson.Default.IReadOnlyListSnowTownSummary),
                 "/api/snow" => await GetSnowAsync(value("zips"), value("start"), value("end")),
                 "/api/snow/hourly" => await GetSnowHourlyAsync(value("zip"), value("start"), value("end")),
-                "/api/snow/alerts" =>await GetSnowAlertsAsync(value("zips")),
+                "/api/snow/alerts" => await GetSnowAlertsAsync(value("zips")),
                 "/api/snow/reports" => await GetSnowReportsAsync(value("zips"), value("start"), value("end")),
                 _ when path.StartsWith(DayPrefix, StringComparison.Ordinal) => await GetDayAsync(path[DayPrefix.Length..], value("station")),
                 _ => Problem(404, "Not found."),

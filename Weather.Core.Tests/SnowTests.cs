@@ -460,8 +460,23 @@ public class SnowTests
         Assert.Equal(new SnowPeriod(Midnight, Midnight.AddHours(2), 0.5, 1), period);
         Assert.Equal(0, period.Start.Hour);
         Assert.Equal(0.1, Assert.Single(good.Ice!).HighInches);
+        Assert.False(good.Partial);
         Assert.Equal(SourceStatus.Error, hourly.Sources[1].Status);
         Assert.Empty(hourly.Sources[1].Periods);
+    }
+
+    [Fact]
+    public async Task HourlyMarksASourceThatStartsLateAsPartial()
+    {
+        var service = Service(
+        [
+            new FakeSnowSource("late", () => SnowResult.Ok([new SnowPeriod(Midnight.AddHours(12), Midnight.AddHours(36), 1, 2)], TestData.Now)),
+        ]);
+        var (request, _) = service.ParseHourly("04086", "2026-10-30", "2026-10-30");
+
+        var hourly = await service.GetHourlyAsync(request!);
+
+        Assert.True(Assert.Single(hourly.Sources).Partial);
     }
 
     [Fact]

@@ -95,7 +95,8 @@ function SnowPage({ route, onNavigate }: SnowPageProps) {
     // Each town's hourly data, by town and dates. It comes from the same cached results as the table.
     const [hourly, setHourly] = useState<Record<string, HourlyState>>({});
     const [hourlyLoading, setHourlyLoading] = useState<string[]>([]);
-    const requested = useRef(new Set<string>());
+    // Requests in flight or done, by key. Go aborts them all, so a late answer can't overwrite newer data.
+    const requested = useRef(new Map<string, AbortController>());
     const [hourlyLink, setHourlyLink] = useState<HourlyLink>();
     const [hourlyRoute, setHourlyRoute] = useState<Route>();
 
@@ -111,16 +112,33 @@ function SnowPage({ route, onNavigate }: SnowPageProps) {
             return;
         }
 
-        requested.current.add(key);
+        const controller = new AbortController();
+        requested.current.set(key, controller);
         setHourlyLoading(current => [...current, key]);
-        fetchSnowHourly(zip, from, to, new AbortController().signal)
-            .then(data => setHourly(current => ({ ...current, [key]: { data } })))
-            .catch((reason: Error) => {
-                // A failure can be tried again.
-                requested.current.delete(key);
-                setHourly(current => ({ ...current, [key]: { error: reason.message } }));
+        fetchSnowHourly(zip, from, to, controller.signal)
+            .then(data => {
+                if (!controller.signal.aborted) {
+                    setHourly(current => ({ ...current, [key]: { data } }));
+                }
             })
-            .finally(() => setHourlyLoading(current => current.filter(other => other !== key)));
+            .catch((reason: Error) => {
+                if (!controller.signal.aborted) {
+                    // A failure can be tried again.
+                    requested.current.delete(key);
+                    setHourly(current => ({ ...current, [key]: { error: reason.message } }));
+                }
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) {
+                    setHourlyLoading(current => current.filter(other => other !== key));
+                }
+            });
+    }, []);
+
+    // Leaving the page for good cancels anything still loading.
+    useEffect(() => {
+        const pending = requested.current;
+        return () => pending.forEach(controller => controller.abort());
     }, []);
 
     // The configured towns use no forecast quota.
@@ -208,8 +226,10 @@ function SnowPage({ route, onNavigate }: SnowPageProps) {
         setLoading(true);
         setCopied(false);
         // Go refreshes the table, so the hourly data loads again with it.
+        requested.current.forEach(controller => controller.abort());
         requested.current.clear();
         setHourly({});
+        setHourlyLoading([]);
         setRequest(current => ({ zips, start, end, attempt: (current?.attempt ?? 0) + 1 }));
 
         // The address then names this storm, so it can be bookmarked or shared. The app has no address to share.

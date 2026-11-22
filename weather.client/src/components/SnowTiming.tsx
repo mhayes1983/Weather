@@ -4,8 +4,9 @@ import { hourlyLinkSearch } from '../snowLink';
 import { sourceTitle } from '../sourceDescriptions';
 import {
     agreementByHour, datesBetween, dayLabel, hourAt, hoursBetween, intensity, localDayTime, periodSegments, spanSummary,
-    timingSpan, timingText,
+    timingSpan, timingText, townNow,
 } from '../snowTiming';
+import { useNow } from '../useNow';
 
 /** The hourly data for one town, as it loads. */
 export interface HourlyState {
@@ -40,6 +41,9 @@ function SnowTiming({ towns, sources, cells, start, end, hourly, onTownShown, on
         }
     }, [zip, onTownShown]);
 
+    // The now line moves with the clock rather than staying where it was when the data loaded.
+    const clock = useNow();
+
     if (!town) {
         return null;
     }
@@ -58,8 +62,9 @@ function SnowTiming({ towns, sources, cells, start, end, hourly, onTownShown, on
         ? agreementByHour(agreeing.map(source => data.sources.find(other => other.id === source.id)!.periods), start, end)
         : undefined;
     const most = agreement ? Math.max(0, ...agreement) : 0;
-    const now = data && data.now.slice(0, 10) >= start && data.now.slice(0, 10) <= end
-        ? timingSpan(data.now, data.now, start, end).left
+    const current = data ? townNow(data.now, clock) : undefined;
+    const now = current && current.slice(0, 10) >= start && current.slice(0, 10) <= end
+        ? timingSpan(current, current, start, end).left
         : undefined;
 
     function hourText(hour: number) {
@@ -119,7 +124,7 @@ function SnowTiming({ towns, sources, cells, start, end, hourly, onTownShown, on
                                         {busiest < 0 ? 'No snow' : `Most: ${most} of ${agreeing.length}, ${hourText(busiest)}`}
                                     </td>
                                     <td className="snow-timing-track">
-                                        <div
+                                        <div className="snow-timing-strip"
                                             role="img"
                                             aria-label={busiest < 0
                                                 ? 'No source shown has snow falling.'
@@ -175,7 +180,7 @@ function SnowTiming({ towns, sources, cells, start, end, hourly, onTownShown, on
                                                 onBlur={() => setCaption(undefined)}
                                                 onClick={() => setCaption(summary)}
                                             >
-                                                <div style={{ backgroundSize: `${100 / days.length}% 100%` }}>
+                                                <span className="snow-timing-strip" style={{ backgroundSize: `${100 / days.length}% 100%` }}>
                                                     {periods
                                                         ? periodSegments(periods, start, end).map(segment =>
                                                             <span
@@ -185,7 +190,7 @@ function SnowTiming({ towns, sources, cells, start, end, hourly, onTownShown, on
                                                             />)
                                                         : <span style={{ left: `${span.left}%`, width: `${span.width}%` }} />}
                                                     {nowLine}
-                                                </div>
+                                                </span>
                                             </button>
                                         </td>
                                     </tr>

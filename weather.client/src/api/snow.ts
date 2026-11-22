@@ -58,6 +58,8 @@ export interface SnowHourlySource {
     periods: SnowPeriod[];
     /** Null for a source that doesn't forecast ice. */
     ice: SnowPeriod[] | null;
+    /** The forecast doesn't cover all of the dates, so its total is a minimum. */
+    partial: boolean;
 }
 
 /** Every source's periods for one town, trimmed to the dates. `now` is the town's local time. */

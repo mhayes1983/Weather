@@ -1638,7 +1638,8 @@ a.daily-row:focus-visible {
 }
 
 /* The repeating gradient draws a line at the start of each day. */
-.snow-timing-track div {
+.snow-timing-strip {
+    display: block;
     position: relative;
     height: 10px;
     background-color: var(--border);
@@ -1646,7 +1647,7 @@ a.daily-row:focus-visible {
     border-radius: 3px;
 }
 
-.snow-timing-track span {
+.snow-timing-strip > span {
     position: absolute;
     top: 0;
     bottom: 0;
@@ -1656,19 +1657,19 @@ a.daily-row:focus-visible {
 }
 
 /* Heavier snow is darker: the shades are the chart colour at three strengths, so both themes follow it. */
-.snow-timing-track span.light,
+.snow-timing-strip > span.light,
 .snow-bar.light {
     opacity: 0.45;
 }
 
-.snow-timing-track span.moderate,
+.snow-timing-strip > span.moderate,
 .snow-bar.moderate {
     opacity: 0.75;
 }
 
-.snow-timing-track span.light,
-.snow-timing-track span.moderate,
-.snow-timing-track span.heavy {
+.snow-timing-strip > span.light,
+.snow-timing-strip > span.moderate,
+.snow-timing-strip > span.heavy {
     min-width: 2px;
     border-radius: 0;
 }
@@ -1678,7 +1679,7 @@ a.daily-row:focus-visible {
     color: var(--text-strong);
 }
 
-.snow-timing-agreement .snow-timing-track span {
+.snow-timing-agreement .snow-timing-strip > span {
     min-width: 0;
     border-radius: 0;
 }

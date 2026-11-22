@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { hourlyLinkSearch, maxLinkTowns, readHourlyLink, readSnowLink, snowLinkPath } from '../src/snowLink.ts';
 import {
-    agreementByHour, cumulativeByHour, datesBetween, dayLabel, hourAt, inchesText, intensity, localDayTime, periodSegments, spanSummary,
-    timingSpan, timingText,
+    agreementByHour, cumulativeByHour, datesBetween, dayLabel, hourAt, hourlyRate, inchesText, intensity, localDayTime, overlapInches,
+    periodSegments, spanSummary, timingSpan, timingText, townNow,
 } from '../src/snowTiming.ts';
 
 test('times keep the town\'s clock whatever the browser\'s time zone', () => {
@@ -136,4 +136,31 @@ test('an hourly link needs a town, source and dates', () => {
     assert.equal(readHourlyLink('?zip=04240&source=icon&start=2026-11-28&end=2026-11-26'), undefined);
     assert.equal(readHourlyLink('?zip=4240&source=icon&start=2026-11-26&end=2026-11-26'), undefined);
     assert.equal(readHourlyLink('?zip=04240&start=2026-11-26&end=2026-11-26'), undefined);
+});
+
+test('ice blocks are shared between the snow periods they cross, so the rows add up to the total', () => {
+    const ice = [
+        { start: '2026-11-27T01:00:00-05:00', end: '2026-11-27T07:00:00-05:00', lowInches: 0.12, highInches: 0.12 },
+        { start: '2026-11-27T07:00:00-05:00', end: '2026-11-27T13:00:00-05:00', lowInches: 0.06, highInches: 0.06 },
+    ];
+    const night = ['2026-11-26T18:00:00-05:00', '2026-11-27T06:00:00-05:00'];
+    const day = ['2026-11-27T06:00:00-05:00', '2026-11-27T18:00:00-05:00'];
+
+    const share = (from: string, to: string) => ice.reduce((sum, part) => sum + overlapInches(part, from, to), 0);
+
+    assert.equal(share(night[0], night[1]).toFixed(2), '0.10');
+    assert.equal(share(day[0], day[1]).toFixed(2), '0.08');
+    assert.equal((share(night[0], night[1]) + share(day[0], day[1])).toFixed(2), '0.18');
+});
+
+test('rates use the real hours across a clock change', () => {
+    // 1 AM to 3 AM on the spring change is one real hour.
+    assert.equal(hourlyRate({ start: '2027-03-14T01:00:00-05:00', end: '2027-03-14T03:00:00-04:00', lowInches: 1, highInches: 1 }), 1);
+    assert.equal(hourlyRate({ start: '2026-11-12T01:00:00-05:00', end: '2026-11-12T03:00:00-05:00', lowInches: 1, highInches: 1 }), 0.5);
+});
+
+test('the town clock keeps moving from the offset the server gave', () => {
+    const later = Date.parse('2026-11-26T20:30:00Z');
+    assert.equal(townNow('2026-11-26T13:05:00-05:00', later), '2026-11-26T15:30:00-05:00');
+    assert.equal(townNow('2026-07-01T09:00:00+00:00', Date.parse('2026-07-01T10:00:00Z')), '2026-07-01T10:00:00+00:00');
 });

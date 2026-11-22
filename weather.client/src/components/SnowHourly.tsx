@@ -1,9 +1,10 @@
 import type { SnowHourlySource, SnowPeriod } from '../api/snow';
 import type { HourlyLink } from '../snowLink';
 import {
-    cumulativeByHour, dayLabel, fallingInchesPerHour, hourAt, hourlyRate, hoursBetween, inchesText, intensity, localDayTime,
-    timingSpan, timingText,
+    cumulativeByHour, dayLabel, elapsedHours, fallingInchesPerHour, hourAt, hourlyRate, hoursBetween, inchesText, intensity,
+    localDayTime, overlapInches, timingSpan, timingText, townNow,
 } from '../snowTiming';
+import { useNow } from '../useNow';
 import type { HourlyState } from './SnowTiming';
 
 interface SnowHourlyProps {
@@ -187,24 +188,27 @@ function SourceDetail({ source, others, start, end, now }: {
     source: SnowHourlySource; others: SnowHourlySource[]; start: string; end: string; now: string;
 }) {
     const periods = source.periods;
+    const current = townNow(now, useNow());
     const falling = periods.filter(period => hourlyRate(period) >= fallingInchesPerHour);
     const total = totals(periods);
     const peak = falling.reduce<SnowPeriod | undefined>((best, period) => !best || hourlyRate(period) > hourlyRate(best) ? period : best, undefined);
-    const blocks = periods.some(period => (Date.parse(period.end) - Date.parse(period.start)) / 3_600_000 > 1.5);
+    const blocks = periods.some(period => elapsedHours(period.start, period.end) > 1.5);
     const iceTotal = source.ice ? totals(source.ice).high : undefined;
+    // Like the table, a forecast that doesn't cover every date gives a minimum.
+    const atLeast = source.partial ? '≥ ' : '';
 
-    // The table leaves out dry periods, and keeps a running total of the rest.
+    // The table leaves out dry periods, and keeps a running total of the rest. Ice comes in its own
+    // blocks, so each row takes only the share of each block that falls inside it.
     const rows = periods.map((period, index) => {
         const sofar = totals(periods.slice(0, index + 1));
-        const ice = source.ice?.filter(part => part.start < period.end && part.end > period.start)
-            .reduce((sum, part) => sum + part.highInches, 0);
+        const ice = source.ice?.reduce((sum, part) => sum + overlapInches(part, period.start, period.end), 0);
         return { period, runningLow: sofar.low, runningHigh: sofar.high, ice };
-    }).filter(row => row.period.highInches > 0 || (row.ice ?? 0) > 0);
+    }).filter(row => row.period.highInches > 0 || (row.ice ?? 0) >= 0.005);
 
     return (
         <>
             <dl className="snow-hourly-summary">
-                <div><dt>Total</dt><dd>{inchesText(total.low, total.high)}</dd></div>
+                <div><dt>Total</dt><dd>{atLeast}{inchesText(total.low, total.high)}</dd></div>
                 <div><dt>Snow falling</dt><dd>{falling.length > 0 ? timingText(falling[0].start, falling[falling.length - 1].end) : 'None'}</dd></div>
                 {peak &&
                     <div>
@@ -227,7 +231,7 @@ function SourceDetail({ source, others, start, end, now }: {
                 <RunningTotals chosen={source} others={others} start={start} end={end} />
                 <p className="table-note">
                     {source.label} is coloured; the grey lines are the other sources for comparison.
-                    {now.slice(0, 10) >= start && now.slice(0, 10) <= end && ` It's now ${localDayTime(now)} in this town.`}
+                    {current.slice(0, 10) >= start && current.slice(0, 10) <= end && ` It's now ${localDayTime(current)} in this town.`}
                 </p>
             </section>
 
@@ -259,7 +263,11 @@ function SourceDetail({ source, others, start, end, now }: {
                             </tbody>
                         </table>
                     </div>}
-                <p className="table-note">Periods with no snow are left out. Times are the town's local time.</p>
+                <p className="table-note">
+                    Periods with no snow are left out. Times are the town's local time.
+                    {source.ice && ' NWS forecasts ice in its own blocks, so each row takes its share of them.'}
+                    {source.partial && " This forecast doesn't cover all of these dates, so its total is a minimum."}
+                </p>
             </section>
         </>
     );

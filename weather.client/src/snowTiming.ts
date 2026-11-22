@@ -101,10 +101,40 @@ export interface TimedAmount {
 /** Below this rate a period is flurries, matching Core's `SnowWindow.FallingInchesPerHour`. */
 export const fallingInchesPerHour = 0.01;
 
-/** Inches an hour for a period, by its high amount. */
+/**
+ * Real hours between two times, using their offsets. Unlike the wall clock, this is right across a clock
+ * change, when 1 AM to 3 AM can be one hour or three.
+ */
+export function elapsedHours(start: string, end: string): number {
+    return (Date.parse(end) - Date.parse(start)) / 3_600_000;
+}
+
+/** Inches an hour for a period, by its high amount, over the time that really passes. */
 export function hourlyRate(period: TimedAmount): number {
-    const hours = (wallMinutes(period.end) - wallMinutes(period.start)) / 60;
+    const hours = elapsedHours(period.start, period.end);
     return hours > 0 ? period.highInches / hours : 0;
+}
+
+/**
+ * The high amount of `part` that falls between `from` and `to`, taking a share of a part that crosses
+ * either edge. NWS ice comes in its own 6-hour blocks that rarely line up with its snow periods.
+ */
+export function overlapInches(part: TimedAmount, from: string, to: string): number {
+    const start = Math.max(Date.parse(part.start), Date.parse(from));
+    const end = Math.min(Date.parse(part.end), Date.parse(to));
+    const length = Date.parse(part.end) - Date.parse(part.start);
+    return end > start && length > 0 ? part.highInches * (end - start) / length : 0;
+}
+
+/**
+ * The town's time now, worked out from the offset in the server's `now` so it keeps moving after the
+ * data loads. A clock change since then leaves it an hour out until the data loads again.
+ */
+export function townNow(serverNow: string, nowMs: number): string {
+    const offset = serverNow.slice(19).match(/([+-])(\d{2}):(\d{2})$/);
+    const minutes = offset ? (offset[1] === '-' ? -1 : 1) * (Number(offset[2]) * 60 + Number(offset[3])) : 0;
+    const wall = new Date(nowMs + minutes * 60_000).toISOString().slice(0, 16);
+    return `${wall}:00${offset ? offset[0] : 'Z'}`;
 }
 
 export type Intensity = 'light' | 'moderate' | 'heavy';
@@ -222,7 +252,7 @@ export function spanSummary(cell: TimingCell): string {
     }
 
     // NWS and Weather Underground blocks only give an average rate.
-    const hours = (wallMinutes(cell.peakEnd) - wallMinutes(cell.peakStart)) / 60;
+    const hours = elapsedHours(cell.peakStart, cell.peakEnd);
     const peak = hours > 1
         ? `heaviest ${cell.peakInchesPerHour} in/hr on average, ${timingText(cell.peakStart, cell.peakEnd)}`
         : `heaviest ${cell.peakInchesPerHour} in/hr ${localDayTime(cell.peakStart)}`;

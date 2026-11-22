@@ -65,7 +65,8 @@ public sealed record SnowCell(
 /// <summary>
 /// One source's snow periods for one town, trimmed to the range and in the town's local time.
 /// Hourly sources give hours; NWS and Weather Underground give longer blocks. <see cref="Ice"/> is
-/// null for a source that doesn't forecast ice.
+/// null for a source that doesn't forecast ice. <see cref="Partial"/> means the forecast doesn't cover
+/// the whole range, as in <see cref="SnowCell.Partial"/>, so its total is a minimum.
 /// </summary>
 public sealed record SnowHourlySource(
     string Id,
@@ -73,7 +74,8 @@ public sealed record SnowHourlySource(
     SourceStatus Status,
     string? Message,
     IReadOnlyList<SnowPeriod> Periods,
-    IReadOnlyList<SnowPeriod>? Ice);
+    IReadOnlyList<SnowPeriod>? Ice,
+    bool Partial = false);
 
 /// <summary>
 /// Every source's snow periods for one town. <see cref="Now"/> is the town's local time.
