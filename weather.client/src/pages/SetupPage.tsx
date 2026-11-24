@@ -235,7 +235,7 @@ function SetupPage() {
                 {step === 3 &&
                     <>
                         <p>
-                            Optional. A WeatherAPI.com key adds its 3-day forecast to the Snow Forecast page. It stays encrypted on
+                            Optional. A WeatherAPI.com key adds its 3-day forecast to the Storm Forecast page. It stays encrypted on
                             this phone. Without one, that row is left out.
                         </p>
                         {state.hasWeatherApi && !removeWeatherApi && <p>A key is saved. Leave this blank to keep it.</p>}
@@ -280,7 +280,7 @@ function SetupPage() {
                             <li>Location: ZIP {zip.trim()}</li>
                             <li>Home station: {usesAmbient ? 'your Ambient Weather station' : "Open-Meteo's modelled conditions"}</li>
                             <li>Weather Underground: {usesWeatherUnderground ? `${chosenStations.length} stations and the forecast column` : 'not used'}</li>
-                            <li>WeatherAPI.com: {usesWeatherApi ? 'the Snow Forecast row' : 'not used'}</li>
+                            <li>WeatherAPI.com: {usesWeatherApi ? 'the Storm Forecast row' : 'not used'}</li>
                             <li>Forecasts, alerts and maps work with or without keys</li>
                         </ul>
                         {defaultChoices.length > 0 &&

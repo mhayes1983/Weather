@@ -139,9 +139,33 @@ export function townNow(serverNow: string, nowMs: number): string {
 
 export type Intensity = 'light' | 'moderate' | 'heavy';
 
-/** Light below a quarter inch an hour, heavy from an inch an hour, as the NWS describes snowfall rates. */
-export function intensity(inchesPerHour: number): Intensity {
-    return inchesPerHour >= 1 ? 'heavy' : inchesPerHour >= 0.25 ? 'moderate' : 'light';
+export type RateView = 'snow' | 'rain' | 'wind' | 'depth';
+
+/** Gusts from this speed count as windy, matching Core's `SnowWindow.WindyMph`. */
+export const windyMph = 30;
+
+/**
+ * How hard it's coming down, or blowing:
+ * - snow: light below a quarter inch an hour, heavy from an inch an hour, as the NWS describes snowfall rates
+ * - rain: light below a tenth of an inch an hour, heavy from 0.3, as the AMS describes rainfall rates
+ * - wind: light below 30 mph, heavy from 46, where the NWS issues a Wind Advisory for gusts
+ */
+export function intensity(rate: number, view: RateView = 'snow'): Intensity {
+    switch (view) {
+        case 'rain':
+            return rate >= 0.3 ? 'heavy' : rate >= 0.1 ? 'moderate' : 'light';
+        case 'wind':
+            return rate >= 46 ? 'heavy' : rate >= windyMph ? 'moderate' : 'light';
+        default:
+            return rate >= 1 ? 'heavy' : rate >= 0.25 ? 'moderate' : 'light';
+    }
+}
+
+/** A gust period, which counts by its speed rather than an amount spread over its hours. */
+export interface TimedGust {
+    start: string;
+    end: string;
+    mph: number;
 }
 
 /** Each period with snow falling, placed on the timing chart, oldest first. */
@@ -150,6 +174,24 @@ export function periodSegments(periods: TimedAmount[], firstDate: string, lastDa
         .filter(period => hourlyRate(period) >= fallingInchesPerHour)
         .map(period => ({ ...timingSpan(period.start, period.end, firstDate, lastDate), rate: hourlyRate(period), period }))
         .filter(segment => segment.width > 0);
+}
+
+/** Each gust period of 30 mph or more, placed on the timing chart, oldest first. The rate is its speed. */
+export function gustSegments(gusts: TimedGust[], firstDate: string, lastDate: string) {
+    return gusts
+        .filter(gust => gust.mph >= windyMph)
+        .map(gust => ({ ...timingSpan(gust.start, gust.end, firstDate, lastDate), rate: gust.mph, period: gust }))
+        .filter(segment => segment.width > 0);
+}
+
+/**
+ * Gust periods as spans `agreementByHour` counts, keeping only the windy ones. Each is given one unit an hour,
+ * which is over the falling rate, so every windy hour counts.
+ */
+export function windySpans(gusts: TimedGust[]): TimedAmount[] {
+    return gusts
+        .filter(gust => gust.mph >= windyMph)
+        .map(gust => ({ start: gust.start, end: gust.end, lowInches: 1, highInches: Math.max(1, elapsedHours(gust.start, gust.end)) }));
 }
 
 /** How many hours the chart covers, from midnight starting `firstDate` to midnight ending `lastDate`. */
@@ -236,15 +278,18 @@ export interface TimingCell {
     peakInchesPerHour: number | null;
 }
 
-/** "Thu 7 PM – Fri 1 AM: 1.5–2 in · heaviest 0.8 in/hr Thu 8 PM" for a source's timing bar. */
-export function spanSummary(cell: TimingCell): string {
+/**
+ * "Thu 7 PM – Fri 1 AM: 1.5–2 in · heaviest 0.8 in/hr Thu 8 PM" for a source's timing bar. Rain gives
+ * its amounts to hundredths.
+ */
+export function spanSummary(cell: TimingCell, digits = 1): string {
     if (!cell.snowStart || !cell.snowEnd) {
         return '';
     }
 
     let span = timingText(cell.snowStart, cell.snowEnd);
     if (cell.timingHighInches !== null) {
-        span += `: ${inchesText(cell.timingLowInches ?? cell.timingHighInches, cell.timingHighInches)}`;
+        span += `: ${inchesText(cell.timingLowInches ?? cell.timingHighInches, cell.timingHighInches, digits)}`;
     }
 
     if (!cell.peakStart || !cell.peakEnd || cell.peakInchesPerHour === null) {
@@ -257,4 +302,30 @@ export function spanSummary(cell: TimingCell): string {
         ? `heaviest ${cell.peakInchesPerHour} in/hr on average, ${timingText(cell.peakStart, cell.peakEnd)}`
         : `heaviest ${cell.peakInchesPerHour} in/hr ${localDayTime(cell.peakStart)}`;
     return `${span} · ${peak}`;
+}
+
+/** The parts of a wind cell the timing summary reads. */
+export interface WindTimingCell {
+    maxMph: number | null;
+    windyStart: string | null;
+    windyEnd: string | null;
+    peakStart: string | null;
+    peakEnd: string | null;
+}
+
+/** "Thu 7 PM – Fri 1 AM: gusts to 48 mph, strongest Thu 11 PM" for a source's wind timing bar. */
+export function windSummary(cell: WindTimingCell): string {
+    if (!cell.windyStart || !cell.windyEnd) {
+        return '';
+    }
+
+    const span = timingText(cell.windyStart, cell.windyEnd);
+    if (cell.maxMph === null || !cell.peakStart || !cell.peakEnd) {
+        return span;
+    }
+
+    const when = elapsedHours(cell.peakStart, cell.peakEnd) > 1
+        ? timingText(cell.peakStart, cell.peakEnd)
+        : localDayTime(cell.peakStart);
+    return `${span}: gusts to ${Math.round(cell.maxMph)} mph, strongest ${when}`;
 }

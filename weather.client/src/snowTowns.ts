@@ -1,5 +1,5 @@
 /**
- * The towns this browser shows on the Snow Forecast page: the configured towns it hasn't removed,
+ * The towns this browser shows on the Storm Forecast page: the configured towns it hasn't removed,
  * then the ZIPs it added. Saved in localStorage, like saved stations.
  */
 export const maxAddedTowns = 8;

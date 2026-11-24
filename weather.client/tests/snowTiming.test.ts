@@ -44,14 +44,24 @@ test('a link gives its dates and towns', () => {
         start: '2026-11-12',
         end: '2026-11-13',
         zips: ['04086', '04101'],
+        view: 'snow',
     });
-    assert.equal(snowLinkPath('2026-11-12', '2026-11-13', ['04086', '04101']), '/snow?start=2026-11-12&end=2026-11-13&zips=04086,04101');
-    assert.deepEqual(readSnowLink(snowLinkPath('2026-11-12', '2026-11-13', ['04086']).slice('/snow'.length)).zips, ['04086']);
+    assert.equal(snowLinkPath('2026-11-12', '2026-11-13', ['04086', '04101']), '/storm?start=2026-11-12&end=2026-11-13&zips=04086,04101');
+    assert.deepEqual(readSnowLink(snowLinkPath('2026-11-12', '2026-11-13', ['04086']).slice('/storm'.length)).zips, ['04086']);
+});
+
+test('a link carries its view, and one without a view is snow', () => {
+    const path = snowLinkPath('2026-11-12', '2026-11-13', ['04086'], 'wind');
+
+    assert.equal(path, '/storm?start=2026-11-12&end=2026-11-13&zips=04086&type=wind');
+    assert.equal(readSnowLink(path.slice('/storm'.length)).view, 'wind');
+    assert.equal(readSnowLink('?start=2026-11-12').view, 'snow');
+    assert.equal(readSnowLink('?type=hail').view, 'snow');
 });
 
 test('anything in a link that is not a date or ZIP codes is left out', () => {
-    assert.deepEqual(readSnowLink(''), { start: undefined, end: undefined, zips: undefined });
-    assert.deepEqual(readSnowLink('?start=tomorrow&end=2026-11-13&zips=04086,abc'), { start: undefined, end: '2026-11-13', zips: undefined });
+    assert.deepEqual(readSnowLink(''), { start: undefined, end: undefined, zips: undefined, view: 'snow' });
+    assert.deepEqual(readSnowLink('?start=tomorrow&end=2026-11-13&zips=04086,abc'), { start: undefined, end: '2026-11-13', zips: undefined, view: 'snow' });
     assert.deepEqual(readSnowLink('?zips=<script>').zips, undefined);
 });
 
@@ -130,9 +140,11 @@ test('a bar summary gives its total and its heaviest hour or block', () => {
 });
 
 test('an hourly link needs a town, source and dates', () => {
-    const link = { zip: '04240', source: 'ecmwf-aifs', start: '2026-11-26', end: '2026-11-28' };
+    const link = { zip: '04240', source: 'ecmwf-aifs', start: '2026-11-26', end: '2026-11-28', view: 'snow' as const };
 
     assert.deepEqual(readHourlyLink(hourlyLinkSearch(link)), link);
+    assert.equal(hourlyLinkSearch(link).includes('type'), false);
+    assert.deepEqual(readHourlyLink(hourlyLinkSearch({ ...link, view: 'rain' })), { ...link, view: 'rain' });
     assert.equal(readHourlyLink('?zip=04240&source=icon&start=2026-11-28&end=2026-11-26'), undefined);
     assert.equal(readHourlyLink('?zip=4240&source=icon&start=2026-11-26&end=2026-11-26'), undefined);
     assert.equal(readHourlyLink('?zip=04240&start=2026-11-26&end=2026-11-26'), undefined);

@@ -34,6 +34,35 @@ export function averageSnow(ranges: SnowRange[]): SnowAverage {
     };
 }
 
+export interface SnowSpread {
+    lowest: number;
+    highest: number;
+    /** Whether the sources are close enough to call the forecast settled. */
+    agree: boolean;
+}
+
+/** How far apart sources can be and still agree, in each view's units, before the 25% share of the mean takes over. */
+export const agreementLimits = { snow: 1, rain: 0.25, wind: 10 } as const;
+
+/**
+ * The lowest and highest of a town's rows, by each row's midpoint, leaving out partial rows like the averages.
+ * They agree when the gap is no more than the view's limit or a quarter of the mean, whichever is larger,
+ * so a big storm can differ by a few inches and still count. Null with fewer than two rows.
+ */
+export function sourceSpread(ranges: SnowRange[], limit: number): SnowSpread | null {
+    const middles = ranges
+        .filter(range => !range.partial && (range.low !== null || range.high !== null))
+        .map(range => ((range.low ?? range.high!) + (range.high ?? range.low!)) / 2);
+    if (middles.length < 2) {
+        return null;
+    }
+
+    const lowest = Math.min(...middles);
+    const highest = Math.max(...middles);
+    const average = mean(middles)!;
+    return { lowest, highest, agree: highest - lowest <= Math.max(limit, average * 0.25) };
+}
+
 /** Whole inches without a decimal, otherwise one decimal place. */
 export function formatInches(value: number | null): string {
     if (value === null) {

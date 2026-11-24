@@ -1465,7 +1465,71 @@ a.daily-row:focus-visible {
     text-align: left;
 }
 
-/* Snow Forecast */
+/* Storm Forecast */
+.storm-views {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 16px;
+}
+
+.storm-views button[aria-pressed='true'] {
+    color: var(--bg);
+    background: var(--text-strong);
+    border-color: var(--text-strong);
+}
+
+/* Badges use the theme's own colours, so they need nothing new for dark mode. */
+.snow-ratio,
+.mix-badge,
+.agree-badge {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 0 4px;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    vertical-align: 1px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.snow-ratio {
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+.mix-badge {
+    color: var(--chart-2);
+    border: 1px solid var(--chart-2);
+}
+
+.agree-badge.agree {
+    color: var(--chart-1);
+    border: 1px solid var(--chart-1);
+}
+
+.agree-badge.disagree {
+    color: var(--chart-2);
+    border: 1px solid var(--chart-2);
+}
+
+.outage-risk {
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    list-style: none;
+    border: 1px solid var(--error);
+    border-left-width: 4px;
+    border-radius: 6px;
+}
+
+.outage-risk li + li {
+    margin-top: 4px;
+}
+
+.outage-risk strong {
+    color: var(--error);
+}
+
 .snow-form {
     display: flex;
     flex-wrap: wrap;

@@ -97,7 +97,7 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <ul>
                 <li>Enter a ZIP code and press <strong>Go</strong> to load the table. The box starts on the current station's ZIP code.</li>
                 <li>Each source has a Low and a High column. Use <strong>Show</strong> to hide either one.</li>
-                <li>Sources go by short names, the same on the Snow Forecast page. Hover over a name, or press and hold it, to see what the source is.</li>
+                <li>Sources go by short names, the same on the Storm Forecast page. Hover over a name, or press and hold it, to see what the source is.</li>
                 <li>
                     The low is that morning's low, from 7pm the evening before to 9am, and the high is that afternoon's, from
                     9am to 7pm. A day's coldest or warmest hour can fall outside those times when a front passes, so they
@@ -111,23 +111,62 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 <li>A source that can't be reached shows an error in its column, or its last good data if it has any.</li>
             </ul>
 
-            <h2>Snow Forecast</h2>
+            <h2>Storm Forecast</h2>
             <p>
-                The <RouteLink route="/snow" onNavigate={onNavigate}>Snow Forecast</RouteLink> page compares how much snow each
-                source expects for one storm, across several towns, with the winter alerts for those towns.
+                The <RouteLink route="/storm" onNavigate={onNavigate}>Storm Forecast</RouteLink> page compares what each source
+                expects for one storm, across several towns, with the alerts for those towns. It was the Snow Forecast page, and
+                old links to that still open it.
             </p>
+            <ul>
+                <li>
+                    <strong>Snow</strong>, <strong>Rain</strong>, <strong>Wind</strong> and <strong>Depth</strong> switch what the
+                    page shows. Go loads all four at once, so switching uses no more of any source's quota.
+                </li>
+                <li>
+                    <strong>Rain</strong> is all precipitation as water, so it counts melted snow too. Only Open-Meteo forecasts rain on
+                    its own; every other source gives water only, so this keeps every row comparable. Its alerts are flood watches and
+                    warnings. <strong>Rain in the past week</strong> lists the rain totals reported near each town from 7 days ago through today, whatever dates you chose, newest first, so you can see how wet the ground already is. They aren't this storm's rain, so the Rain table has no Reported row.
+                </li>
+                <li>
+                    <strong>Wind</strong> shows each source's strongest gust on your dates, in mph. Storm timing marks gusts of 30 mph
+                    or more, shaded heavier from 46 mph, when the NWS issues a Wind Advisory. Weather Underground's forecast has no gusts,
+                    and some Open-Meteo models (AIFS, JMA, WeatherNext) don't give them. Its alerts are wind and tropical storm alerts,
+                    and its reports are measured gusts.
+                </li>
+                <li>
+                    <strong>Depth</strong> is snow on the ground now, at its most during your dates and at their end. Only Open-Meteo's
+                    models give it, and only some of them. It's worked out by each model from its own snow and melt, never measured.
+                    Select a model for its depth hour by hour.
+                </li>
+                <li>
+                    In Snow, a small ratio such as <strong>8:1</strong> beside a total is inches of snow for each inch of water from the
+                    same source. About 10:1 is typical; lower is wetter, heavier snow. <strong>mix</strong> marks a source whose water is
+                    well beyond what its snow accounts for (under 5:1), so it likely expects rain or sleet as well.
+                </li>
+                <li>
+                    <strong>Spread</strong>, under the averages, gives the lowest and highest source, leaving out partial ones. They
+                    <strong> agree</strong> when the gap is within 1 inch of snow, a quarter inch of rain or 10 mph of wind, or a quarter
+                    of the average if that's larger, and otherwise <strong>differ</strong>.
+                </li>
+                <li>
+                    <strong>Outage risk</strong> appears above the table for a town when the averages of the sources shown point to heavy
+                    wet snow (4 inches or more at 8:1 or wetter), ice of a quarter inch or more, gusts of 40 mph or more with snow or ice,
+                    or gusts of 58 mph or more on their own. It's a rough guide, not a forecast from a utility or the NWS.
+                </li>
+            </ul>
+            <p>The rest works the same way in each view:</p>
             <ul>
                 <li>Choose the storm's start and end dates (up to 7 days) and press <strong>Go</strong>. Totals cover midnight to midnight on each date.</li>
                 <li>The towns start as Kittery, Portland, Brunswick, Lewiston, Bethel, Rockland and Bangor. Remove any, or add up to 8 ZIP codes. Your choice is saved in this browser.</li>
                 <li>Where a forecast's text gives a range, such as "1 to 3 inches" from NWS or Weather Underground, it fills Low and High. Other sources give one amount, shown in both.</li>
                 <li>≥ marks a forecast that doesn't cover all of your dates, so it's a minimum. That happens when a forecast ends first, such as WeatherAPI.com's 3 days, or when it has dropped hours already past, as NWS and Weather Underground do with today. The averages leave these out.</li>
-                <li>NewsCenter Maine, WMTW and WGME publish snow totals only as maps, so their rows are for typing in their numbers. Those values are saved in this browser until you press <strong>Clear manual values</strong>, and count towards the averages. You can rename, add or remove these rows.</li>
+                <li>NewsCenter Maine, WMTW and WGME publish snow totals only as maps, so their rows are for typing in their numbers. Snow, Rain and Wind each keep their own manual rows and values (a gust is one number, in mph). Those values are saved in this browser until you press <strong>Clear manual values</strong>, and count towards the averages. You can rename, add or remove these rows.</li>
                 <li>Use the source list to hide rows from the table and the averages. Links below the alerts open each outlet's snow maps.</li>
                 <li><strong>Storm timing</strong> shows, for one town at a time, when each source first and last has snow falling on your dates, leaving out flurries. NWS and Weather Underground forecast in 6 to 12-hour blocks, so their times are approximate. Darker shading on a bar means heavier snow, the Agree row counts how many sources have snow falling each hour, and a line marks now. Hover over or tap a bar for the snow in that span and the heaviest hour.</li>
-                <li><strong>Hourly snow</strong>: select a source in Storm timing to see its snow hour by hour (or block by block for NWS and Weather Underground), its running total beside the other sources, and NWS ice. It uses the forecast the page already loaded, so it adds no calls.</li>
+                <li><strong>Hourly</strong>: select a source in Storm timing to see its snow, rain or gusts hour by hour (or block by block for NWS and Weather Underground), its running total beside the other sources, and NWS ice. It uses the forecast the page already loaded, so it adds no calls.</li>
                 <li>An <strong>ice</strong> row appears under the averages when the National Weather Service expects ice from freezing rain. It's in inches, covers about the next 3 days, and isn't part of the snow averages.</li>
                 <li>Once your dates have begun, <strong>Reported</strong> shows the lowest and highest snow totals sent to the National Weather Service from within 10 miles of each town, and <strong>Snow reports</strong> lists them, nearest first. Each place shows its highest report so far, so early reports can be lower than the final total. Reports up to 12 hours after your end date are included, because totals are often sent the next morning. They aren't part of the averages.</li>
-                <li>After you press Go, the page's address holds your dates and towns, so you can bookmark it or send it to someone. <strong>Copy link to this storm</strong> copies it where the browser allows. Opening a link fills in the dates and towns, and you still press Go. Its towns don't replace your saved ones.</li>
+                <li>After you press Go, the page's address holds your dates, towns and view, so you can bookmark it or send it to someone. <strong>Copy link to this storm</strong> copies it where the browser allows. Opening a link fills in the dates and towns, and you still press Go. Its towns don't replace your saved ones.</li>
             </ul>
 
             <h2>Settings</h2>

@@ -22,7 +22,7 @@ const descriptions: Record<string, string> = {
     'ncm-coastal': "NCM-C: NewsCenter Maine (WCSH 6 and WLBZ 2) meteorologists' 10-day forecast for Portland.",
     'ncm-inland': "NCM-I: NewsCenter Maine (WCSH 6 and WLBZ 2) meteorologists' 10-day forecast for Bangor.",
 
-    // Snow Forecast manual rows
+    // Storm Forecast manual rows
     ncm: "NCM: NewsCenter Maine (WCSH 6 and WLBZ 2) meteorologists' snow map, typed in by hand.",
     wmtw: "WMTW: WMTW News 8 meteorologists' snow map, typed in by hand.",
     wgme: "WGME: WGME CBS 13 meteorologists' snow map, typed in by hand.",

@@ -8,7 +8,8 @@ namespace Weather.Core.Snow;
 
 /// <summary>
 /// NWS snow: the forecast text's range ("1 to 3 inches") for each 12-hour period that gives one,
-/// and the gridpoint <c>snowfallAmount</c> for the rest. Ice is the gridpoint <c>iceAccumulation</c>.
+/// and the gridpoint <c>snowfallAmount</c> for the rest. Ice is the gridpoint <c>iceAccumulation</c>, liquid
+/// <c>quantitativePrecipitation</c> and gusts <c>windGust</c>, all from the same grid call.
 /// </summary>
 public sealed class NwsSnowSource(
     IHttpClientFactory httpClientFactory,
@@ -22,6 +23,9 @@ public sealed class NwsSnowSource(
     public ColumnDescriptor Column => SourceColumns.Nws;
 
     public TimeSpan CacheDuration => TimeSpan.FromMinutes(options.Value.FreeSourceCacheMinutes);
+
+    // The grid has no snow depth.
+    public IReadOnlyList<string> Views { get; } = [StormViews.Snow, StormViews.Rain, StormViews.Wind];
 
     public bool AppliesTo(ForecastLocation location) => true;
 
@@ -49,7 +53,51 @@ public sealed class NwsSnowSource(
             }
         }
 
-        return SnowResult.Ok(periods, timeProvider.GetUtcNow(), ReadGrid(grid, "iceAccumulation"));
+        // Liquid and gusts come from the same grid, so they cost no more calls. The grid has no snow depth.
+        var liquid = ReadGrid(grid, "quantitativePrecipitation");
+        var gusts = ReadGusts(grid);
+        return SnowResult.Ok(
+            periods,
+            timeProvider.GetUtcNow(),
+            ReadGrid(grid, "iceAccumulation"),
+            liquid.Count == 0 ? null : liquid,
+            gusts.Count == 0 ? null : gusts);
+    }
+
+    private const double MphPerKph = 0.621371;
+    private const double MphPerMetrePerSecond = 2.23694;
+
+    // Gusts come in km/h, though the unit is read rather than assumed.
+    internal static List<GustPeriod> ReadGusts(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var gusts = new List<GustPeriod>();
+        if (!document.RootElement.GetProperty("properties").TryGetProperty("windGust", out var series))
+        {
+            return gusts;
+        }
+
+        var unit = series.TryGetProperty("uom", out var uom) ? uom.GetString() : null;
+        var scale = unit switch
+        {
+            "wmoUnit:m_s-1" => MphPerMetrePerSecond,
+            "wmoUnit:mph" or "wmoUnit:mi_h-1" => 1,
+            _ => MphPerKph,
+        };
+
+        foreach (var value in series.GetProperty("values").EnumerateArray())
+        {
+            if (value.GetProperty("value").ValueKind != JsonValueKind.Number)
+            {
+                continue;
+            }
+
+            var parts = value.GetProperty("validTime").GetString()!.Split('/');
+            var start = DateTimeOffset.Parse(parts[0], CultureInfo.InvariantCulture);
+            gusts.Add(new GustPeriod(start, start + XmlConvert.ToTimeSpan(parts[1]), Math.Round(value.GetProperty("value").GetDouble() * scale, 1)));
+        }
+
+        return gusts;
     }
 
     internal static List<SnowPeriod> ReadTextRanges(string json)

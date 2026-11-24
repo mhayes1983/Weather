@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react';
 
-const fixedRoutes = ['/alerts', '/forecast', '/snow', '/snow/hourly', '/radar', '/daily', '/help', '/terms', '/privacy', '/setup'] as const;
+const fixedRoutes = ['/alerts', '/forecast', '/storm', '/storm/hourly', '/radar', '/daily', '/help', '/terms', '/privacy', '/setup'] as const;
 
 export type Route = '/' | (typeof fixedRoutes)[number] | `/daily/${string}`;
 
+// The Storm Forecast page was the Snow Forecast page, and links to it are still around.
+const renamedRoutes: Record<string, Route> = { '/snow': '/storm', '/snow/hourly': '/storm/hourly' };
+
 function currentRoute(): Route {
+    const renamed = renamedRoutes[window.location.pathname];
+    if (renamed) {
+        window.history.replaceState(window.history.state, '', renamed + window.location.search);
+    }
+
     const path = window.location.pathname;
     const fixed = fixedRoutes.find(route => route === path);
 
@@ -37,7 +45,7 @@ export function useRoute(): [Route, (route: Route, search?: string) => void] {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []);
 
-    // A search string, such as the hourly snow page's source and town, travels in the address.
+    // A search string, such as the hourly storm page's source and town, travels in the address.
     function navigate(next: Route, search = '') {
         if (next !== route) {
             const state: RouteState = { from: route };
