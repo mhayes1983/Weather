@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { beforeEach, test } from 'node:test';
-import { outageReasons } from '../src/outageRisk.ts';
+import { outageReasons, snowRatio } from '../src/outageRisk.ts';
 import { agreementLimits, sourceSpread } from '../src/snowAverages.ts';
 import { emptyManualSnow, loadManualSnow, manualStorageKeys, saveManualSnow } from '../src/snowManual.ts';
 import { agreementByHour, gustSegments, intensity, windSummary, windySpans } from '../src/snowTiming.ts';
@@ -106,6 +106,18 @@ test('outage risk needs wet snow, ice, wind with snow or ice, or strong wind alo
     assert.deepEqual(outageReasons({ ...calm, gustMph: 42, snowInches: 3, ratio: 12 }), ['gusts near 42 mph with snow']);
     assert.deepEqual(outageReasons({ ...calm, gustMph: 42 }), []);
     assert.deepEqual(outageReasons({ ...calm, gustMph: 60 }), ['gusts near 60 mph']);
+});
+
+test('the outage ratio ignores a dusting in a rainstorm and weights sources by their snow', () => {
+    // From the review: two sources with 6 in at 12:1 and one with 0.3 in of snow in 1.2 in of water (0:1 after rounding).
+    const cells = [{ highInches: 6, ratio: 12 }, { highInches: 0.3, ratio: 0 }, { highInches: 6, ratio: 12 }];
+
+    assert.equal(snowRatio(cells), 12);
+    assert.deepEqual(outageReasons({ snowInches: 4.1, ratio: snowRatio(cells), iceInches: 0, gustMph: 0 }), []);
+
+    // 8 in at 8:1 and 2 in at 16:1 make 10 in from 1.125 in of water.
+    assert.equal(snowRatio([{ highInches: 8, ratio: 8 }, { highInches: 2, ratio: 16 }])?.toFixed(2), '8.89');
+    assert.equal(snowRatio([{ highInches: 0.5, ratio: 4 }, { highInches: null, ratio: null }]), null);
 });
 
 test('each view keeps its own manual rows, and snow keeps its old key', () => {

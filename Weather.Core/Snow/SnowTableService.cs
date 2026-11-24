@@ -314,8 +314,14 @@ public sealed class SnowTableService(
         var fetchedAt = results.Where(result => result.FetchedAt is not null).Select(result => result.FetchedAt).Min();
 
         // Every source forecasts snow and liquid. Wind and depth show only for a source that sent them, so a
-        // model without gusts, or Weather Underground, isn't a row of blanks there.
+        // model without gusts, or Weather Underground, isn't a row of blanks there. A source that failed or needs
+        // a key everywhere has no data to go by, so its row keeps every view it can give and shows its problem there.
         var ok = results.Where(result => result.Status == SourceStatus.Ok).ToList();
+        if (ok.Count == 0)
+        {
+            return new SnowSourceRow(source.Column.Id, source.Column.Label, status, message, fetchedAt, source.Views);
+        }
+
         var views = new List<string> { StormViews.Snow, StormViews.Rain };
         if (ok.Any(result => result.Gusts is not null))
         {

@@ -22,6 +22,9 @@ public sealed class WeatherUndergroundSnowSource(
 
     public TimeSpan CacheDuration => TimeSpan.FromMinutes(options.Value.WeatherUnderground.CacheMinutes);
 
+    // The 5-day forecast has no gusts or snow depth.
+    public IReadOnlyList<string> Views { get; } = [StormViews.Snow, StormViews.Rain];
+
     public bool AppliesTo(ForecastLocation location) => true;
 
     public async Task<SnowResult> GetSnowAsync(ForecastLocation location, CancellationToken cancellationToken)

@@ -17,6 +17,9 @@ public sealed class WeatherApiSnowSource(
 
     public TimeSpan CacheDuration => TimeSpan.FromMinutes(options.Value.WeatherApi.CacheMinutes);
 
+    // The forecast has no snow depth.
+    public IReadOnlyList<string> Views { get; } = [StormViews.Snow, StormViews.Rain, StormViews.Wind];
+
     public bool AppliesTo(ForecastLocation location) => true;
 
     public async Task<SnowResult> GetSnowAsync(ForecastLocation location, CancellationToken cancellationToken)

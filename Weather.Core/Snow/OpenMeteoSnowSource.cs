@@ -25,6 +25,9 @@ public sealed class OpenMeteoSnowSource(
 
     public TimeSpan CacheDuration => TimeSpan.FromMinutes(options.Value.FreeSourceCacheMinutes);
 
+    // Every series is asked for, though some models return no gusts or depth; while it works, the data decides.
+    public IReadOnlyList<string> Views { get; } = [StormViews.Snow, StormViews.Rain, StormViews.Wind, StormViews.Depth];
+
     public bool AppliesTo(ForecastLocation location) => true;
 
     public async Task<SnowResult> GetSnowAsync(ForecastLocation location, CancellationToken cancellationToken)

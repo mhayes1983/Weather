@@ -12,7 +12,7 @@ import SnowTable from '../components/SnowTable';
 import SnowHourly from '../components/SnowHourly';
 import SnowTiming, { type HourlyState } from '../components/SnowTiming';
 import WindTable from '../components/WindTable';
-import { outageReasons } from '../outageRisk';
+import { outageReasons, snowRatio } from '../outageRisk';
 import { addDays, averageSnow, isoDate } from '../snowAverages';
 import { hourlyLinkSearch, readHourlyLink, readSnowLink, snowLinkPath, type HourlyLink } from '../snowLink';
 import {
@@ -336,12 +336,18 @@ function SnowPage({ route, onNavigate }: SnowPageProps) {
     // A source without data for a view, such as a model without gusts, is left out of that view.
     const inView = (forView: StormView) => available.filter(source => (source.views ?? ['snow', 'rain']).includes(forView));
     const viewSources = inView(view);
-    const filterRows = [...viewSources, ...(manual?.rows.map(row => ({ id: row.id, label: row.label || 'Manual row' })) ?? [])];
+    // Each view has its own manual rows under the same ids (ncm, wmtw, wgme), so hiding one is kept per view.
+    // Sources are the same in every view, so hiding a source hides it everywhere.
+    const manualHideId = (forView: StormView, rowId: string) => `${forView}:${rowId}`;
+    const filterRows = [
+        ...viewSources,
+        ...(manual?.rows.map(row => ({ id: manualHideId(view, row.id), label: row.label || 'Manual row' })) ?? []),
+    ];
     const shownTowns = table?.towns.filter(town => zips.includes(town.zip)) ?? [];
     const addedFull = choices.added.length >= maxAddedTowns;
     const shown = (forView: StormView) => inView(forView).filter(source => !hiddenRows.includes(source.id));
     const shownSources = shown(view);
-    const manualRows = manual?.rows.filter(row => !hiddenRows.includes(row.id)) ?? [];
+    const manualRows = manual?.rows.filter(row => !hiddenRows.includes(manualHideId(view, row.id))) ?? [];
     const rainCells = table?.rainCells ?? [];
     const windCells = table?.windCells ?? [];
     const depthCells = table?.depthCells ?? [];
@@ -353,14 +359,13 @@ function SnowPage({ route, onNavigate }: SnowPageProps) {
             const snowSources = visible('snow');
             const snowCells = table.cells.filter(cell => cell.zip === town.zip && snowSources.has(cell.sourceId));
             const typed = (forView: ManualView) => manualByView[forView].rows
-                .filter(row => !hiddenRows.includes(row.id))
+                .filter(row => !hiddenRows.includes(manualHideId(forView, row.id)))
                 .map(row => manualByView[forView].values[row.id]?.[town.zip] ?? { low: null, high: null });
             const snow = averageSnow([
                 ...snowCells.map(cell => ({ low: cell.lowInches, high: cell.highInches, partial: cell.partial })),
                 ...typed('snow'),
             ]).middle;
-            const ratios = snowCells.flatMap(cell => cell.ratio === null ? [] : [cell.ratio]);
-            const ratio = ratios.length > 0 ? ratios.reduce((sum, value) => sum + value, 0) / ratios.length : null;
+            const ratio = snowRatio(snowCells);
             const ice = Math.max(0, ...snowCells.map(cell => cell.iceInches ?? 0));
             const windSources = visible('wind');
             const gust = averageSnow([
@@ -522,6 +527,9 @@ function SnowPage({ route, onNavigate }: SnowPageProps) {
                     </p>
                     {(view === 'snow' || view === 'rain') && manual &&
                         <SnowTable
+                            // Snow and Rain share this table, and its manual inputs are uncontrolled with the same row
+                            // ids, so it's rebuilt for each view or the other view's typed values would stay on screen.
+                            key={view}
                             view={view}
                             towns={shownTowns}
                             sources={shownSources}

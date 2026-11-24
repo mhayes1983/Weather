@@ -223,10 +223,11 @@ public class SnowTests
         Assert.Empty(http.Requests);
     }
 
-    private sealed class FakeSnowSource(string id, Func<SnowResult> fetch) : ISnowSource
+    private sealed class FakeSnowSource(string id, Func<SnowResult> fetch, IReadOnlyList<string>? views = null) : ISnowSource
     {
         public ColumnDescriptor Column { get; } = new(id, id.ToUpperInvariant());
         public TimeSpan CacheDuration => TimeSpan.FromMinutes(30);
+        public IReadOnlyList<string> Views { get; } = views ?? [StormViews.Snow, StormViews.Rain, StormViews.Wind, StormViews.Depth];
         public bool AppliesTo(ForecastLocation location) => true;
         public Task<SnowResult> GetSnowAsync(ForecastLocation location, CancellationToken cancellationToken) => Task.FromResult(fetch());
     }
@@ -941,6 +942,35 @@ public class SnowTests
         Assert.Null(table.WindCells[1].MaxMph);
         Assert.Equal([StormViews.Snow, StormViews.Rain, StormViews.Wind, StormViews.Depth], table.Sources[0].Views);
         Assert.Equal([StormViews.Snow, StormViews.Rain], table.Sources[1].Views);
+    }
+
+    [Fact]
+    public async Task AFailingSourceKeepsTheViewsItCanGive()
+    {
+        var service = Service(
+        [
+            new FakeSnowSource("down", () => throw new HttpRequestException("Busy", null, HttpStatusCode.TooManyRequests)),
+            new FakeSnowSource("keyless", SnowResult.NeedsKey, [StormViews.Snow, StormViews.Rain]),
+        ]);
+        var (request, _) = service.Parse(null, "2026-10-30", "2026-10-30");
+
+        var table = await service.GetAsync(request!);
+
+        // An outage shows as an error in Wind and Depth too, rather than looking like a source without that data.
+        Assert.Equal(SourceStatus.Error, table.Sources[0].Status);
+        Assert.Equal([StormViews.Snow, StormViews.Rain, StormViews.Wind, StormViews.Depth], table.Sources[0].Views);
+        Assert.Equal([StormViews.Snow, StormViews.Rain], table.Sources[1].Views);
+        Assert.Equal(SourceStatus.Error, table.WindCells![0].Status);
+    }
+
+    [Fact]
+    public void EverySourceSaysWhichViewsItCanGive()
+    {
+        var options = TestData.Options();
+        var http = StubHttp.Json(_ => "{}");
+        Assert.Equal([StormViews.Snow, StormViews.Rain, StormViews.Wind], new NwsSnowSource(http, new WeatherCache(), options, Time).Views);
+        Assert.Equal([StormViews.Snow, StormViews.Rain], new WeatherUndergroundSnowSource(http, new WeatherCache(), options, Time).Views);
+        Assert.Equal([StormViews.Snow, StormViews.Rain, StormViews.Wind], new WeatherApiSnowSource(http, options, Time).Views);
     }
 
     [Theory]
