@@ -1,6 +1,6 @@
 /**
- * Rows typed in by hand for outlets that publish snow only as maps (NewsCenter Maine, WMTW, WGME).
- * Saved in localStorage until cleared, so they survive reloads during a storm.
+ * Rows typed in by hand for outlets that publish snow, rain or gusts only as maps or on air (NewsCenter Maine,
+ * WMTW, WGME). Saved in localStorage until cleared, so they survive reloads during a storm. Wind values are mph.
  */
 export interface ManualRow {
     id: string;
@@ -21,7 +21,15 @@ export interface ManualSnow {
     end: string | null;
 }
 
-const storageKey = 'snowManual';
+/** The views with manual rows. Depth is modelled only, so it has none. */
+export type ManualView = 'snow' | 'rain' | 'wind';
+
+/** Each view keeps its own rows and values. Snow's key is the one it had before the other views. */
+export const manualStorageKeys: Record<ManualView, string> = {
+    snow: 'snowManual',
+    rain: 'rainManual',
+    wind: 'windManual',
+};
 
 export const defaultManualRows: ManualRow[] = [
     { id: 'ncm', label: 'NCM' },
@@ -47,9 +55,9 @@ function renameOldDefault(row: ManualRow): ManualRow {
     return current && row.label === oldDefaultLabels[row.id] ? { ...row, label: current.label } : row;
 }
 
-export function loadManualSnow(): ManualSnow {
+export function loadManualSnow(view: ManualView = 'snow'): ManualSnow {
     try {
-        const saved = JSON.parse(window.localStorage.getItem(storageKey) ?? 'null') as Partial<ManualSnow> | null;
+        const saved = JSON.parse(window.localStorage.getItem(manualStorageKeys[view]) ?? 'null') as Partial<ManualSnow> | null;
         if (!saved) {
             return emptyManualSnow();
         }
@@ -65,9 +73,9 @@ export function loadManualSnow(): ManualSnow {
     }
 }
 
-export function saveManualSnow(manual: ManualSnow): ManualSnow {
+export function saveManualSnow(manual: ManualSnow, view: ManualView = 'snow'): ManualSnow {
     try {
-        window.localStorage.setItem(storageKey, JSON.stringify(manual));
+        window.localStorage.setItem(manualStorageKeys[view], JSON.stringify(manual));
     } catch {
         // Without storage the values still apply until the page reloads.
     }

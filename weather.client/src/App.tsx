@@ -31,8 +31,8 @@ const titles: Partial<Record<Route, string>> = {
     '/': 'Weather Station',
     '/alerts': 'Weather Alerts',
     '/forecast': 'Temperature Forecast',
-    '/snow': 'Snow Forecast',
-    '/snow/hourly': 'Hourly Snow',
+    '/storm': 'Storm Forecast',
+    '/storm/hourly': 'Hourly Storm Forecast',
     '/radar': 'Weather Maps',
     '/help': 'Help & About',
     '/terms': 'Terms of Use',
@@ -48,7 +48,7 @@ function App() {
     const [station, setStation] = useState(defaultStation);
     const [savedStations, setSavedStations] = useState(loadSavedStations);
     const [forecastOpened, setForecastOpened] = useState(route === '/forecast');
-    const onSnow = route === '/snow' || route === '/snow/hourly';
+    const onSnow = route === '/storm' || route === '/storm/hourly';
     const [snowOpened, setSnowOpened] = useState(onSnow);
 
     // The forecast page mounts on first visit, then stays mounted to keep its table and columns.

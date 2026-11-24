@@ -1,9 +1,12 @@
 import { sourceTitle } from '../sourceDescriptions';
 import type { SnowCell, SnowSourceRow, SnowTown, SnowTownReports } from '../api/snow';
-import { averageSnow, formatInches, type SnowRange } from '../snowAverages';
+import { agreementLimits, averageSnow, sourceSpread, type SnowRange } from '../snowAverages';
 import { parseInches, type ManualRow, type ManualSnow, type ManualValue } from '../snowManual';
+import { formatAmount, viewInfo } from '../stormViews';
 
 interface SnowTableProps {
+    /** Snow, or rain and melted snow. Both are totals in inches; rain shows hundredths. */
+    view: 'snow' | 'rain';
     towns: SnowTown[];
     sources: SnowSourceRow[];
     cells: SnowCell[];
@@ -18,13 +21,13 @@ interface SnowTableProps {
     onManualRemove: (rowId: string) => void;
 }
 
-function cellText(value: number | null, partial: boolean) {
-    const text = formatInches(value);
-    return text && partial ? `≥${text}` : text;
-}
-
-function SnowTable({ towns, sources, cells, reports, manualRows, manual, manualGeneration, onManualChange, onManualRename, onManualRemove }: SnowTableProps) {
+function SnowTable({ view, towns, sources, cells, reports, manualRows, manual, manualGeneration, onManualChange, onManualRename, onManualRemove }: SnowTableProps) {
     const byKey = new Map(cells.map(cell => [`${cell.sourceId}|${cell.zip}`, cell]));
+    const format = (value: number | null) => formatAmount(value, view);
+    const cellText = (value: number | null, partial: boolean) => {
+        const text = format(value);
+        return text && partial ? `≥${text}` : text;
+    };
 
     function rangesFor(zip: string): SnowRange[] {
         const fromSources = sources.map(source => {
@@ -36,6 +39,7 @@ function SnowTable({ towns, sources, cells, reports, manualRows, manual, manualG
     }
 
     const averages = towns.map(town => averageSnow(rangesFor(town.zip)));
+    const spreads = towns.map(town => sourceSpread(rangesFor(town.zip), agreementLimits[view]));
 
     // Ice only gets a row when a source expects some, so a snow-only storm keeps a short table.
     const iceSources = sources.filter(source =>
@@ -48,7 +52,7 @@ function SnowTable({ towns, sources, cells, reports, manualRows, manual, manualG
             <table className="snow-table">
                 <thead>
                     <tr>
-                        <th scope="col" rowSpan={2} className="date-column">Snow (inches)</th>
+                        <th scope="col" rowSpan={2} className="date-column">{viewInfo[view].heading}</th>
                         {towns.map(town =>
                             <th key={town.zip} scope="colgroup" colSpan={2} className="group-start" title={town.message ?? `ZIP ${town.zip}`}>
                                 {town.name}
@@ -79,12 +83,19 @@ function SnowTable({ towns, sources, cells, reports, manualRows, manual, manualG
                                     ? "This forecast doesn't cover all of these dates, so this is a minimum."
                                     : cell?.message ?? undefined;
                                 const failed = cell && cell.status === 'Error';
+                                // Snow shows how wet it is; both views flag a source whose liquid looks like rain or a mix.
+                                const ratio = view === 'snow' && cell?.ratio !== null && cell?.ratio !== undefined
+                                    && <span className="snow-ratio" title={`${cell.ratio} inches of snow for each inch of water. About 10:1 is typical; lower is wetter and heavier.`}>{cell.ratio}:1</span>;
+                                const mixed = cell?.mixed
+                                    && <span className="mix-badge" title="This source's liquid is well beyond what its snow accounts for, so it likely expects rain or a mix.">mix</span>;
                                 return [
                                     <td key={`${town.zip}-low`} className="group-start" title={title}>
                                         {failed ? '—' : cellText(cell?.lowInches ?? null, cell?.partial ?? false)}
                                     </td>,
                                     <td key={`${town.zip}-high`} title={title}>
                                         {failed ? '—' : cellText(cell?.highInches ?? null, cell?.partial ?? false)}
+                                        {!failed && ratio}
+                                        {!failed && mixed}
                                     </td>,
                                 ];
                             })}
@@ -112,7 +123,7 @@ function SnowTable({ towns, sources, cells, reports, manualRows, manual, manualG
                                             type="number"
                                             inputMode="decimal"
                                             min={0}
-                                            step={0.5}
+                                            step={view === 'rain' ? 0.05 : 0.5}
                                             aria-label={`${row.label} ${part} for ${town.name}`}
                                             defaultValue={value?.[part] ?? ''}
                                             onChange={event => onManualChange(row.id, town.zip, part, parseInches(event.target.value))}
@@ -125,18 +136,33 @@ function SnowTable({ towns, sources, cells, reports, manualRows, manual, manualG
                     <tr className="snow-average">
                         <th scope="row" className="date-column">Averages</th>
                         {averages.map((average, index) =>
-                            [<td key={`${towns[index].zip}-low`} className="group-start">{formatInches(average.low)}</td>,
-                                <td key={`${towns[index].zip}-high`}>{formatInches(average.high)}</td>]
+                            [<td key={`${towns[index].zip}-low`} className="group-start">{format(average.low)}</td>,
+                                <td key={`${towns[index].zip}-high`}>{format(average.high)}</td>]
                         )}
                     </tr>
                     <tr className="snow-average">
                         <th scope="row" className="date-column">Average</th>
                         {averages.map((average, index) =>
                             <td key={towns[index].zip} colSpan={2} className="group-start" title={`From ${average.count} ${average.count === 1 ? 'source' : 'sources'}`}>
-                                {average.middle === null ? '' : (Math.round(average.middle * 10) / 10).toFixed(1)}
+                                {average.middle === null ? '' : average.middle.toFixed(viewInfo[view].digits)}
                             </td>
                         )}
                     </tr>
+                    {spreads.some(spread => spread !== null) &&
+                        <tr className="snow-average">
+                            <th scope="row" className="date-column" title="The lowest and highest source, leaving out partial ones, and whether they're close enough to agree">
+                                Spread
+                            </th>
+                            {spreads.map((spread, index) =>
+                                <td key={towns[index].zip} colSpan={2} className="group-start">
+                                    {spread &&
+                                        <>
+                                            {format(spread.lowest)}–{format(spread.highest)}
+                                            <span className={`agree-badge ${spread.agree ? 'agree' : 'disagree'}`}>{spread.agree ? 'agree' : 'differ'}</span>
+                                        </>}
+                                </td>
+                            )}
+                        </tr>}
                     {iceSources.map(source =>
                         <tr key={`${source.id}-ice`} className="snow-extra">
                             <th scope="row" className="date-column" title="Ice build-up from freezing rain, in inches. It isn't part of the snow averages.">
@@ -162,8 +188,8 @@ function SnowTable({ towns, sources, cells, reports, manualRows, manual, manualG
                                 const count = report?.reports.length ?? 0;
                                 const title = count > 0 ? `From ${count} ${count === 1 ? 'place' : 'places'} nearby` : undefined;
                                 return [
-                                    <td key={`${town.zip}-low`} className="group-start" title={title}>{formatInches(report?.lowInches ?? null)}</td>,
-                                    <td key={`${town.zip}-high`} title={title}>{formatInches(report?.highInches ?? null)}</td>,
+                                    <td key={`${town.zip}-low`} className="group-start" title={title}>{format(report?.low ?? null)}</td>,
+                                    <td key={`${town.zip}-high`} title={title}>{format(report?.high ?? null)}</td>,
                                 ];
                             })}
                         </tr>}

@@ -10,7 +10,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         <main className="prose">
             <header>
                 <h1>Privacy Policy</h1>
-                <p className="location">Effective November 10, 2026</p>
+                <p className="location">Effective November 24, 2026</p>
             </header>
 
             <p>
@@ -26,7 +26,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 <li>Default station</li>
                 <li>The order of the Station page's cards and charts, and which ones you've collapsed</li>
                 <li>Stations you've added (up to 20), with the ZIP code you found each one by</li>
-                <li>The Snow Forecast page's towns, and the snow amounts you type into its manual rows</li>
+                <li>The Storm Forecast page's towns, and the snow, rain and gust amounts you type into its manual rows</li>
             </ul>
             <p>To remove them, clear this site's data in your browser settings.</p>
 
@@ -53,8 +53,8 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 <li>US Naval Observatory: sun and moon data</li>
                 <li>Zippopotam.us: ZIP code locations</li>
                 <li>NewsCenter Maine: Maine forecasts</li>
-                <li>WeatherAPI.com: snow forecasts</li>
-                <li>Iowa Environmental Mesonet: snow totals reported to the National Weather Service. It's sent a state and dates, not a ZIP code</li>
+                <li>WeatherAPI.com: snow, rain and wind forecasts</li>
+                <li>Iowa Environmental Mesonet: snow and rain totals and wind gusts reported to the National Weather Service. It's sent a state and dates, not a ZIP code</li>
             </ul>
 
             <h2>Services your browser contacts directly</h2>

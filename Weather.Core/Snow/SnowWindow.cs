@@ -2,7 +2,7 @@ using Weather.Core.Models;
 
 namespace Weather.Core.Snow;
 
-/// <summary>Totals a source's snow periods over whole local dates.</summary>
+/// <summary>Totals a source's snow and liquid over whole local dates, and finds its strongest gusts and deepest snow there.</summary>
 public static class SnowWindow
 {
     public static (DateTimeOffset Start, DateTimeOffset End) Bounds(DateOnly start, DateOnly end, string timeZoneId)
@@ -122,6 +122,104 @@ public static class SnowWindow
     }
 
     public const double FallingInchesPerHour = 0.01;
+
+    /// <summary>Gusts from this speed count as windy for the timing bars.</summary>
+    public const double WindyMph = 30;
+
+    /// <summary>Below this much liquid a snow-to-liquid ratio means little.</summary>
+    public const double RatioMinimumLiquidInches = 0.05;
+
+    /// <summary>
+    /// Snow with liquid well beyond what it accounts for: under 5 inches of snow for each inch of water,
+    /// where 10:1 is typical and 5:1 is already very wet, so some of the liquid is rain or sleet.
+    /// </summary>
+    public const double MixedRatio = 5;
+    public const double MixedMinimumLiquidInches = 0.1;
+
+    /// <summary>
+    /// The strongest gust in any period touching the window, and that period cut at the window's edges. Null when
+    /// the source has none there. Partial when its gusts start after the window does or end before it.
+    /// </summary>
+    public static (double Mph, DateTimeOffset PeakStart, DateTimeOffset PeakEnd, bool Partial)? MaxGust(
+        IReadOnlyList<GustPeriod> gusts, DateTimeOffset start, DateTimeOffset end)
+    {
+        var inside = gusts.Where(gust => gust.End > start && gust.Start < end && gust.End > gust.Start).ToList();
+        if (inside.Count == 0)
+        {
+            return null;
+        }
+
+        // The earliest of equal gusts, so the time doesn't jump between refreshes.
+        var peak = inside.OrderByDescending(gust => gust.Mph).ThenBy(gust => gust.Start).First();
+        var partial = gusts.Min(gust => gust.Start) > start || gusts.Max(gust => gust.End) < end;
+        return (Math.Round(peak.Mph), peak.Start > start ? peak.Start : start, peak.End < end ? peak.End : end, partial);
+    }
+
+    /// <summary>When gusts first and last reach <see cref="WindyMph"/> inside the window, or null when they never do.</summary>
+    public static (DateTimeOffset Start, DateTimeOffset End)? Windy(
+        IReadOnlyList<GustPeriod> gusts, DateTimeOffset start, DateTimeOffset end)
+    {
+        var windy = gusts.Where(gust => gust.End > start && gust.Start < end && gust.Mph >= WindyMph).ToList();
+        if (windy.Count == 0)
+        {
+            return null;
+        }
+
+        var first = windy.Min(gust => gust.Start);
+        var last = windy.Max(gust => gust.End);
+        return (first > start ? first : start, last < end ? last : end);
+    }
+
+    /// <summary>The gusts inside the window, oldest first, cut at its edges. A gust isn't shared out like an amount.</summary>
+    public static IReadOnlyList<GustPeriod> Clip(IReadOnlyList<GustPeriod> gusts, DateTimeOffset start, DateTimeOffset end) =>
+        gusts
+            .Where(gust => gust.End > start && gust.Start < end && gust.End > gust.Start)
+            .OrderBy(gust => gust.Start)
+            .Select(gust => gust with { Start = gust.Start > start ? gust.Start : start, End = gust.End < end ? gust.End : end })
+            .ToList();
+
+    /// <summary>The depth points from the window's start to its end, oldest first.</summary>
+    public static IReadOnlyList<DepthPoint> Clip(IReadOnlyList<DepthPoint> depth, DateTimeOffset start, DateTimeOffset end) =>
+        depth.Where(point => point.Time >= start && point.Time <= end).OrderBy(point => point.Time).ToList();
+
+    /// <summary>
+    /// Snow on the ground: at the point nearest <paramref name="now"/> (within 90 minutes), the most during the
+    /// window and when, and at its end. Null when the model has no depth in the window. Partial when it ends first.
+    /// </summary>
+    public static (double? Now, double Max, DateTimeOffset MaxAt, double End, bool Partial)? Depth(
+        IReadOnlyList<DepthPoint> depth, DateTimeOffset now, DateTimeOffset start, DateTimeOffset end)
+    {
+        var inside = Clip(depth, start, end);
+        if (inside.Count == 0)
+        {
+            return null;
+        }
+
+        var nearest = depth.MinBy(point => Math.Abs((point.Time - now).TotalMinutes));
+        double? current = nearest is not null && Math.Abs((nearest.Time - now).TotalMinutes) <= 90 ? nearest.Inches : null;
+        var max = inside.OrderByDescending(point => point.Inches).ThenBy(point => point.Time).First();
+        var last = inside[^1];
+        return (current, max.Inches, max.Time, last.Inches, last.Time < end.AddHours(-1));
+    }
+
+    /// <summary>
+    /// Snow over liquid for the same source and window, such as 10 for 10:1, and whether it looks mixed.
+    /// No ratio when either total is partial or there's too little liquid to say.
+    /// </summary>
+    public static (double? Ratio, bool Mixed) Ratio(
+        (double Low, double High, bool Partial)? snow, (double Low, double High, bool Partial)? liquid)
+    {
+        if (snow is not { Partial: false } snowTotal || liquid is not { Partial: false } liquidTotal
+            || liquidTotal.High < RatioMinimumLiquidInches || snowTotal.High <= 0)
+        {
+            // No snow at all is plain rain, which the Rain view already shows.
+            return (null, false);
+        }
+
+        var ratio = snowTotal.High / liquidTotal.High;
+        var mixed = liquidTotal.High >= MixedMinimumLiquidInches && ratio < MixedRatio;
+        return (Math.Round(ratio), mixed);
+    }
 
     private static double Round(double inches, int digits) => Math.Round(inches, digits, MidpointRounding.AwayFromZero);
 

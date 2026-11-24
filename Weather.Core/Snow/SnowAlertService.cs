@@ -7,7 +7,8 @@ using Weather.Core.Models;
 namespace Weather.Core.Snow;
 
 /// <summary>
-/// Winter alerts for the Snow Forecast page's towns, each listed once with the towns it covers.
+/// Winter, flood and wind alerts for the Storm Forecast page's towns, each listed once with the towns it covers
+/// and tagged with the view it belongs to. All three come from the same call per town.
 /// Like other alerts, a failure is reported and never replaced by old data.
 /// </summary>
 public sealed class SnowAlertService(
@@ -23,8 +24,20 @@ public sealed class SnowAlertService(
         "sleet", "wind chill", "extreme cold", "cold weather", "lake effect",
     ];
 
-    public static bool IsWinter(string eventName) =>
-        WinterWords.Any(word => eventName.Contains(word, StringComparison.OrdinalIgnoreCase));
+    private static readonly string[] FloodWords = ["flood", "hydrologic"];
+
+    // Checked after winter, so a wind chill alert stays winter.
+    private static readonly string[] WindWords = ["wind", "hurricane", "tropical storm"];
+
+    /// <summary>Which view an alert belongs to, or null for one the page doesn't show, such as a small craft advisory.</summary>
+    public static StormAlertKind? Kind(string eventName)
+    {
+        bool has(string[] words) => words.Any(word => eventName.Contains(word, StringComparison.OrdinalIgnoreCase));
+        return has(WinterWords) ? StormAlertKind.Winter
+            : has(FloodWords) ? StormAlertKind.Flood
+            : has(WindWords) ? StormAlertKind.Wind
+            : null;
+    }
 
     public async Task<SnowAlertReport> GetAsync(IReadOnlyList<string> zips)
     {
@@ -46,7 +59,7 @@ public sealed class SnowAlertService(
             }
         }
 
-        var list = found.Values.Select(entry => new SnowAlert(entry.Alert, entry.Zips)).ToList();
+        var list = found.Values.Select(entry => new SnowAlert(entry.Alert, entry.Zips, Kind(entry.Alert.Event)!.Value)).ToList();
         return failed.Count == 0
             ? new SnowAlertReport(SourceStatus.Ok, null, list)
             : new SnowAlertReport(
@@ -69,7 +82,7 @@ public sealed class SnowAlertService(
                 {
                     var location = await locationResolver.ResolveAsync(zip, timeout.Token);
                     var all = await alerts.GetAsync(new GeoPoint(location.Latitude, location.Longitude), timeout.Token);
-                    return (new ZipAlerts(all.Where(alert => IsWinter(alert.Event)).ToList()), ttl);
+                    return (new ZipAlerts(all.Where(alert => Kind(alert.Event) is not null).ToList()), ttl);
                 }
                 catch (Exception exception)
                 {

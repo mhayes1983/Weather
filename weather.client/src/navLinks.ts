@@ -5,7 +5,7 @@ export const navLinks: { route: Route; label: string }[] = [
     { route: '/daily', label: 'Daily Forecast' },
     { route: '/radar', label: 'Maps' },
     { route: '/forecast', label: 'Temperature Forecast' },
-    { route: '/snow', label: 'Snow Forecast' },
+    { route: '/storm', label: 'Storm Forecast' },
     { route: '/help', label: 'Help' },
 ];
 

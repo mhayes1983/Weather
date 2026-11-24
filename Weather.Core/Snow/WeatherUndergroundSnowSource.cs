@@ -33,7 +33,45 @@ public sealed class WeatherUndergroundSnowSource(
         }
 
         var json = await WeatherUndergroundForecast.GetJsonAsync(httpClientFactory, cache, settings, location.Zip, cancellationToken);
-        return SnowResult.Ok(Read(json), timeProvider.GetUtcNow());
+        var liquid = ReadLiquid(json);
+        return SnowResult.Ok(Read(json), timeProvider.GetUtcNow(), liquid: liquid.Count == 0 ? null : liquid);
+    }
+
+    /// <summary>Each day part's <c>qpf</c>, all precipitation as water in inches. The forecast has no gusts.</summary>
+    internal static List<SnowPeriod> ReadLiquid(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        var dates = document.RootElement.GetProperty("validTimeLocal");
+        var daypart = document.RootElement.GetProperty("daypart")[0];
+        var liquid = new List<SnowPeriod>();
+        if (!daypart.TryGetProperty("qpf", out var amounts))
+        {
+            return liquid;
+        }
+
+        for (var i = 0; i < dates.GetArrayLength(); i++)
+        {
+            var dayStart = DayStart(dates[i]);
+            for (var part = 0; part < 2; part++)
+            {
+                var index = (2 * i) + part;
+                if (index < amounts.GetArrayLength() && amounts[index].ValueKind == JsonValueKind.Number)
+                {
+                    var start = dayStart + (DayPart * part);
+                    var amount = amounts[index].GetDouble();
+                    liquid.Add(new SnowPeriod(start, start + DayPart, amount, amount));
+                }
+            }
+        }
+
+        return liquid;
+    }
+
+    // Dates look like 2026-10-30T07:00:00-0400, the start of that date's day part.
+    private static DateTimeOffset DayStart(JsonElement date)
+    {
+        var text = date.GetString()!;
+        return DateTimeOffset.Parse(text.Insert(text.Length - 2, ":"), CultureInfo.InvariantCulture);
     }
 
     internal static List<SnowPeriod> Read(string json)
@@ -47,9 +85,7 @@ public sealed class WeatherUndergroundSnowSource(
         var periods = new List<SnowPeriod>();
         for (var i = 0; i < dates.GetArrayLength(); i++)
         {
-            // Dates look like 2026-10-30T07:00:00-0400, the start of that date's day part.
-            var text = dates[i].GetString()!;
-            var dayStart = DateTimeOffset.Parse(text.Insert(text.Length - 2, ":"), CultureInfo.InvariantCulture);
+            var dayStart = DayStart(dates[i]);
 
             for (var part = 0; part < 2; part++)
             {

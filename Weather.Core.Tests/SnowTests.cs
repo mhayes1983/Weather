@@ -595,19 +595,20 @@ public class SnowTests
         Assert.Equal(SourceStatus.Ok, table.Status);
         var town = Assert.Single(table.Towns);
         Assert.Equal("04086", town.Zip);
-        Assert.Equal(2.0, town.LowInches);
-        Assert.Equal(5.0, town.HighInches);
+        Assert.Equal(2.0, town.Low);
+        Assert.Equal(5.0, town.High);
         Assert.Equal(["Topsham", "3 N Bowdoinham"], town.Reports.Select(report => report.Place));
 
         // A place's highest report is its total so far, and times are the town's.
-        Assert.Equal(5.0, town.Reports[0].Inches);
+        Assert.Equal(5.0, town.Reports[0].Amount);
         Assert.Equal(11, town.Reports[0].ObservedAt.Hour);
         Assert.False(town.Reports[0].Estimated);
         Assert.True(town.Reports[1].Estimated);
         Assert.InRange(town.Reports[1].DistanceMiles, 6, 8);
 
         var url = Assert.Single(http.Requests).RequestUri!.ToString();
-        Assert.Contains("sts=202610300400", url);
+        // The same call covers the past week's rain, from local midnight 7 days ago.
+        Assert.Contains("sts=202610230400", url);
         Assert.Contains("ets=202610311600", url);
         Assert.Contains("states=ME", url);
     }
@@ -625,17 +626,52 @@ public class SnowTests
     }
 
     [Fact]
-    public async Task DatesThatHaveNotStartedAskForNoReports()
+    public async Task DatesThatHaveNotStartedStillGetThePastWeeksRain()
     {
-        var http = StubHttp.Json(_ => StormReports);
+        var http = StubHttp.Json(_ => """
+            { "features": [
+              { "properties": { "type": "S", "magf": 3.0, "unit": "Inch", "city": "Topsham", "valid": "2026-10-29T14:00:00Z", "lat": 43.93, "lon": -69.96 } },
+              { "properties": { "type": "R", "magf": 1.1, "unit": "Inch", "city": "Topsham", "valid": "2026-10-29T14:00:00Z", "lat": 43.93, "lon": -69.96 } }
+            ] }
+            """);
         var (reports, tables) = ReportServices(http);
         var (request, _) = tables.Parse("04086", "2026-11-02", "2026-11-03");
 
         var table = await reports.GetAsync(request!);
 
+        // Snow and gusts wait for the storm's dates; rain is what has already fallen.
         Assert.Equal(SourceStatus.Ok, table.Status);
         Assert.Empty(table.Towns);
-        Assert.Empty(http.Requests);
+        Assert.Empty(table.WindTowns!);
+        Assert.Equal(1.1, Assert.Single(table.RainTowns!).High);
+        Assert.Equal(new DateOnly(2026, 10, 23), table.RainSince);
+        var url = Assert.Single(http.Requests).RequestUri!.ToString();
+        Assert.Contains("sts=202610230400", url);
+        // Nothing can be reported after today, so a storm still to come doesn't stretch the call.
+        Assert.Contains("ets=202610310400", url);
+    }
+
+    [Fact]
+    public async Task RainReportsCoverThePastWeekWithEachPlacesDatesNewestFirst()
+    {
+        var http = StubHttp.Json(_ => """
+            { "features": [
+              { "properties": { "type": "R", "magf": 0.5, "unit": "Inch", "city": "Topsham", "valid": "2026-10-25T14:00:00Z", "lat": 43.93, "lon": -69.96 } },
+              { "properties": { "type": "R", "magf": 0.8, "unit": "Inch", "city": "Topsham", "valid": "2026-10-25T20:00:00Z", "lat": 43.93, "lon": -69.96 } },
+              { "properties": { "type": "R", "magf": 1.2, "unit": "Inch", "city": "Topsham", "valid": "2026-10-29T12:00:00Z", "lat": 43.93, "lon": -69.96 } },
+              { "properties": { "type": "R", "magf": 2.0, "unit": "Inch", "city": "Brunswick", "valid": "2026-10-29T13:00:00Z", "lat": 43.91, "lon": -69.96 } },
+              { "properties": { "type": "R", "magf": 3.0, "unit": "Inch", "city": "Topsham", "valid": "2026-10-21T12:00:00Z", "lat": 43.93, "lon": -69.96 } }
+            ] }
+            """);
+        var (reports, tables) = ReportServices(http);
+        var (request, _) = tables.Parse("04086", "2026-10-30", "2026-10-31");
+
+        var town = Assert.Single((await reports.GetAsync(request!)).RainTowns!);
+
+        // A place keeps its highest report on each date; one from before the week is left out.
+        Assert.Equal(
+            [("Topsham", 1.2), ("Brunswick", 2.0), ("Topsham", 0.8)],
+            town.Reports.Select(report => (report.Place, report.Amount)));
     }
 
     [Fact]
@@ -646,8 +682,8 @@ public class SnowTests
 
         var town = Assert.Single((await reports.GetAsync(request!)).Towns);
 
-        Assert.Null(town.LowInches);
-        Assert.Null(town.HighInches);
+        Assert.Null(town.Low);
+        Assert.Null(town.High);
         Assert.Empty(town.Reports);
     }
 
@@ -660,7 +696,312 @@ public class SnowTests
         var table = await reports.GetAsync(request!);
 
         Assert.Equal(SourceStatus.Error, table.Status);
-        Assert.Equal("Snow reports are unavailable for some towns right now.", table.Message);
+        Assert.Equal("Storm reports are unavailable for some towns right now.", table.Message);
         Assert.Empty(table.Towns);
+    }
+
+    [Fact]
+    public async Task ReportsSplitIntoSnowRainAndWind()
+    {
+        var http = StubHttp.Json(_ => """
+            { "features": [
+              { "properties": { "type": "S", "magf": 4.0, "unit": "Inch", "city": "Topsham", "valid": "2026-10-30T14:00:00Z", "lat": 43.93, "lon": -69.96 } },
+              { "properties": { "type": "R", "magf": 1.25, "unit": "Inch", "city": "Topsham", "valid": "2026-10-30T14:00:00Z", "lat": 43.93, "lon": -69.96 } },
+              { "properties": { "type": "N", "magf": 45, "unit": "MPH", "city": "Topsham", "valid": "2026-10-30T14:00:00Z", "lat": 43.93, "lon": -69.96 } },
+              { "properties": { "type": "G", "magf": 52, "unit": "MPH", "city": "Brunswick", "valid": "2026-10-30T15:00:00Z", "lat": 43.91, "lon": -69.96 } },
+              { "properties": { "type": "M", "magf": 60, "unit": "MPH", "city": "Casco Bay", "valid": "2026-10-30T15:00:00Z", "lat": 43.80, "lon": -70.00 } },
+              { "properties": { "type": "E", "magf": null, "unit": null, "city": "Topsham", "valid": "2026-10-30T15:00:00Z", "lat": 43.93, "lon": -69.96 } }
+            ] }
+            """);
+        var (reports, tables) = ReportServices(http);
+        var (request, _) = tables.Parse("04086", "2026-10-30", "2026-10-30");
+
+        var table = await reports.GetAsync(request!);
+
+        Assert.Equal(4.0, Assert.Single(table.Towns).High);
+        Assert.Equal(1.25, Assert.Single(table.RainTowns!).High);
+        var wind = Assert.Single(table.WindTowns!);
+        Assert.Equal(45, wind.Low);
+        Assert.Equal(52, wind.High);
+        Assert.Equal(["Topsham", "Brunswick"], wind.Reports.Select(report => report.Place));
+        Assert.Single(http.Requests);
+    }
+
+    [Theory]
+    [InlineData("Winter Storm Warning", StormAlertKind.Winter)]
+    [InlineData("Wind Chill Advisory", StormAlertKind.Winter)]
+    [InlineData("Flood Watch", StormAlertKind.Flood)]
+    [InlineData("Flash Flood Warning", StormAlertKind.Flood)]
+    [InlineData("Coastal Flood Advisory", StormAlertKind.Flood)]
+    [InlineData("High Wind Warning", StormAlertKind.Wind)]
+    [InlineData("Wind Advisory", StormAlertKind.Wind)]
+    [InlineData("Tropical Storm Watch", StormAlertKind.Wind)]
+    [InlineData("Small Craft Advisory", null)]
+    [InlineData("Dense Fog Advisory", null)]
+    public void AlertsBelongToAView(string eventName, StormAlertKind? kind)
+    {
+        Assert.Equal(kind, SnowAlertService.Kind(eventName));
+    }
+
+    [Fact]
+    public async Task FloodAndWindAlertsComeFromTheSameCall()
+    {
+        var cache = new WeatherCache();
+        var options = TestData.Options();
+        var http = StubHttp.Json(url => url.Contains("zippopotam")
+            ? """{ "places": [ { "place name": "Topsham", "state abbreviation": "ME", "latitude": "43.93", "longitude": "-69.97" } ] }"""
+            : url.Contains("timezone=auto")
+                ? """{ "timezone": "America/New_York" }"""
+                : """
+                  { "features": [
+                    { "properties": { "id": "a1", "event": "Flood Watch", "severity": "Moderate" } },
+                    { "properties": { "id": "a2", "event": "Wind Advisory", "severity": "Minor" } },
+                    { "properties": { "id": "a3", "event": "Small Craft Advisory", "severity": "Minor" } }
+                  ] }
+                  """);
+        var service = new SnowAlertService(
+            new LocationResolver(http, cache, options), new NwsAlerts(http, Time), cache, options, NullLogger<SnowAlertService>.Instance);
+
+        var report = await service.GetAsync(["04086"]);
+
+        Assert.Equal([StormAlertKind.Flood, StormAlertKind.Wind], report.Alerts.Select(alert => alert.Kind));
+    }
+
+    [Fact]
+    public async Task OpenMeteoReadsLiquidGustsAndDepthFromTheSameCall()
+    {
+        var http = StubHttp.Json(_ => """
+            { "hourly_units": { "snow_depth_gfs_seamless": "ft", "snow_depth_jma_seamless": "ft" },
+              "hourly": {
+              "time": ["2026-10-30T05:00", "2026-10-30T06:00"],
+              "snowfall_gfs_seamless": [0.4, 0.2],
+              "precipitation_gfs_seamless": [0.04, 0.03],
+              "wind_gusts_10m_gfs_seamless": [32.5, 41],
+              "snow_depth_gfs_seamless": [0.5, 0.25],
+              "snowfall_jma_seamless": [0, 0],
+              "precipitation_jma_seamless": [0.1, null],
+              "wind_gusts_10m_jma_seamless": [null, null],
+              "snow_depth_jma_seamless": [null, null]
+            } }
+            """);
+        string[] models = ["gfs_seamless", "jma_seamless"];
+        var cache = new WeatherCache();
+        OpenMeteoSnowSource Source(string model) =>
+            new(new ColumnDescriptor(model, model), model, "https://api.open-meteo.com/v1/forecast", models, http, cache, TestData.Options(), Time);
+
+        var gfs = await Source("gfs_seamless").GetSnowAsync(TestData.Topsham, default);
+        var jma = await Source("jma_seamless").GetSnowAsync(TestData.Topsham, default);
+
+        Assert.Equal(
+            [new SnowPeriod(Midnight, Midnight.AddHours(1), 0.04, 0.04), new SnowPeriod(Midnight.AddHours(1), Midnight.AddHours(2), 0.03, 0.03)],
+            gfs.Liquid);
+        Assert.Equal([new GustPeriod(Midnight, Midnight.AddHours(1), 32.5), new GustPeriod(Midnight.AddHours(1), Midnight.AddHours(2), 41)], gfs.Gusts);
+
+        // Depth comes in feet with inch units, at the hour's time.
+        Assert.Equal([new DepthPoint(Midnight.AddHours(1), 6), new DepthPoint(Midnight.AddHours(2), 3)], gfs.Depth);
+
+        // A model without gusts or depth has none, rather than an empty series.
+        Assert.Null(jma.Gusts);
+        Assert.Null(jma.Depth);
+        Assert.Single(jma.Liquid!);
+
+        var query = Assert.Single(http.Requests).RequestUri!.Query;
+        Assert.Contains("hourly=snowfall,precipitation,wind_gusts_10m,snow_depth", query);
+        Assert.Contains("wind_speed_unit=mph", query);
+    }
+
+    [Fact]
+    public async Task NwsReadsLiquidAndGustsFromTheGrid()
+    {
+        var http = StubHttp.Json(url => url switch
+        {
+            _ when url.Contains("/points/") => """
+                { "properties": { "forecast": "https://api.weather.gov/gridpoints/GYX/1,2/forecast", "forecastGridData": "https://api.weather.gov/gridpoints/GYX/1,2" } }
+                """,
+            _ when url.EndsWith("/forecast") => """{ "properties": { "periods": [] } }""",
+            _ => """
+                { "properties": {
+                  "snowfallAmount": { "values": [] },
+                  "quantitativePrecipitation": { "uom": "wmoUnit:mm", "values": [
+                    { "validTime": "2026-10-30T12:00:00+00:00/PT6H", "value": 12.7 }
+                  ] },
+                  "windGust": { "uom": "wmoUnit:km_h-1", "values": [
+                    { "validTime": "2026-10-30T12:00:00+00:00/PT2H", "value": 64.374 },
+                    { "validTime": "2026-10-30T14:00:00+00:00/PT1H", "value": null }
+                  ] }
+                } }
+                """,
+        });
+
+        var result = await new NwsSnowSource(http, new WeatherCache(), TestData.Options(), Time).GetSnowAsync(TestData.Topsham, default);
+
+        var liquid = Assert.Single(result.Liquid!);
+        Assert.Equal(0.5, liquid.HighInches, 6);
+        Assert.Equal(TimeSpan.FromHours(6), liquid.End - liquid.Start);
+        var gust = Assert.Single(result.Gusts!);
+        Assert.Equal(40, gust.Mph);
+        Assert.Equal(TimeSpan.FromHours(2), gust.End - gust.Start);
+        Assert.Null(result.Depth);
+    }
+
+    [Fact]
+    public async Task WeatherUndergroundReadsLiquidButHasNoGusts()
+    {
+        var http = StubHttp.Json(_ => """
+            {
+              "validTimeLocal": ["2026-10-30T07:00:00-0400"],
+              "daypart": [{
+                "qpf": [null, 0.45],
+                "qpfSnow": [null, 2.4],
+                "narrative": [null, "Snow."]
+              }]
+            }
+            """);
+        var options = TestData.Options(o => o.WeatherUnderground.ApiKey = "key");
+
+        var result = await new WeatherUndergroundSnowSource(http, new WeatherCache(), options, Time).GetSnowAsync(TestData.Topsham, default);
+
+        var dayStart = DateTimeOffset.Parse("2026-10-30T07:00:00-04:00");
+        Assert.Equal([new SnowPeriod(dayStart.AddHours(12), dayStart.AddHours(24), 0.45, 0.45)], result.Liquid);
+        Assert.Null(result.Gusts);
+    }
+
+    [Fact]
+    public async Task WeatherApiReadsLiquidAndGusts()
+    {
+        var start = Midnight.ToUnixTimeSeconds();
+        var http = StubHttp.Json(_ => $$"""
+            { "forecast": { "forecastday": [ { "hour": [
+              { "time_epoch": {{start}}, "snow_cm": 0, "precip_in": 0.12, "gust_mph": 38.2 }
+            ] } ] } }
+            """);
+        var options = TestData.Options(o => o.WeatherApi.ApiKey = "key");
+
+        var result = await new WeatherApiSnowSource(http, options, Time).GetSnowAsync(TestData.Topsham, default);
+
+        Assert.Equal([new SnowPeriod(Midnight, Midnight.AddHours(1), 0.12, 0.12)], result.Liquid);
+        Assert.Equal([new GustPeriod(Midnight, Midnight.AddHours(1), 38.2)], result.Gusts);
+    }
+
+    [Fact]
+    public async Task TableBuildsRainWindAndDepthCellsFromOneResult()
+    {
+        var calls = 0;
+        var service = Service(
+        [
+            new FakeSnowSource("model", () =>
+            {
+                calls++;
+                return SnowResult.Ok(
+                    [
+                        new SnowPeriod(Midnight, Midnight.AddHours(6), 0, 0),
+                        new SnowPeriod(Midnight.AddHours(6), Midnight.AddHours(12), 6, 6),
+                        new SnowPeriod(Midnight.AddHours(12), Midnight.AddHours(24), 0, 0),
+                    ],
+                    TestData.Now,
+                    liquid: [new SnowPeriod(Midnight, Midnight.AddHours(24), 0.604, 0.604)],
+                    gusts:
+                    [
+                        new GustPeriod(Midnight.AddHours(8), Midnight.AddHours(9), 31),
+                        new GustPeriod(Midnight.AddHours(12), Midnight.AddHours(13), 44.6),
+                        new GustPeriod(Midnight.AddHours(20), Midnight.AddHours(21), 25),
+                        new GustPeriod(Midnight.AddHours(23), Midnight.AddHours(24), 12),
+                    ],
+                    depth: [new DepthPoint(Midnight.AddHours(6), 0), new DepthPoint(Midnight.AddHours(14), 5.5), new DepthPoint(Midnight.AddHours(24), 4)]);
+            }),
+            new FakeSnowSource("plain", () => SnowResult.Ok([new SnowPeriod(Midnight, Midnight.AddHours(24), 1, 1)], TestData.Now)),
+        ]);
+        var (request, _) = service.Parse(null, "2026-10-30", "2026-10-30");
+
+        var table = await service.GetAsync(request!);
+
+        Assert.Equal(1, calls);
+        var rain = table.RainCells![0];
+        Assert.Equal(0.6, rain.HighInches);
+        Assert.Null(rain.IceInches);
+        Assert.Equal(10, rain.Ratio);
+        Assert.False(rain.Mixed);
+        Assert.Equal(10, table.Cells[0].Ratio);
+
+        var wind = table.WindCells![0];
+        Assert.Equal(45, wind.MaxMph);
+        Assert.Equal(Midnight.AddHours(12), wind.PeakStart);
+        Assert.Equal(Midnight.AddHours(8), wind.WindyStart);
+        Assert.Equal(Midnight.AddHours(13), wind.WindyEnd);
+        Assert.Equal(TimeSpan.FromHours(-4), wind.PeakStart!.Value.Offset);
+
+        var depth = table.DepthCells![0];
+        Assert.Equal(5.5, depth.MaxInches);
+        Assert.Equal(Midnight.AddHours(14), depth.MaxAt);
+        Assert.Equal(4, depth.EndInches);
+        Assert.False(depth.Partial);
+
+        // A source without liquid, gusts or depth has no values there, and its row is only in snow and rain.
+        Assert.Null(table.RainCells[1].HighInches);
+        Assert.Null(table.WindCells[1].MaxMph);
+        Assert.Equal([StormViews.Snow, StormViews.Rain, StormViews.Wind, StormViews.Depth], table.Sources[0].Views);
+        Assert.Equal([StormViews.Snow, StormViews.Rain], table.Sources[1].Views);
+    }
+
+    [Theory]
+    [InlineData(2, 1, 2.0, true)]
+    [InlineData(8, 1, 8.0, false)]
+    [InlineData(0, 1, null, false)]
+    [InlineData(1, 0.02, null, false)]
+    public void RatioAndMixed(double snow, double liquid, double? ratio, bool mixed)
+    {
+        Assert.Equal((ratio, mixed), SnowWindow.Ratio((snow, snow, false), (liquid, liquid, false)));
+    }
+
+    [Fact]
+    public void NoRatioWhenEitherTotalIsPartial()
+    {
+        Assert.Equal((null, false), SnowWindow.Ratio((5, 5, true), (0.5, 0.5, false)));
+        Assert.Equal((null, false), SnowWindow.Ratio((5, 5, false), (0.5, 0.5, true)));
+    }
+
+    [Fact]
+    public void MaxGustIsPartialWhenTheForecastEndsFirst()
+    {
+        GustPeriod[] gusts = [new(Midnight, Midnight.AddHours(12), 40)];
+
+        var max = SnowWindow.MaxGust(gusts, Midnight, Midnight.AddHours(24));
+
+        Assert.Equal((40.0, Midnight, Midnight.AddHours(12), true), max);
+        Assert.Null(SnowWindow.MaxGust(gusts, Midnight.AddHours(12), Midnight.AddHours(24)));
+    }
+
+    [Fact]
+    public void DepthNowIsTheNearestPointWithinNinetyMinutes()
+    {
+        DepthPoint[] depth = [new(Midnight, 2), new(Midnight.AddHours(1), 3), new(Midnight.AddHours(2), 3)];
+
+        Assert.Equal(3, SnowWindow.Depth(depth, Midnight.AddMinutes(50), Midnight, Midnight.AddHours(24))!.Value.Now);
+        Assert.Null(SnowWindow.Depth(depth, Midnight.AddHours(10), Midnight, Midnight.AddHours(24))!.Value.Now);
+        Assert.True(SnowWindow.Depth(depth, Midnight, Midnight, Midnight.AddHours(24))!.Value.Partial);
+    }
+
+    [Fact]
+    public async Task HourlyCarriesLiquidGustsAndDepthInTheTownsTime()
+    {
+        var service = Service(
+        [
+            new FakeSnowSource("model", () => SnowResult.Ok(
+                [],
+                TestData.Now,
+                liquid: [new SnowPeriod(Midnight.AddHours(-2), Midnight.AddHours(2), 0.4, 0.4)],
+                gusts: [new GustPeriod(Midnight.AddHours(-1), Midnight.AddHours(1), 35)],
+                depth: [new DepthPoint(Midnight.AddHours(-1), 1), new DepthPoint(Midnight.AddHours(3), 2)])),
+        ]);
+        var (request, _) = service.ParseHourly("04086", "2026-10-30", "2026-10-30");
+
+        var source = Assert.Single((await service.GetHourlyAsync(request!)).Sources);
+
+        Assert.Equal(new SnowPeriod(Midnight, Midnight.AddHours(2), 0.2, 0.2), Assert.Single(source.Liquid!));
+        Assert.True(source.LiquidPartial);
+        var gust = Assert.Single(source.Gusts!);
+        Assert.Equal(new GustPeriod(Midnight, Midnight.AddHours(1), 35), gust);
+        Assert.Equal(0, gust.Start.Hour);
+        Assert.Equal(new DepthPoint(Midnight.AddHours(3), 2), Assert.Single(source.Depth!));
     }
 }
