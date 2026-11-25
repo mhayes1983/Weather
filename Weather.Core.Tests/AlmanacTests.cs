@@ -140,7 +140,15 @@ public class AlmanacTests
         bool TidesFail = false,
         bool ArchiveFails = false);
 
-    private static (ServiceProvider Services, StubHttp Http) Services(Stubs? stubs = null, DateTimeOffset? now = null)
+    /// <summary>A clock a test can move on, to see what's kept from one day to the next.</summary>
+    private sealed class MovableTime(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
+
+    private static (ServiceProvider Services, StubHttp Http) Services(Stubs? stubs = null, DateTimeOffset? now = null, TimeProvider? time = null)
     {
         stubs ??= new Stubs();
         var searches = 0;
@@ -168,7 +176,7 @@ public class AlmanacTests
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton<TimeProvider>(new FixedTime(now ?? TestData.Now));
+        services.AddSingleton(time ?? new FixedTime(now ?? TestData.Now));
         services.AddWeatherCore(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["DefaultLocation:Zip"] = "04086",
@@ -346,6 +354,14 @@ public class AlmanacTests
     [InlineData(null, "17:31", null)]
     [InlineData("07:14", "bad", null)]
     [InlineData("17:31", "07:14", null)]
+    // Open-Meteo's times keep their dates: Fairbanks' June sunset after midnight, then Utqiagvik's polar day and night.
+    [InlineData("2026-06-21T02:57", "2026-06-22T00:47", 1310)]
+    [InlineData("2026-06-21T00:00", "2026-06-22T00:00", 1440)]
+    [InlineData("2026-11-25T00:00", "2026-11-25T00:00", 0)]
+    [InlineData("2026-10-30T07:14", "2026-10-30T17:31", 617)]
+    // A forecast time beside a USNO one is compared by the clock.
+    [InlineData("2026-10-30T07:14", "17:31", 617)]
+    [InlineData("2026-06-22T00:47", "2026-06-21T02:57", null)]
     public void DaylightIsSunsetMinusSunrise(string? sunrise, string? sunset, int? expected) =>
         Assert.Equal(expected, Weather.Core.DailyForecast.DailyForecastService.DaylightMinutes(sunrise, sunset));
 
@@ -372,6 +388,40 @@ public class AlmanacTests
         Assert.Contains("end_date=20261031", query);
         Assert.Contains("interval=hilo", query);
         Assert.Contains("time_zone=lst_ldt", query);
+    }
+
+    [Fact]
+    public async Task SunsetAfterMidnightStillCountsAsDaylight()
+    {
+        // Tomorrow's sun sets at 12:47 AM the day after, as in Fairbanks in June.
+        var outlook = Outlook.Replace("\"2026-10-31T17:30\"", "\"2026-11-01T00:47\"");
+        var (services, _) = Services(new Stubs(Outlook: outlook));
+        using var __ = services;
+
+        var report = (await services.GetRequiredService<AlmanacService>().GetAsync())!;
+
+        Assert.Equal("00:47", report.Days[2].Sky!.Sunset);
+        Assert.Equal(1052, report.Days[2].Sky!.DaylightMinutes);
+        Assert.Equal(435, report.Days[2].Sky!.DaylightChangeMinutes);
+    }
+
+    [Fact]
+    public async Task NoTideStationIsLookedUpOnceAcrossDays()
+    {
+        var time = new MovableTime(TestData.Now);
+        var (services, http) = Services(new Stubs(TideStations: FarTideStations), time: time);
+        using var _ = services;
+        var almanac = services.GetRequiredService<AlmanacService>();
+
+        await almanac.GetAsync();
+        time.Now = TestData.Now.AddDays(1);
+        var report = (await almanac.GetAsync())!;
+
+        // The dated tides entry is new each day, but the station answer is kept, so the list isn't fetched again.
+        Assert.Equal(Tomorrow, report.Today);
+        Assert.Null(report.TideStation);
+        Assert.Single(http.Requests, request => request.RequestUri!.AbsolutePath.EndsWith("stations.json"));
+        Assert.DoesNotContain(http.Requests, request => request.RequestUri!.AbsolutePath.EndsWith("datagetter"));
     }
 
     [Fact]

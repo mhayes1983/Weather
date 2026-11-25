@@ -83,9 +83,10 @@ public sealed class AlmanacService(
                     var tideStation = await cache.GetOrCreateAsync(
                         string.Create(CultureInfo.InvariantCulture, $"tide-station:{location.Latitude},{location.Longitude}"),
                         async () => (await Climate.Acis.WithTimeoutAsync(timeout, token => noaaTides.FindStationAsync(location, token)), TideStationCacheDuration));
+                    // This entry's key changes daily, so it never outlives the day; the station entry above saves the list.
                     if (tideStation is null)
                     {
-                        return ((FetchedTides?)null, TideStationCacheDuration);
+                        return ((FetchedTides?)null, TidesCacheDuration);
                     }
 
                     // Predictions don't change, so they're kept for the rest of the day.

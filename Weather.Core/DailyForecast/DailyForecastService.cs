@@ -128,12 +128,13 @@ public sealed class DailyForecastService(
             .Select((day, i) => (Date: dates[i], Day: day))
             .ToDictionary(pair => pair.Date, pair => pair.Day);
 
-        // The daily forecast shows Open-Meteo's times, so the almanac uses them too where it can.
+        // The daily forecast shows Open-Meteo's times, so the almanac uses them too where it can. They keep
+        // their dates here, because in Alaska the sun can set after midnight or not at all.
         (string? Sunrise, string? Sunset) Sun(DateOnly date)
         {
             var forecastDay = forecast.Days.FirstOrDefault(other => other.Date == date);
             var usnoDay = usno.GetValueOrDefault(date);
-            return (Clock(forecastDay?.Sunrise) ?? usnoDay?.Sunrise, Clock(forecastDay?.Sunset) ?? usnoDay?.Sunset);
+            return (forecastDay?.Sunrise ?? usnoDay?.Sunrise, forecastDay?.Sunset ?? usnoDay?.Sunset);
         }
 
         // The dates usually share one solstice, so this is one cached archive call.
@@ -158,7 +159,7 @@ public sealed class DailyForecastService(
             var previous = Sun(date.AddDays(-1));
             var previousDaylight = DaylightMinutes(previous.Sunrise, previous.Sunset);
             var solsticeDaylight = references[SolsticeDaylight.LastSolstice(date)]?.DaylightMinutes;
-            sky[date] = new AlmanacSky(sunrise, sunset, day?.Moon, daylight, daylight - previousDaylight, daylight - solsticeDaylight);
+            sky[date] = new AlmanacSky(Clock(sunrise), Clock(sunset), day?.Moon, daylight, daylight - previousDaylight, daylight - solsticeDaylight);
         }
 
         return sky;
@@ -179,9 +180,26 @@ public sealed class DailyForecastService(
     // Open-Meteo's "2026-10-30T07:14" as "07:14", to match USNO.
     private static string? Clock(string? time) => time?[(time.IndexOf('T') + 1)..];
 
-    /// <summary>Minutes from sunrise to sunset, both local "HH:mm". Null when either is missing, as in polar winter or summer.</summary>
-    public static int? DaylightMinutes(string? sunrise, string? sunset) =>
-        ClockMinutes(sunrise) is int rise && ClockMinutes(sunset) is int set && set > rise ? set - rise : null;
+    /// <summary>
+    /// Minutes from sunrise to sunset. Open-Meteo's "2026-06-21T04:57" times keep their dates, so a sunset after
+    /// midnight still counts, and Open-Meteo's polar day (midnight to the next midnight) is 24 hours and its
+    /// polar night (both at the same midnight) none. USNO's "HH:mm" times have no date, so with one of those the
+    /// sunset must be later than the sunrise. Null when either is missing or they can't be compared.
+    /// </summary>
+    public static int? DaylightMinutes(string? sunrise, string? sunset)
+    {
+        if (LocalDateTime(sunrise) is { } riseAt && LocalDateTime(sunset) is { } setAt)
+        {
+            return setAt >= riseAt ? (int)(setAt - riseAt).TotalMinutes : null;
+        }
+
+        return ClockMinutes(Clock(sunrise)) is int rise && ClockMinutes(Clock(sunset)) is int set && set > rise ? set - rise : null;
+    }
+
+    private static DateTime? LocalDateTime(string? time) =>
+        DateTime.TryParseExact(time, "yyyy-MM-dd'T'HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var value)
+            ? value
+            : null;
 
     private static int? ClockMinutes(string? time) =>
         TimeOnly.TryParseExact(time, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var clock)

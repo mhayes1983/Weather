@@ -22,7 +22,7 @@ public sealed class OpenMeteoOutlook(IHttpClientFactory httpClientFactory, IOpti
     // Pages that show the forecast drop days that have passed.
     private const int PastDays = 2;
 
-    private const string DailyFields ="weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant,uv_index_max";
+    private const string DailyFields = "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant,uv_index_max";
     private const string HourlyFields = "weather_code,is_day,temperature_2m,apparent_temperature,precipitation_probability,precipitation,snowfall,cloud_cover,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,pressure_msl";
 
     public async Task<Outlook> GetAsync(GeoPoint location, CancellationToken cancellationToken)

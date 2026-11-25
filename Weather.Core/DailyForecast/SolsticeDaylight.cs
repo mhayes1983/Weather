@@ -57,7 +57,7 @@ public sealed class SolsticeDaylight(IHttpClientFactory httpClientFactory)
         var minutes = new List<int>();
         for (var i = 0; i < sunrises.GetArrayLength() && i < sunsets.GetArrayLength(); i++)
         {
-            if (DailyForecastService.DaylightMinutes(Clock(sunrises[i]), Clock(sunsets[i])) is int daylight)
+            if (DailyForecastService.DaylightMinutes(Text(sunrises[i]), Text(sunsets[i])) is int daylight)
             {
                 minutes.Add(daylight);
             }
@@ -71,7 +71,7 @@ public sealed class SolsticeDaylight(IHttpClientFactory httpClientFactory)
         return new SolsticeReference(solstice.Month == 6 ? minutes.Max() : minutes.Min());
     }
 
-    // "2026-06-21T04:57" as "04:57".
-    private static string? Clock(JsonElement time) =>
-        time.ValueKind == JsonValueKind.String && time.GetString() is { } text ? text[(text.IndexOf('T') + 1)..] : null;
+    // Kept with its date, such as "2026-06-21T04:57", so a sunset after midnight still counts.
+    private static string? Text(JsonElement time) =>
+        time.ValueKind == JsonValueKind.String ? time.GetString() : null;
 }
