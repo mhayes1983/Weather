@@ -13,6 +13,7 @@ public sealed class DailyForecastService(
     NwsDescriptions descriptions,
     NwsDiscussion discussion,
     UsnoMoon moon,
+    SolsticeDaylight solsticeDaylight,
     WeatherCache cache,
     IOptions<WeatherOptions> options,
     TimeProvider timeProvider,
@@ -24,6 +25,9 @@ public sealed class DailyForecastService(
 
     private static readonly TimeSpan LastGoodDuration = TimeSpan.FromHours(24);
     private static readonly TimeSpan MoonCacheDuration = TimeSpan.FromHours(24);
+
+    // Past sunrise and sunset never change, and a solstice is used for six months.
+    private static readonly TimeSpan SolsticeCacheDuration = TimeSpan.FromDays(30);
 
     private TimeSpan ForecastCacheDuration => TimeSpan.FromMinutes(options.Value.FreeSourceCacheMinutes);
 
@@ -104,7 +108,8 @@ public sealed class DailyForecastService(
 
     /// <summary>
     /// Sunrise, sunset and moon data for each date, from the forecast where it has the date and USNO otherwise.
-    /// Dates that couldn't be loaded are left out, and a failed forecast leaves out every date.
+    /// A failed USNO call leaves only the forecast's sun times, dates with neither are left out,
+    /// and a failed forecast leaves out every date.
     /// </summary>
     public async Task<IReadOnlyDictionary<DateOnly, AlmanacSky>> GetSkyAsync(string? stationId, IReadOnlyList<DateOnly> dates)
     {
@@ -119,28 +124,87 @@ public sealed class DailyForecastService(
             return new Dictionary<DateOnly, AlmanacSky>();
         }
 
-        var usno = await Task.WhenAll(dates.Select(date => GetUsnoAsync(location!, date, forecast.TimeZoneId)));
-        var sky = new Dictionary<DateOnly, AlmanacSky>();
-        for (var i = 0; i < dates.Count; i++)
+        var usno = (await Task.WhenAll(dates.Select(date => GetUsnoAsync(location!, date, forecast.TimeZoneId))))
+            .Select((day, i) => (Date: dates[i], Day: day))
+            .ToDictionary(pair => pair.Date, pair => pair.Day);
+
+        // The daily forecast shows Open-Meteo's times, so the almanac uses them too where it can. They keep
+        // their dates here, because in Alaska the sun can set after midnight or not at all.
+        (string? Sunrise, string? Sunset) Sun(DateOnly date)
         {
-            if (usno[i] is not { } day)
+            var forecastDay = forecast.Days.FirstOrDefault(other => other.Date == date);
+            var usnoDay = usno.GetValueOrDefault(date);
+            return (forecastDay?.Sunrise ?? usnoDay?.Sunrise, forecastDay?.Sunset ?? usnoDay?.Sunset);
+        }
+
+        // The dates usually share one solstice, so this is one cached archive call.
+        var today = Today(forecast);
+        var solstices = dates.Select(SolsticeDaylight.LastSolstice).Distinct().ToList();
+        var references = (await Task.WhenAll(solstices.Select(solstice => GetSolsticeAsync(location!, solstice, today))))
+            .Select((reference, i) => (Solstice: solstices[i], Reference: reference))
+            .ToDictionary(pair => pair.Solstice, pair => pair.Reference);
+
+        var sky = new Dictionary<DateOnly, AlmanacSky>();
+        foreach (var date in dates)
+        {
+            var day = usno[date];
+            var (sunrise, sunset) = Sun(date);
+            if (day is null && sunrise is null && sunset is null)
             {
                 continue;
             }
 
-            // The daily forecast shows Open-Meteo's times, so the almanac uses them too where it can.
-            var forecastDay = forecast.Days.FirstOrDefault(other => other.Date == dates[i]);
-            sky[dates[i]] = new AlmanacSky(
-                Clock(forecastDay?.Sunrise) ?? day.Sunrise,
-                Clock(forecastDay?.Sunset) ?? day.Sunset,
-                day.Moon);
+            // The day before the first date comes from the forecast's past days, so it costs no USNO call.
+            var daylight = DaylightMinutes(sunrise, sunset);
+            var previous = Sun(date.AddDays(-1));
+            var previousDaylight = DaylightMinutes(previous.Sunrise, previous.Sunset);
+            var solsticeDaylight = references[SolsticeDaylight.LastSolstice(date)]?.DaylightMinutes;
+            sky[date] = new AlmanacSky(Clock(sunrise), Clock(sunset), day?.Moon, daylight, daylight - previousDaylight, daylight - solsticeDaylight);
         }
 
         return sky;
     }
 
+    // A window that reaches past today is asked for again tomorrow, with one more day. A complete one never changes.
+    private Task<SolsticeReference?> GetSolsticeAsync(GeoPoint location, DateOnly solstice, DateOnly today)
+    {
+        var (start, end) = SolsticeDaylight.Window(solstice, today);
+        var complete = end == solstice.AddDays(2);
+        return GetOptionalAsync<SolsticeReference>(
+            "Open-Meteo archive",
+            string.Create(CultureInfo.InvariantCulture, $"solstice:{location.Latitude},{location.Longitude}:{start:yyyy-MM-dd}:{end:yyyy-MM-dd}"),
+            complete ? SolsticeCacheDuration : MoonCacheDuration,
+            token => solsticeDaylight.GetAsync(location, solstice, start, end, token));
+    }
+
     // Open-Meteo's "2026-10-30T07:14" as "07:14", to match USNO.
     private static string? Clock(string? time) => time?[(time.IndexOf('T') + 1)..];
+
+    /// <summary>
+    /// Minutes from sunrise to sunset. Open-Meteo's "2026-06-21T04:57" times keep their dates, so a sunset after
+    /// midnight still counts, and Open-Meteo's polar day (midnight to the next midnight) is 24 hours and its
+    /// polar night (both at the same midnight) none. USNO's "HH:mm" times have no date, so with one of those the
+    /// sunset must be later than the sunrise. Null when either is missing or they can't be compared.
+    /// </summary>
+    public static int? DaylightMinutes(string? sunrise, string? sunset)
+    {
+        if (LocalDateTime(sunrise) is { } riseAt && LocalDateTime(sunset) is { } setAt)
+        {
+            return setAt >= riseAt ? (int)(setAt - riseAt).TotalMinutes : null;
+        }
+
+        return ClockMinutes(Clock(sunrise)) is int rise && ClockMinutes(Clock(sunset)) is int set && set > rise ? set - rise : null;
+    }
+
+    private static DateTime? LocalDateTime(string? time) =>
+        DateTime.TryParseExact(time, "yyyy-MM-dd'T'HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var value)
+            ? value
+            : null;
+
+    private static int? ClockMinutes(string? time) =>
+        TimeOnly.TryParseExact(time, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var clock)
+            ? (clock.Hour * 60) + clock.Minute
+            : null;
 
     /// <summary>Returns null when the ID is badly formed. A discussion that can't be loaded is left out.</summary>
     public async Task<DiscussionReport?> GetDiscussionAsync(string? stationId = null)

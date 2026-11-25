@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Weather.Core.Almanac;
+using Weather.Core.DailyForecast;
 using Weather.Core.Models;
 
 namespace Weather.Core.Tests;
@@ -52,18 +53,18 @@ public class AlmanacTests
             "timezone": "America/New_York",
             "utc_offset_seconds": -14400,
             "daily": {
-                "time": ["2026-10-30", "2026-10-31"],
-                "weather_code": [3, 71],
-                "temperature_2m_max": [66.4, 61.6],
-                "temperature_2m_min": [51.2, 45],
-                "sunrise": ["2026-10-30T07:14", "2026-10-31T07:15"],
-                "sunset": ["2026-10-30T17:31", "2026-10-31T17:30"],
-                "precipitation_sum": [0.94, 0.2],
-                "snowfall_sum": [0, 0.4],
-                "precipitation_probability_max": [80, 40],
-                "wind_speed_10m_max": [13.1, 9],
-                "wind_direction_10m_dominant": [322, 300],
-                "uv_index_max": [3.45, 2]
+                "time": ["2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31"],
+                "weather_code": [0, 1, 3, 71],
+                "temperature_2m_max": [70, 71, 66.4, 61.6],
+                "temperature_2m_min": [50, 52, 51.2, 45],
+                "sunrise": ["2026-10-28T07:11", "2026-10-29T07:12", "2026-10-30T07:14", "2026-10-31T07:15"],
+                "sunset": ["2026-10-28T17:34", "2026-10-29T17:33", "2026-10-30T17:31", "2026-10-31T17:30"],
+                "precipitation_sum": [0, 0, 0.94, 0.2],
+                "snowfall_sum": [0, 0, 0, 0.4],
+                "precipitation_probability_max": [0, 0, 80, 40],
+                "wind_speed_10m_max": [5, 6, 13.1, 9],
+                "wind_direction_10m_dominant": [200, 210, 322, 300],
+                "uv_index_max": [3, 3, 3.45, 2]
             },
             "hourly": {
                 "time": ["2026-10-30T11:00"],
@@ -93,7 +94,39 @@ public class AlmanacTests
         }}}
         """;
 
-    /// <summary>Stubbed ACIS, Open-Meteo and USNO answers. <see cref="Search"/> gets the zero-based search attempt.</summary>
+    // Brunswick is under a mile from Topsham. Portland is too far to use.
+    private const string TideStations = """
+        {"stations":[
+          {"id":"8418150","name":"Portland","lat":43.6567,"lng":-70.2467,"type":"R"},
+          {"id":"8417527","name":"Brunswick, Androscoggin River","lat":43.9183,"lng":-69.9633,"type":"S"},
+          {"id":"BADROW","name":"No position"}
+        ]}
+        """;
+
+    private const string FarTideStations = """{"stations":[{"id":"8418150","name":"Portland","lat":43.6567,"lng":-70.2467,"type":"R"}]}""";
+
+    private const string Tides = """
+        { "predictions" : [
+        {"t":"2026-10-29 11:02", "v":"0.104", "type":"L"},
+        {"t":"2026-10-30 00:23", "v":"4.009", "type":"H"},{"t":"2026-10-30 08:18", "v":"0.005", "type":"L"},
+        {"t":"2026-10-30 12:31", "v":"4.698", "type":"H"},{"t":"2026-10-30 21:00", "v":"-0.548", "type":"L"},
+        {"t":"2026-10-31 01:13", "v":"4.075", "type":"X"}
+        ]}
+        """;
+
+    // June 19 to 23, around the solstice before the test's today. The archive gives every date today's
+    // UTC offset, so these read an hour early, which doesn't change daylight. The longest is 928 minutes.
+    private const string Archive = """
+        {"utc_offset_seconds": -14400, "daily": {
+            "time": ["2026-06-19", "2026-06-20", "2026-06-21", "2026-06-22", "2026-06-23"],
+            "sunrise": ["2026-06-19T03:57", "2026-06-20T03:57", "2026-06-21T03:58", "2026-06-22T03:58", "2026-06-23T03:58"],
+            "sunset": ["2026-06-19T19:24", "2026-06-20T19:25", "2026-06-21T19:25", "2026-06-22T19:25", "2026-06-23T19:25"]
+        }}
+        """;
+
+    private const string NoTides = """{"error": {"message":"No Predictions data was found."}}""";
+
+    /// <summary>Stubbed ACIS, Open-Meteo, USNO and NOAA answers. <see cref="Search"/> gets the zero-based search attempt.</summary>
     private sealed record Stubs(
         Func<int, string>? Search = null,
         string Records = Records,
@@ -101,9 +134,21 @@ public class AlmanacTests
         bool AcisFails = false,
         bool ForecastFails = false,
         bool UsnoFails = false,
-        string Outlook = Outlook);
+        string Outlook = Outlook,
+        string TideStations = TideStations,
+        string Tides = Tides,
+        bool TidesFail = false,
+        bool ArchiveFails = false);
 
-    private static (ServiceProvider Services, StubHttp Http) Services(Stubs? stubs = null, DateTimeOffset? now = null)
+    /// <summary>A clock a test can move on, to see what's kept from one day to the next.</summary>
+    private sealed class MovableTime(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
+
+    private static (ServiceProvider Services, StubHttp Http) Services(Stubs? stubs = null, DateTimeOffset? now = null, TimeProvider? time = null)
     {
         stubs ??= new Stubs();
         var searches = 0;
@@ -112,12 +157,16 @@ public class AlmanacTests
             var url = request.RequestUri!.ToString();
             var isAcis = url.Contains("rcc-acis.org");
             var isUsno = url.Contains("aa.usno.navy.mil");
-            if ((isAcis && stubs.AcisFails) || (url.Contains("open-meteo.com") && stubs.ForecastFails) || (isUsno && stubs.UsnoFails))
+            var isNoaa = url.Contains("tidesandcurrents.noaa.gov");
+            var isArchive = url.Contains("archive-api.open-meteo.com");
+            if ((isArchive && stubs.ArchiveFails) || (isAcis && stubs.AcisFails) || (url.Contains("open-meteo.com") && stubs.ForecastFails) || (isUsno && stubs.UsnoFails) || (isNoaa && stubs.TidesFail))
             {
                 return new HttpResponseMessage(HttpStatusCode.InternalServerError);
             }
 
             var body = isUsno ? Usno
+                : isArchive ? Archive
+                : isNoaa ? (url.Contains("stations.json") ? stubs.TideStations : stubs.Tides)
                 : !isAcis ? stubs.Outlook
                 : url.EndsWith("MultiStnData") ? (stubs.Search ?? (_ => Search))(searches++)
                 : request.Content!.ReadAsStringAsync().Result.Contains("\"por\"") ? stubs.Records
@@ -127,7 +176,7 @@ public class AlmanacTests
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton<TimeProvider>(new FixedTime(now ?? TestData.Now));
+        services.AddSingleton(time ?? new FixedTime(now ?? TestData.Now));
         services.AddWeatherCore(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["DefaultLocation:Zip"] = "04086",
@@ -198,11 +247,13 @@ public class AlmanacTests
         var report = (await services.GetRequiredService<AlmanacService>().GetAsync())!;
 
         var moon = new MoonInfo("Waxing Gibbous", 78, "15:02", null);
-        // Yesterday isn't in the forecast, so its sun is USNO's. Later days match the daily forecast.
-        Assert.Equal(new AlmanacSky("07:12", "17:33", moon), report.Days[0].Sky);
-        Assert.Equal(new AlmanacSky("07:14", "17:31", moon), report.Days[1].Sky);
-        Assert.Equal(new AlmanacSky("07:15", "17:30", moon), report.Days[2].Sky);
+        // Sun times match the daily forecast, whose past days cover yesterday and the day before.
+        Assert.Equal(new AlmanacSky("07:12", "17:33", moon, 621, -2, -307), report.Days[0].Sky);
+        Assert.Equal(new AlmanacSky("07:14", "17:31", moon, 617, -4, -311), report.Days[1].Sky);
+        Assert.Equal(new AlmanacSky("07:15", "17:30", moon, 615, -2, -313), report.Days[2].Sky);
         Assert.Equal(3, http.Requests.Count(request => request.RequestUri!.Host == "aa.usno.navy.mil"));
+        var archive = Assert.Single(http.Requests, request => request.RequestUri!.Host == "archive-api.open-meteo.com");
+        Assert.Contains("start_date=2026-06-19&end_date=2026-06-23", archive.RequestUri!.Query);
         Assert.Contains(http.Requests, request => request.RequestUri!.Query.Contains("date=2026-10-29"));
     }
 
@@ -217,11 +268,197 @@ public class AlmanacTests
 
         Assert.Equal("07:12", report.Days[2].Sky!.Sunrise);
         Assert.Equal("17:30", report.Days[2].Sky!.Sunset);
+        Assert.Equal(618, report.Days[2].Sky!.DaylightMinutes);
         Assert.Equal("07:14", report.Days[1].Sky!.Sunrise);
     }
 
     [Fact]
-    public async Task UsnoFailureOnlyHidesSunAndMoon()
+    public async Task DaylightChangeNeedsTheDayBefore()
+    {
+        // Yesterday's sun falls back to USNO, but nothing knows the day before.
+        var outlook = Outlook.Replace("\"2026-10-28T07:11\"", "null").Replace("\"2026-10-29T07:12\"", "null");
+        var (services, _) = Services(new Stubs(Outlook: outlook));
+        using var __ = services;
+
+        var report = (await services.GetRequiredService<AlmanacService>().GetAsync())!;
+
+        Assert.Equal(621, report.Days[0].Sky!.DaylightMinutes);
+        Assert.Null(report.Days[0].Sky!.DaylightChangeMinutes);
+        Assert.Equal(-4, report.Days[1].Sky!.DaylightChangeMinutes);
+    }
+
+    [Theory]
+    [InlineData("2026-06-20", "2025-12-21")]
+    [InlineData("2026-06-21", "2026-06-21")]
+    [InlineData("2026-12-20", "2026-06-21")]
+    [InlineData("2026-12-21", "2026-12-21")]
+    [InlineData("2027-01-05", "2026-12-21")]
+    public void LastSolsticeIsTheMostRecentTurningPoint(string date, string expected) =>
+        Assert.Equal(DateOnly.Parse(expected), SolsticeDaylight.LastSolstice(DateOnly.Parse(date)));
+
+    [Theory]
+    [InlineData("2026-12-21", "2026-12-21")]
+    [InlineData("2026-12-22", "2026-12-22")]
+    [InlineData("2027-01-30", "2026-12-23")]
+    public void SolsticeWindowEndsByToday(string today, string end) =>
+        Assert.Equal(
+            (new DateOnly(2026, 12, 19), DateOnly.Parse(end)),
+            SolsticeDaylight.Window(new DateOnly(2026, 12, 21), DateOnly.Parse(today)));
+
+    [Fact]
+    public async Task WinterSolsticeUsesTheShortestDay()
+    {
+        const string december = """
+            {"daily": {
+                "time": ["2026-12-19", "2026-12-20", "2026-12-21", "2026-12-22"],
+                "sunrise": ["2026-12-19T07:07", "2026-12-20T07:08", "2026-12-21T07:08", "2026-12-22T07:09"],
+                "sunset": ["2026-12-19T16:03", "2026-12-20T16:03", "2026-12-21T16:04", "2026-12-22T16:05"]
+            }}
+            """;
+        var http = new StubHttp(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(december) });
+
+        var reference = await new SolsticeDaylight(http).GetAsync(
+            new GeoPoint(TestData.Topsham.Latitude, TestData.Topsham.Longitude), new DateOnly(2026, 12, 21), new DateOnly(2026, 12, 19), new DateOnly(2026, 12, 22), default);
+
+        Assert.Equal(new SolsticeReference(535), reference);
+    }
+
+    [Fact]
+    public async Task SolsticeWithoutSunriseHasNoDaylight()
+    {
+        const string polar = """{"daily": {"time": ["2026-12-21"], "sunrise": [null], "sunset": [null]}}""";
+        var http = new StubHttp(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(polar) });
+
+        var reference = await new SolsticeDaylight(http).GetAsync(
+            new GeoPoint(TestData.Topsham.Latitude, TestData.Topsham.Longitude), new DateOnly(2026, 12, 21), new DateOnly(2026, 12, 21), new DateOnly(2026, 12, 21), default);
+
+        Assert.Null(reference.DaylightMinutes);
+    }
+
+    [Fact]
+    public async Task ArchiveFailureOnlyDropsTheTotal()
+    {
+        var (services, _) = Services(new Stubs(ArchiveFails: true));
+        using var __ = services;
+
+        var report = (await services.GetRequiredService<AlmanacService>().GetAsync())!;
+
+        Assert.All(report.Days, day => Assert.Null(day.Sky!.DaylightSinceSolsticeMinutes));
+        Assert.Equal(617, report.Days[1].Sky!.DaylightMinutes);
+        Assert.Equal(-4, report.Days[1].Sky!.DaylightChangeMinutes);
+    }
+
+    [Theory]
+    [InlineData("07:14", "17:31", 617)]
+    [InlineData("05:01", "20:24", 923)]
+    [InlineData(null, "17:31", null)]
+    [InlineData("07:14", "bad", null)]
+    [InlineData("17:31", "07:14", null)]
+    // Open-Meteo's times keep their dates: Fairbanks' June sunset after midnight, then Utqiagvik's polar day and night.
+    [InlineData("2026-06-21T02:57", "2026-06-22T00:47", 1310)]
+    [InlineData("2026-06-21T00:00", "2026-06-22T00:00", 1440)]
+    [InlineData("2026-11-25T00:00", "2026-11-25T00:00", 0)]
+    [InlineData("2026-10-30T07:14", "2026-10-30T17:31", 617)]
+    // A forecast time beside a USNO one is compared by the clock.
+    [InlineData("2026-10-30T07:14", "17:31", 617)]
+    [InlineData("2026-06-22T00:47", "2026-06-21T02:57", null)]
+    public void DaylightIsSunsetMinusSunrise(string? sunrise, string? sunset, int? expected) =>
+        Assert.Equal(expected, Weather.Core.DailyForecast.DailyForecastService.DaylightMinutes(sunrise, sunset));
+
+    [Fact]
+    public async Task EachDayHasTheNearestStationsTides()
+    {
+        var (services, http) = Services();
+        using var _ = services;
+
+        var report = (await services.GetRequiredService<AlmanacService>().GetAsync())!;
+
+        Assert.Equal("Brunswick, Androscoggin River", report.TideStation);
+        Assert.Equal([new AlmanacTide("11:02", false, 0.1)], report.Days[0].Tides!);
+        Assert.Equal(
+            [new AlmanacTide("00:23", true, 4), new AlmanacTide("08:18", false, 0), new AlmanacTide("12:31", true, 4.7), new AlmanacTide("21:00", false, -0.5)],
+            report.Days[1].Tides!);
+        // An unknown type is skipped, which leaves tomorrow with none.
+        Assert.Null(report.Days[2].Tides);
+
+        var predictions = Assert.Single(http.Requests, request => request.RequestUri!.AbsolutePath.EndsWith("datagetter"));
+        var query = predictions.RequestUri!.Query;
+        Assert.Contains("station=8417527", query);
+        Assert.Contains("begin_date=20261029", query);
+        Assert.Contains("end_date=20261031", query);
+        Assert.Contains("interval=hilo", query);
+        Assert.Contains("time_zone=lst_ldt", query);
+    }
+
+    [Fact]
+    public async Task SunsetAfterMidnightStillCountsAsDaylight()
+    {
+        // Tomorrow's sun sets at 12:47 AM the day after, as in Fairbanks in June.
+        var outlook = Outlook.Replace("\"2026-10-31T17:30\"", "\"2026-11-01T00:47\"");
+        var (services, _) = Services(new Stubs(Outlook: outlook));
+        using var __ = services;
+
+        var report = (await services.GetRequiredService<AlmanacService>().GetAsync())!;
+
+        Assert.Equal("00:47", report.Days[2].Sky!.Sunset);
+        Assert.Equal(1052, report.Days[2].Sky!.DaylightMinutes);
+        Assert.Equal(435, report.Days[2].Sky!.DaylightChangeMinutes);
+    }
+
+    [Fact]
+    public async Task NoTideStationIsLookedUpOnceAcrossDays()
+    {
+        var time = new MovableTime(TestData.Now);
+        var (services, http) = Services(new Stubs(TideStations: FarTideStations), time: time);
+        using var _ = services;
+        var almanac = services.GetRequiredService<AlmanacService>();
+
+        await almanac.GetAsync();
+        time.Now = TestData.Now.AddDays(1);
+        var report = (await almanac.GetAsync())!;
+
+        // The dated tides entry is new each day, but the station answer is kept, so the list isn't fetched again.
+        Assert.Equal(Tomorrow, report.Today);
+        Assert.Null(report.TideStation);
+        Assert.Single(http.Requests, request => request.RequestUri!.AbsolutePath.EndsWith("stations.json"));
+        Assert.DoesNotContain(http.Requests, request => request.RequestUri!.AbsolutePath.EndsWith("datagetter"));
+    }
+
+    [Fact]
+    public async Task NoTideStationNearbyHidesTides()
+    {
+        var (services, http) = Services(new Stubs(TideStations: FarTideStations));
+        using var _ = services;
+        var almanac = services.GetRequiredService<AlmanacService>();
+
+        var report = (await almanac.GetAsync())!;
+        await almanac.GetAsync();
+
+        Assert.Equal(SourceStatus.Ok, report.Status);
+        Assert.Null(report.TideStation);
+        Assert.All(report.Days, day => Assert.Null(day.Tides));
+        Assert.DoesNotContain(http.Requests, request => request.RequestUri!.AbsolutePath.EndsWith("datagetter"));
+        Assert.Single(http.Requests, request => request.RequestUri!.AbsolutePath.EndsWith("stations.json"));
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task TideFailureOnlyHidesTides(bool fails, bool noPredictions)
+    {
+        var (services, _) = Services(new Stubs(TidesFail: fails, Tides: noPredictions ? NoTides : Tides));
+        using var __ = services;
+
+        var report = (await services.GetRequiredService<AlmanacService>().GetAsync())!;
+
+        Assert.Equal(SourceStatus.Ok, report.Status);
+        Assert.Null(report.TideStation);
+        Assert.All(report.Days, day => Assert.Null(day.Tides));
+        Assert.Equal(66, report.Days[1].High.Value);
+    }
+
+    [Fact]
+    public async Task UsnoFailureKeepsForecastSunTimes()
     {
         var (services, _) = Services(new Stubs(UsnoFails: true));
         using var __ = services;
@@ -229,7 +466,9 @@ public class AlmanacTests
         var report = (await services.GetRequiredService<AlmanacService>().GetAsync())!;
 
         Assert.Equal(SourceStatus.Ok, report.Status);
-        Assert.All(report.Days, day => Assert.Null(day.Sky));
+        Assert.Equal(new AlmanacSky("07:12", "17:33", null, 621, -2, -307), report.Days[0].Sky);
+        Assert.Equal(new AlmanacSky("07:14", "17:31", null, 617, -4, -311), report.Days[1].Sky);
+        Assert.Equal(new AlmanacSky("07:15", "17:30", null, 615, -2, -313), report.Days[2].Sky);
         Assert.Equal(66, report.Days[1].High.Value);
     }
 

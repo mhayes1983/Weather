@@ -38,8 +38,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<NwsDescriptions>();
         services.AddSingleton<NwsDiscussion>();
         services.AddSingleton<UsnoMoon>();
+        services.AddSingleton<SolsticeDaylight>();
         services.AddSingleton<DailyForecastService>();
         services.AddSingleton<AcisAlmanac>();
+        services.AddSingleton<NoaaTides>();
         services.AddSingleton<AlmanacService>();
         services.AddSingleton<KeyCheck>();
         services.AddSingleton<SnowTableService>();

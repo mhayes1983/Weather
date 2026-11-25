@@ -28,7 +28,6 @@ public sealed class SnowReportService(
     private const string SnowType = "S";
     private const string RainType = "R";
     private static readonly string[] GustTypes = ["N", "G"];
-    private const double EarthRadiusMiles = 3958.8;
 
     // Storm totals are often sent in the morning after the snow ends.
     private static readonly TimeSpan AfterWindow = TimeSpan.FromHours(12);
@@ -115,7 +114,7 @@ public sealed class SnowReportService(
         var byDate = kind == ReportKind.Rain;
         var grouped = reports
             .Where(report => report.Kind == kind && report.ObservedAt >= start && report.ObservedAt <= end)
-            .Select(report => (Report: report, Miles: Miles(location.Latitude, location.Longitude, report.Latitude, report.Longitude)))
+            .Select(report => (Report: report, Miles: GeoDistance.Miles(location.Latitude, location.Longitude, report.Latitude, report.Longitude)))
             .Where(item => item.Miles <= RadiusMiles)
             .GroupBy(item => (
                 item.Report.Place,
@@ -212,17 +211,6 @@ public sealed class SnowReportService(
             logger.LogWarning("Snow reports town {Zip} failed: {Error}", zip, exception.GetType().Name);
             return null;
         }
-    }
-
-    private static double Miles(double latitude1, double longitude1, double latitude2, double longitude2)
-    {
-        static double Radians(double degrees) => degrees * Math.PI / 180;
-
-        var latitude = Radians(latitude2 - latitude1);
-        var longitude = Radians(longitude2 - longitude1);
-        var a = (Math.Sin(latitude / 2) * Math.Sin(latitude / 2))
-            + (Math.Cos(Radians(latitude1)) * Math.Cos(Radians(latitude2)) * Math.Sin(longitude / 2) * Math.Sin(longitude / 2));
-        return EarthRadiusMiles * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
     }
 
     private static string? Text(JsonElement data, string name) =>
