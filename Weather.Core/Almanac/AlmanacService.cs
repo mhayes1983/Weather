@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Weather.Core.Climate;
@@ -13,6 +14,7 @@ public sealed class AlmanacService(
     StationLocator locator,
     AcisAlmanac almanac,
     DailyForecastService forecasts,
+    NoaaTides noaaTides,
     WeatherCache cache,
     IOptions<WeatherOptions> options,
     TimeProvider timeProvider,
@@ -20,6 +22,9 @@ public sealed class AlmanacService(
 {
     // Long enough to spare ACIS, short enough that a late report from yesterday shows up the same morning.
     private static readonly TimeSpan ClimateCacheDuration = TimeSpan.FromHours(1);
+
+    private static readonly TimeSpan TideStationCacheDuration = TimeSpan.FromDays(30);
+    private static readonly TimeSpan TidesCacheDuration = TimeSpan.FromHours(24);
 
     /// <summary>Returns null when the ID is badly formed.</summary>
     public async Task<AlmanacReport?> GetAsync(string? stationId = null)
@@ -38,10 +43,11 @@ public sealed class AlmanacService(
         var forecast = await forecasts.GetAsync(station.Id);
         var today = forecast?.Today ?? HomeToday();
 
-        // The sky doesn't depend on the climate station, so neither waits for the other.
+        // The sky and tides don't depend on the climate station, so none waits for another.
         var climateTask = GetClimateAsync(station, today);
         var skyTask = forecasts.GetSkyAsync(station.Id, [today.AddDays(-1), today, today.AddDays(1)]);
-        await Task.WhenAll(climateTask, skyTask);
+        var tidesTask = GetTidesAsync(station, today);
+        await Task.WhenAll(climateTask, skyTask, tidesTask);
 
         var (climate, message) = climateTask.Result;
         if (climate is null)
@@ -50,11 +56,52 @@ public sealed class AlmanacService(
         }
 
         var sky = skyTask.Result;
+        var tides = tidesTask.Result;
         var days = climate.Days
-            .Select(day => (day.Date < today ? day : WithForecast(day, forecast)) with { Sky = sky.GetValueOrDefault(day.Date) })
+            .Select(day => (day.Date < today ? day : WithForecast(day, forecast)) with
+            {
+                Sky = sky.GetValueOrDefault(day.Date),
+                Tides = tides?.Tides.GetValueOrDefault(day.Date),
+            })
             .ToList();
-        return new AlmanacReport(station.Name, SourceStatus.Ok, null, climate.Station, climate.RecordsSince, today, days);
+        return new AlmanacReport(station.Name, SourceStatus.Ok, null, climate.Station, climate.RecordsSince, today, days, tides?.Station.Name);
     }
+
+    // Tides only add detail, so a failure hides them and nothing else, and is retried like the other sources.
+    // Each step has its own timeout, like the ACIS calls.
+    private Task<FetchedTides?> GetTidesAsync(IWeatherStation station, DateOnly today) =>
+        cache.GetOrCreateAsync(
+            $"almanac-tides:{station.Id}:{today:yyyy-MM-dd}",
+            async () =>
+            {
+                var timeout = TimeSpan.FromSeconds(options.Value.SourceTimeoutSeconds);
+                try
+                {
+                    var location = await Climate.Acis.WithTimeoutAsync(timeout, token => locator.GetAsync(station, token));
+
+                    // Stations rarely change and the list is about 2 MB, so the nearest is kept for a month, as is "none nearby".
+                    var tideStation = await cache.GetOrCreateAsync(
+                        string.Create(CultureInfo.InvariantCulture, $"tide-station:{location.Latitude},{location.Longitude}"),
+                        async () => (await Climate.Acis.WithTimeoutAsync(timeout, token => noaaTides.FindStationAsync(location, token)), TideStationCacheDuration));
+                    if (tideStation is null)
+                    {
+                        return ((FetchedTides?)null, TideStationCacheDuration);
+                    }
+
+                    // Predictions don't change, so they're kept for the rest of the day.
+                    var predictions = await Climate.Acis.WithTimeoutAsync(
+                        timeout,
+                        token => noaaTides.GetAsync(tideStation.Id, today.AddDays(-1), today.AddDays(1), token));
+                    return (new FetchedTides(tideStation, predictions), TidesCacheDuration);
+                }
+                catch (Exception exception)
+                {
+                    logger.LogWarning("Tides for {Id} failed: {Error}", station.Id, exception.GetType().Name);
+                    return (null, TimeSpan.FromMinutes(options.Value.ErrorRetryMinutes));
+                }
+            });
+
+    private sealed record FetchedTides(TideStation Station, IReadOnlyDictionary<DateOnly, IReadOnlyList<AlmanacTide>> Tides);
 
     // Today and later show the forecast. A failed forecast leaves it blank rather than hiding the averages and records.
     private static AlmanacDay WithForecast(AlmanacDay day, DailyForecastReport? forecast)

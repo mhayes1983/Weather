@@ -1023,6 +1023,7 @@ thead th.measure-header {
     color: var(--text-strong);
     font-variant-numeric: tabular-nums;
     text-align: right;
+    white-space: nowrap;
 }
 
 .almanac-departure {

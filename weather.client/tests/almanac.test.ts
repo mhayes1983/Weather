@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { almanacAmount, almanacDate, almanacDeparture, almanacTabLabel, almanacTemperature, climateStationName, selectedAlmanacDate } from '../src/almanac.ts';
+import { almanacAmount, almanacDate, almanacDeparture, almanacDuration, almanacTabLabel, almanacTemperature, climateStationName, daylightChange, selectedAlmanacDate, tideRows } from '../src/almanac.ts';
 
 test('temperatures follow the unit and missing ones show a dash', () => {
     assert.equal(almanacTemperature(79, 'F'), '79°');
@@ -50,4 +50,50 @@ test('a departure is the difference between the values shown', () => {
     assert.equal(almanacDeparture(59, 50, 'C'), '5° above average');
     assert.equal(almanacDeparture(null, 50, 'F'), null);
     assert.equal(almanacDeparture(50, null, 'F'), null);
+});
+
+test('daylight shows hours and minutes', () => {
+    assert.equal(almanacDuration(555), '9h 15m');
+    assert.equal(almanacDuration(600), '10h 0m');
+    assert.equal(almanacDuration(4), '4m');
+});
+
+test('daylight change says which way it went', () => {
+    assert.deepEqual(daylightChange(-2), ['Daylight decrease', '2m']);
+    assert.deepEqual(daylightChange(3), ['Daylight increase', '3m']);
+    assert.deepEqual(daylightChange(0), ['Daylight change', 'Under 1m']);
+});
+
+test('total daylight change since the solstice says which way it went', () => {
+    assert.deepEqual(daylightChange(-313, true), ['Total daylight decrease', '5h 13m']);
+    assert.deepEqual(daylightChange(45, true), ['Total daylight increase', '45m']);
+    assert.deepEqual(daylightChange(0, true), ['Total daylight change', 'Under 1m']);
+});
+
+test('tides group into AM and PM highs and lows', () => {
+    assert.deepEqual(tideRows([
+        { time: '00:23', high: true, heightFt: 4 },
+        { time: '08:18', high: false, heightFt: 0 },
+        { time: '12:31', high: true, heightFt: 4.7 },
+        { time: '21:00', high: false, heightFt: -0.5 },
+    ]), [
+        ['AM high', '12:23 AM, 4.0 ft'],
+        ['AM low', '8:18 AM, 0.0 ft'],
+        ['PM high', '12:31 PM, 4.7 ft'],
+        ['PM low', '9:00 PM, -0.5 ft'],
+    ]);
+});
+
+test('a half-day can have two of one tide and none of the other', () => {
+    assert.deepEqual(tideRows([
+        { time: '00:05', high: false, heightFt: 0.2 },
+        { time: '06:10', high: true, heightFt: 9.1 },
+        { time: '11:58', high: false, heightFt: 0.4 },
+        { time: '18:30', high: true, heightFt: 9.4 },
+    ]), [
+        ['AM high', '6:10 AM, 9.1 ft'],
+        ['AM low', '12:05 AM, 0.2 ft; 11:58 AM, 0.4 ft'],
+        ['PM high', '6:30 PM, 9.4 ft'],
+    ]);
+    assert.deepEqual(tideRows([]), []);
 });

@@ -1,4 +1,5 @@
 import { displayTemperature, type Unit } from './temperature.ts';
+import { formatTime } from './localTime.ts';
 
 const missing = '–';
 
@@ -61,4 +62,51 @@ export function selectedAlmanacDate(dates: string[], chosen: string | undefined,
 /** ACIS station names are upper case, such as "PORTLAND JETPORT". */
 export function climateStationName(name: string): string {
     return name.toLowerCase().replace(/\b\p{L}/gu, letter => letter.toUpperCase());
+}
+
+/** Minutes as "9h 15m", or "4m" under an hour. */
+export function almanacDuration(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return hours === 0 ? `${rest}m` : `${hours}h ${rest}m`;
+}
+
+/**
+ * A daylight change as a label and value, such as ["Daylight decrease", "2m"], or with `total`
+ * ["Total daylight decrease", "5h 13m"] for the change since the last solstice.
+ * It's worked out from minute times, so near a solstice it can be none.
+ */
+export function daylightChange(minutes: number, total = false): [string, string] {
+    const prefix = total ? 'Total daylight' : 'Daylight';
+    if (minutes === 0) {
+        return [`${prefix} change`, 'Under 1m'];
+    }
+
+    return [`${prefix} ${minutes > 0 ? 'increase' : 'decrease'}`, almanacDuration(Math.abs(minutes))];
+}
+
+export interface Tide {
+    time: string;
+    high: boolean;
+    heightFt: number;
+}
+
+/**
+ * A day's tides as AM high, AM low, PM high and PM low rows, each listing its times and heights.
+ * A half-day usually has one of each, but can have two of one kind and none of the other.
+ */
+export function tideRows(tides: Tide[]): [string, string][] {
+    const groups: [string, (tide: Tide) => boolean][] = [
+        ['AM high', tide => tide.high && tide.time < '12:00'],
+        ['AM low', tide => !tide.high && tide.time < '12:00'],
+        ['PM high', tide => tide.high && tide.time >= '12:00'],
+        ['PM low', tide => !tide.high && tide.time >= '12:00'],
+    ];
+
+    return groups
+        .map(([label, matches]): [string, string] => [
+            label,
+            tides.filter(matches).map(tide => `${formatTime(tide.time)}, ${tide.heightFt.toFixed(1)} ft`).join('; '),
+        ])
+        .filter(([, value]) => value !== '');
 }

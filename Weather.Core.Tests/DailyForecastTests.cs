@@ -153,6 +153,7 @@ public class DailyForecastTests
             new NwsDescriptions(http, cache),
             new NwsDiscussion(http, cache),
             new UsnoMoon(http),
+            new SolsticeDaylight(http),
             cache,
             options,
             time,

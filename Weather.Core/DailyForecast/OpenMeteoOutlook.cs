@@ -18,14 +18,18 @@ public sealed class OpenMeteoOutlook(IHttpClientFactory httpClientFactory, IOpti
     // WMO codes 0 to 3 run from clear to overcast. Anything higher is fog, rain, snow or storms.
     private const int LastDryCode = 3;
 
-    private const string DailyFields = "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant,uv_index_max";
+    // The almanac's yesterday and its daylight change need the two days before today.
+    // Pages that show the forecast drop days that have passed.
+    private const int PastDays = 2;
+
+    private const string DailyFields ="weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,snowfall_sum,precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant,uv_index_max";
     private const string HourlyFields = "weather_code,is_day,temperature_2m,apparent_temperature,precipitation_probability,precipitation,snowfall,cloud_cover,dew_point_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,pressure_msl";
 
     public async Task<Outlook> GetAsync(GeoPoint location, CancellationToken cancellationToken)
     {
         var url = string.Create(
             CultureInfo.InvariantCulture,
-            $"{OpenMeteoSource.ForecastEndpoint}?latitude={location.Latitude}&longitude={location.Longitude}&timezone=auto&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&forecast_days={options.Value.ForecastDays}&daily={DailyFields}&hourly={HourlyFields}");
+            $"{OpenMeteoSource.ForecastEndpoint}?latitude={location.Latitude}&longitude={location.Longitude}&timezone=auto&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&forecast_days={options.Value.ForecastDays}&past_days={PastDays}&daily={DailyFields}&hourly={HourlyFields}");
 
         var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
         using var document = JsonDocument.Parse(await client.GetStringAsync(url, cancellationToken));

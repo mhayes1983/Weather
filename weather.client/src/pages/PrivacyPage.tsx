@@ -10,7 +10,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         <main className="prose">
             <header>
                 <h1>Privacy Policy</h1>
-                <p className="location">Effective November 24, 2026</p>
+                <p className="location">Effective November 25, 2026</p>
             </header>
 
             <p>
@@ -45,12 +45,13 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 passed on to these services:
             </p>
             <ul>
-                <li>Open-Meteo: forecasts, and modelled conditions for a ZIP code or a station's location</li>
+                <li>Open-Meteo: forecasts, modelled conditions for a ZIP code or a station's location, and past sunrise and sunset times</li>
                 <li>National Weather Service: forecasts and alerts</li>
                 <li>Weather Underground: forecasts, station readings and station search</li>
                 <li>Ambient Weather: home station readings</li>
                 <li>ACIS: averages, records and climate station measurements</li>
                 <li>US Naval Observatory: sun and moon data</li>
+                <li>NOAA Tides and Currents: tide predictions. It's sent a tide station ID and dates, not a ZIP code; the nearest station is picked on the server from NOAA's list</li>
                 <li>Zippopotam.us: ZIP code locations</li>
                 <li>NewsCenter Maine: Maine forecasts</li>
                 <li>WeatherAPI.com: snow, rain and wind forecasts</li>

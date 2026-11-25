@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { fetchAlmanac, type AlmanacDay, type AlmanacReport, type AlmanacSky } from '../api/almanac';
-import { almanacAmount, almanacDate, almanacDeparture, almanacTabLabel, almanacTemperature, climateStationName, selectedAlmanacDate } from '../almanac';
+import { almanacAmount, almanacDate, almanacDeparture, almanacDuration, almanacTabLabel, almanacTemperature, climateStationName, daylightChange, selectedAlmanacDate, tideRows, type Tide } from '../almanac';
 import { formatTime } from '../localTime';
 import type { Unit } from '../temperature';
 
@@ -79,20 +79,25 @@ function SkyGroup({ title, rows }: { title: string; rows: [string, string][] }) 
     );
 }
 
-function AlmanacSkyTimes({ sky }: { sky: AlmanacSky }) {
-    const { moon } = sky;
-    const sunRows = presentRows([
+function AlmanacSkyTimes({ sky, tides }: { sky: AlmanacSky | null; tides: Tide[] | null }) {
+    const moon = sky?.moon ?? null;
+    const sunRows = sky === null ? [] : presentRows([
         ['Sunrise', sky.sunrise && formatTime(sky.sunrise)],
         ['Sunset', sky.sunset && formatTime(sky.sunset)],
+        ['Daylight', sky.daylightMinutes === null ? null : almanacDuration(sky.daylightMinutes)],
+        sky.daylightChangeMinutes === null ? ['Daylight change', null] : daylightChange(sky.daylightChangeMinutes),
+        sky.daylightSinceSolsticeMinutes === null ? ['Total daylight change', null] : daylightChange(sky.daylightSinceSolsticeMinutes, true),
     ]);
-    const moonRows = presentRows([
+    const moonRows = moon === null ? [] : presentRows([
         ['Moonrise', moon.moonrise && formatTime(moon.moonrise)],
         ['Moonset', moon.moonset && formatTime(moon.moonset)],
         ['Phase', moon.phase],
         ['Visible', moon.illuminationPercent === null ? null : `${moon.illuminationPercent}%`],
     ]);
 
-    if (sunRows.length === 0 && moonRows.length === 0) {
+    const tideRowsShown = tides === null ? [] : tideRows(tides);
+
+    if (sunRows.length === 0 && moonRows.length === 0 && tideRowsShown.length === 0) {
         return null;
     }
 
@@ -100,6 +105,7 @@ function AlmanacSkyTimes({ sky }: { sky: AlmanacSky }) {
         <div className="almanac-sky">
             {sunRows.length > 0 && <SkyGroup title="Sun" rows={sunRows} />}
             {moonRows.length > 0 && <SkyGroup title="Moon" rows={moonRows} />}
+            {tideRowsShown.length > 0 && <SkyGroup title="Tides" rows={tideRowsShown} />}
         </div>
     );
 }
@@ -198,13 +204,14 @@ function StationAlmanac({ station, unit }: StationAlmanacProps) {
                         valueLabel={report.today !== null && day.date < report.today ? 'Actual' : 'Forecast'}
                         unit={unit}
                     />
-                    {day.sky && <AlmanacSkyTimes sky={day.sky} />}
+                    <AlmanacSkyTimes sky={day.sky} tides={day.tides} />
                 </div>
 
                 {report.climateStation &&
                     <p className="almanac-source">
                         Forecast by <a href="https://open-meteo.com/">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>). Averages, records{report.recordsSince !== null && ` since ${report.recordsSince}`} and past actuals from the {climateStationName(report.climateStation)} climate station, via ACIS.
-                        {days.some(other => other.sky) && <> Moon data, and sunrise and sunset before today, from the <a href="https://aa.usno.navy.mil/">U.S. Naval Observatory</a>.</>}
+                        {days.some(other => other.sky?.moon) && <> Moon data from the <a href="https://aa.usno.navy.mil/">U.S. Naval Observatory</a>.</>}
+                        {report.tideStation && days.some(other => other.tides) && <> Tide predictions for {report.tideStation} from <a href="https://tidesandcurrents.noaa.gov/">NOAA Tides and Currents</a>, in feet above mean lower low water.</>}
                     </p>}
             </section>
         </div>

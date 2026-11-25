@@ -41,7 +41,10 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 climate station that still reports and has at least 30 years of records, so they can differ from the
                 station's own readings. Temperature Forecast uses the same station for its averages. A dash means that
                 value isn't available, and amounts the station only reported as part of a several-day total aren't
-                shown as one day's. Each tab also shows that date's sunrise, sunset, moonrise, moonset and moon phase.
+                shown as one day's. Each tab also shows that date's sunrise, sunset, hours of daylight, how much longer or
+                shorter that is than the day before, and the total change since the last solstice (around June 21, when
+                days start getting shorter, or December 21, when they start getting longer), then moonrise, moonset and moon phase. Near the coast it also shows
+                the morning and afternoon high and low tides, predicted for the nearest NOAA tide station within 10 miles.
             </p>
 
             <h2>Choosing a station</h2>
@@ -194,7 +197,8 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 <li>Snow reports: National Weather Service Local Storm Reports, from the <a href="https://mesonet.agron.iastate.edu/">Iowa Environmental Mesonet</a></li>
                 <li>Alerts, radar and the weather map: <a href="https://www.weather.gov/">National Weather Service</a> and NOAA, including <a href="https://nowcoast.noaa.gov/">nowCOAST</a> satellite and lightning</li>
                 <li>Averages, records and climate station measurements: <a href="https://www.rcc-acis.org/">ACIS</a></li>
-                <li>Sun and moon data: <a href="https://aa.usno.navy.mil/">US Naval Observatory</a></li>
+                <li>Sun and moon data: Open-Meteo and the <a href="https://aa.usno.navy.mil/">US Naval Observatory</a></li>
+                <li>Tide predictions: <a href="https://tidesandcurrents.noaa.gov/">NOAA Tides and Currents</a></li>
                 <li>ZIP code locations: <a href="https://www.zippopotam.us/">Zippopotam.us</a></li>
                 <li>Map: <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</li>
             </ul>
