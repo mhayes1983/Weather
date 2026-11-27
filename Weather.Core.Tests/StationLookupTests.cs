@@ -40,7 +40,7 @@ public class StationLookupTests
 
     private static StationDirectory Directory(StubHttp http, IOptions<WeatherOptions> options) => new(
         [
-            new AmbientWeatherStation(http, options, new FixedTime(TestData.Now)),
+            TestData.AmbientHome(http, options),
             new WeatherUndergroundStation(new WeatherStationOptions { Id = "KCONFIG1", Name = "Configured" }, http, options),
         ],
         http,

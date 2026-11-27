@@ -16,7 +16,7 @@ public sealed class AlertService(
     /// <summary>Returns null when the ID is badly formed.</summary>
     public async Task<AlertReport?> GetAsync(string? stationId = null)
     {
-        var station = directory.Find(stationId);
+        var station = await directory.FindAsync(stationId);
         if (station is null)
         {
             return null;

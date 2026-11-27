@@ -67,14 +67,48 @@ public sealed class OpenMeteoStationOptions
 
 public sealed class AmbientWeatherOptions
 {
+    /// <summary>The first account's keys. More accounts go in <see cref="Accounts"/>.</summary>
     public string? ApiKey { get; set; }
     public string? ApplicationKey { get; set; }
+
+    /// <summary>The home station's device, when it isn't the first account's first device.</summary>
     public string? MacAddress { get; set; }
     public string Name { get; set; } = "Home station";
+
+    /// <summary>More Ambient Weather accounts. Every device on every account is shown.</summary>
+    public List<AmbientAccountOptions> Accounts { get; set; } = [];
+
+    /// <summary>Names, ZIPs and order for devices, and which is home or hidden.</summary>
+    public List<AmbientStationOptions> Stations { get; set; } = [];
     public int CurrentCacheSeconds { get; set; } = 60;
     public int HistoryCacheMinutes { get; set; } = 5;
     public int OfflineAfterMinutes { get; set; } = 15;
     public int RequestSpacingMilliseconds { get; set; } = 1100;
+
+    /// <summary>How long the list of devices is kept before the accounts are asked again.</summary>
+    public int DiscoveryCacheMinutes { get; set; } = 60;
+}
+
+public sealed class AmbientAccountOptions
+{
+    public string? ApiKey { get; set; }
+    public string? ApplicationKey { get; set; }
+}
+
+/// <summary>
+/// Settings for one Ambient Weather device, matched by its MAC address or by the station ID the
+/// app shows for it. The MAC address is only read from configuration and never leaves Core.
+/// </summary>
+public sealed class AmbientStationOptions
+{
+    public string? MacAddress { get; set; }
+    public string? DeviceId { get; set; }
+    public string? Name { get; set; }
+
+    /// <summary>Locates the station's forecasts, alerts and almanac. Without one, only home has a location.</summary>
+    public string? Zip { get; set; }
+    public bool Hidden { get; set; }
+    public bool Home { get; set; }
 }
 
 public sealed class KeyedSourceOptions

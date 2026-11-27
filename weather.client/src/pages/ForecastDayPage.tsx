@@ -5,6 +5,7 @@ import RouteLink from '../components/RouteLink';
 import { formatDate, formatTime } from '../localTime';
 import { precipSummary, snowAmount } from '../precipitation';
 import { displayTemperature, type Unit } from '../temperature';
+import { stationName, type StationNames } from '../stationNames';
 import type { Route } from '../useRoute';
 import { weatherIcon } from '../weatherIcons';
 import { compass } from '../wind';
@@ -12,6 +13,7 @@ import { compass } from '../wind';
 interface ForecastDayPageProps {
     date: string;
     station: string;
+    stationNames: StationNames;
     unit: Unit;
     onNavigate: (route: Route) => void;
 }
@@ -59,7 +61,7 @@ function initialCards(): Record<CardName, boolean> {
     return { day: true, night: true, sun: large, moon: large };
 }
 
-function ForecastDayPage({ date, station, unit, onNavigate }: ForecastDayPageProps) {
+function ForecastDayPage({ date, station, stationNames, unit, onNavigate }: ForecastDayPageProps) {
     const [loaded, setLoaded] = useState<ForecastDayDetail>();
     const [failure, setFailure] = useState<{ date: string; message: string }>();
     const [openCards, setOpenCards] = useState(initialCards);
@@ -133,7 +135,7 @@ function ForecastDayPage({ date, station, unit, onNavigate }: ForecastDayPagePro
 
             <header>
                 <h1>{formatDate(date, { weekday: 'long', month: 'long', day: 'numeric' })}</h1>
-                {detail && <p className="location">{detail.stationName}</p>}
+                {detail && <p className="location">{stationName(stationNames, station, detail.stationName)}</p>}
             </header>
 
             {detail &&

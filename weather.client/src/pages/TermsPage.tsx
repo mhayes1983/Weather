@@ -10,7 +10,7 @@ function TermsPage({ onNavigate }: TermsPageProps) {
         <main className="prose">
             <header>
                 <h1>Terms of Use</h1>
-                <p className="location">Effective November 1, 2026</p>
+                <p className="location">Effective November 27, 2026</p>
             </header>
 
             <p>
@@ -50,7 +50,7 @@ function TermsPage({ onNavigate }: TermsPageProps) {
 
             <h2>The Android app</h2>
             <p>
-                These terms also apply to the Android app. Any Weather Underground or Ambient Weather keys you enter are your
+                These terms also apply to the Android app. Any Weather Underground, Ambient Weather or WeatherAPI.com keys you enter, for any number of accounts, are your
                 own, and your use of them is subject to those providers' terms and limits. The app doesn't use the site's
                 allowance with data providers.
             </p>

@@ -36,7 +36,7 @@ public sealed class DailyForecastService(
     /// <summary>Returns null when the ID is badly formed.</summary>
     public async Task<DailyForecastReport?> GetAsync(string? stationId = null)
     {
-        if (directory.Find(stationId) is not { } station)
+        if (await directory.FindAsync(stationId) is not { } station)
         {
             return null;
         }
@@ -59,7 +59,7 @@ public sealed class DailyForecastService(
     /// <exception cref="ForecastUnavailableException">The forecast couldn't be loaded.</exception>
     public async Task<ForecastDayDetail?> GetDayAsync(DateOnly date, string? stationId = null)
     {
-        if (directory.Find(stationId) is not { } station)
+        if (await directory.FindAsync(stationId) is not { } station)
         {
             return null;
         }
@@ -113,7 +113,7 @@ public sealed class DailyForecastService(
     /// </summary>
     public async Task<IReadOnlyDictionary<DateOnly, AlmanacSky>> GetSkyAsync(string? stationId, IReadOnlyList<DateOnly> dates)
     {
-        if (directory.Find(stationId) is not { CanLocate: true } station)
+        if (await directory.FindAsync(stationId) is not { CanLocate: true } station)
         {
             return new Dictionary<DateOnly, AlmanacSky>();
         }
@@ -209,7 +209,7 @@ public sealed class DailyForecastService(
     /// <summary>Returns null when the ID is badly formed. A discussion that can't be loaded is left out.</summary>
     public async Task<DiscussionReport?> GetDiscussionAsync(string? stationId = null)
     {
-        if (directory.Find(stationId) is not { } station)
+        if (await directory.FindAsync(stationId) is not { } station)
         {
             return null;
         }

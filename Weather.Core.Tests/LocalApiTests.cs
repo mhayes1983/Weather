@@ -82,6 +82,7 @@ public class LocalApiTests
     [InlineData("home")]
     [InlineData("om-04086")]
     [InlineData("not/valid")]
+    [InlineData("amb-0123456789ab")]
     public async Task StationMatchesTheController(string id)
     {
         using var services = Services(OpenMeteoCurrent());
@@ -281,8 +282,8 @@ public class LocalApiTests
 
         Assert.Equal(StationStatus.Ok, report!.Status);
         Assert.True(report.Modelled);
-        Assert.Equal(AmbientWeatherStation.HomeId, stations.Stations[0].Id);
-        Assert.Equal("ZIP 04086", stations.Stations[0].Name);
+        Assert.Equal(AmbientWeatherStation.HomeId, (await stations.GetStationsAsync())[0].Id);
+        Assert.Equal("ZIP 04086", (await stations.GetStationsAsync())[0].Name);
     }
 
     [Fact]

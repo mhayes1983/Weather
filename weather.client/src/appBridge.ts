@@ -10,6 +10,12 @@ export interface SetupStation {
     selected: boolean;
 }
 
+import type { AmbientDeviceChoice, AmbientStationSetting } from './ambientSetup';
+
+export type { AmbientDeviceChoice, AmbientStationSetting };
+
+export const primaryAmbientAccount = 'primary';
+
 export interface SetupState {
     complete: boolean;
     zip: string | null;
@@ -19,15 +25,26 @@ export interface SetupState {
     stations: SetupStation[];
     // The version shown in the Android app, such as 1.3.
     appVersion: string;
+    /** Accounts with saved keys. The keys themselves never come back. */
+    ambientAccounts: { id: string }[];
+    ambientStations: AmbientStationSetting[];
+}
+
+/** A null ID is a new account. Null keys keep the saved ones. */
+export interface SetupAmbientKeys {
+    id: string | null;
+    apiKey: string | null;
+    applicationKey: string | null;
+    remove: boolean;
 }
 
 export interface SetupRequest {
     zip: string;
     weatherUndergroundKey: string | null;
-    ambientApiKey: string | null;
-    ambientApplicationKey: string | null;
     weatherApiKey: string | null;
     stationIds: string[];
+    ambientAccounts: SetupAmbientKeys[];
+    ambientStations: AmbientStationSetting[];
 }
 
 export type KeyCheckResult = 'Valid' | 'Invalid' | 'CouldNotCheck';
@@ -59,6 +76,12 @@ export function checkWeatherUnderground(apiKey: string) {
 
 export function checkAmbientWeather(apiKey: string, applicationKey: string) {
     return window.HybridWebView.InvokeDotNet('CheckAmbientWeather', [apiKey, applicationKey]) as Promise<KeyCheckResult>;
+}
+
+/** Null when an account's keys can't be read or checked. */
+export async function listAmbientStations(accounts: SetupAmbientKeys[]) {
+    const result = await window.HybridWebView.InvokeDotNet('ListAmbientStations', [JSON.stringify(accounts)]);
+    return JSON.parse(result as string) as AmbientDeviceChoice[] | null;
 }
 
 export function checkWeatherApi(apiKey: string) {

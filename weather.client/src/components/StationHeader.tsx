@@ -3,8 +3,10 @@ import { fetchStations, type StationMatch, type StationSummary } from '../api/st
 import { MapPinIcon } from './icons';
 import StationLookup from './StationLookup';
 import StationPicker from './StationPicker';
+import StationRename from './StationRename';
 import { homeStation } from '../defaultStation';
 import { maxSavedStations } from '../savedStations';
+import { stationName, type StationNames } from '../stationNames';
 
 export interface StationControls {
     selected: string;
@@ -14,13 +16,15 @@ export interface StationControls {
     savedStations: StationSummary[];
     onStationSaved: (station: StationSummary) => void;
     onStationRemoved: (id: string) => void;
+    stationNames: StationNames;
+    onStationRenamed: (id: string, name: string | null) => void;
 }
 
 interface StationHeaderProps extends StationControls {
     children: ReactNode;
 }
 
-function StationHeader({ selected, onStationChange, defaultStation, onDefaultChange, savedStations, onStationSaved, onStationRemoved, children }: StationHeaderProps) {
+function StationHeader({ selected, onStationChange, defaultStation, onDefaultChange, savedStations, onStationSaved, onStationRemoved, stationNames, onStationRenamed, children }: StationHeaderProps) {
     const panelId = useId();
     const [open, setOpen] = useState(false);
     const [stationList, setStationList] = useState<StationSummary[]>();
@@ -66,6 +70,9 @@ function StationHeader({ selected, onStationChange, defaultStation, onDefaultCha
     }
 
     const canRemove = savedStations.some(saved => saved.id === selected) && !stations.some(station => station.id === selected);
+    const ownName = stations.find(station => station.id === selected)?.name
+        ?? savedStations.find(saved => saved.id === selected)?.name;
+    const namedStations = pickerStations.map(station => ({ ...station, name: stationName(stationNames, station.id, station.name) }));
 
     return (
         <>
@@ -80,7 +87,8 @@ function StationHeader({ selected, onStationChange, defaultStation, onDefaultCha
             {/* Only the button closes this, because a list changes with each arrow key press. It's hidden
                 rather than removed, so closing it doesn't cancel a lookup. */}
             <div id={panelId} className="station-panel" hidden={!open}>
-                {stationList && pickerStations.length > 1 && <StationPicker stations={pickerStations} selected={selected} defaultStation={defaultStation} canRemove={canRemove} onChange={onStationChange} onDefaultChange={onDefaultChange} onRemove={() => onStationRemoved(selected)} />}
+                {stationList && pickerStations.length > 1 && <StationPicker stations={namedStations} selected={selected} defaultStation={defaultStation} canRemove={canRemove} onChange={onStationChange} onDefaultChange={onDefaultChange} onRemove={() => onStationRemoved(selected)} />}
+                {ownName && <StationRename key={selected} stationName={ownName} renamed={stationName(stationNames, selected, undefined)} onRename={name => onStationRenamed(selected, name)} />}
                 <StationLookup ready={stationList !== undefined} full={savedStations.length >= maxSavedStations} onFound={handleStationFound} />
             </div>
         </>

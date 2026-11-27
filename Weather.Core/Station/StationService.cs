@@ -14,12 +14,12 @@ public sealed class StationService(
 {
     private static readonly TimeSpan LastGoodDuration = TimeSpan.FromHours(24);
 
-    public IReadOnlyList<StationSummary> Stations => directory.Stations;
+    public Task<IReadOnlyList<StationSummary>> GetStationsAsync(CancellationToken cancellationToken = default) => directory.GetStationsAsync(cancellationToken);
 
     /// <summary>Returns null when the ID is badly formed.</summary>
     public async Task<StationReport?> GetReportAsync(string? id = null)
     {
-        var station = directory.Find(id);
+        var station = await directory.FindAsync(id);
         if (station is null)
         {
             return null;

@@ -20,14 +20,22 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <h2>Station</h2>
             <p>
                 The <RouteLink route="/" onNavigate={onNavigate}>Station</RouteLink> page shows current conditions and charts
-                of recent readings, and refreshes every minute. Charts cover the last 24 hours for the home station and the
-                current day for other stations. Readings a station doesn't report are left out, and add-on sensors such as
+                of recent readings, and refreshes every minute. Charts cover the last 24 hours for Ambient Weather and modelled stations and the
+                current day for Weather Underground stations. Readings a station doesn't report are left out, and add-on sensors such as
                 extra thermometers, soil probes, air quality monitors, lightning detectors and leak sensors appear only when
                 the station has them. The Temperature card shows the highest and lowest readings over the same period as the
                 charts, with the time of each, and the pressure trend is the change over the last 3 hours: steady is under
                 0.02 inHg, and rapid is 0.06 inHg or more. Select a card's or chart's title to collapse or expand it, and drag its ⠿ handle (or focus it and
                 use the arrow keys) to move it. Your layout is saved in this browser and applies to every station. The description of the sky beside the temperature is modelled by Open-Meteo for
                 the station's area, so it can occasionally differ from what the station measures.
+            </p>
+            <p>
+                Every station on each Ambient Weather account appears in the station list, with the first as the home station.
+                Each can have its own name and ZIP code, which sets where its forecast, alerts and almanac come from; a station
+                other than home without a ZIP code shows readings only. Under <strong>Change station</strong>,{' '}
+                <strong>Rename</strong> gives the selected station a name of your own, such as Camp station. That name is saved
+                only in this browser, and <strong>Use station name</strong> goes back to the original. Replacing an Ambient
+                Weather key gives that account's stations new IDs, so a default or name you gave them needs setting again.
             </p>
             <p>
                 When the National Weather Service has active alerts for the station's area, they appear at the top of the
@@ -185,7 +193,9 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <h2>Android app</h2>
             <p>
                 The app works like this site, using your own keys. Setup asks for a ZIP code, then optional Weather Underground,
-                Ambient Weather and WeatherAPI.com keys, and which stations to include. Anything you skip uses Open-Meteo instead. To change
+                Ambient Weather and WeatherAPI.com keys, and which stations to include. You can add keys for more than one Ambient
+                Weather account, then <strong>Find my stations</strong> lists every station on them to name, give a ZIP code, show or
+                hide, and choose as the home station. Anything you skip uses Open-Meteo instead. To change
                 them later, open <strong>Data &amp; keys</strong> in Settings.
             </p>
 

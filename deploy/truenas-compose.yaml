@@ -11,6 +11,13 @@ services:
       Weather__WeatherUnderground__ApiKey: "YOUR_KEY"
       Weather__AmbientWeather__ApiKey: "YOUR_AMBIENT_API_KEY"
       Weather__AmbientWeather__ApplicationKey: "YOUR_AMBIENT_APPLICATION_KEY"
+      # Optional: another Ambient Weather account. Every device on each account is listed.
+      # Weather__AmbientWeather__Accounts__0__ApiKey: "YOUR_OTHER_AMBIENT_API_KEY"
+      # Weather__AmbientWeather__Accounts__0__ApplicationKey: "YOUR_OTHER_AMBIENT_APPLICATION_KEY"
+      # Optional: name a device and give it a ZIP code for its forecast, alerts and almanac.
+      # Weather__AmbientWeather__Stations__0__MacAddress: "00:0E:C6:DD:EE:FF"
+      # Weather__AmbientWeather__Stations__0__Name: "Camp station"
+      # Weather__AmbientWeather__Stations__0__Zip: "04970"
       # Optional: WeatherAPI.com's row on the Snow Forecast page. Without it, the row says "Needs key".
       # Weather__WeatherApi__ApiKey: "YOUR_WEATHERAPI_KEY"
       # The dropdown's stations are in appsettings.json. These lines replace entries

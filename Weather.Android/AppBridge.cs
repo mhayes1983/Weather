@@ -28,9 +28,17 @@ public sealed class AppBridge(AppHost host, SettingsStore store)
     {
         var settings = store.Load();
         var weatherUnderground = await store.GetKeyAsync(SettingsStore.WeatherUndergroundKey);
-        var ambientApiKey = await store.GetKeyAsync(SettingsStore.AmbientApiKey);
-        var ambientApplicationKey = await store.GetKeyAsync(SettingsStore.AmbientApplicationKey);
         var weatherApi = await store.GetKeyAsync(SettingsStore.WeatherApiKey);
+
+        // Only accounts whose keys are still readable, so a lost key can be entered again.
+        var ambientAccounts = new List<SetupAmbientAccount>();
+        foreach (var account in SettingsStore.AmbientAccounts(settings))
+        {
+            if (await store.GetAmbientKeysAsync(account) is not null)
+            {
+                ambientAccounts.Add(new SetupAmbientAccount(account));
+            }
+        }
 
         var stations = host.DefaultStations
             .Select(station => new SetupStation(
@@ -45,11 +53,42 @@ public sealed class AppBridge(AppHost host, SettingsStore store)
                 settings is not null,
                 settings?.Location.Zip,
                 !string.IsNullOrWhiteSpace(weatherUnderground),
-                !string.IsNullOrWhiteSpace(ambientApiKey) && !string.IsNullOrWhiteSpace(ambientApplicationKey),
+                ambientAccounts.Count > 0,
                 !string.IsNullOrWhiteSpace(weatherApi),
                 stations,
-                AppInfo.Current.VersionString),
+                AppInfo.Current.VersionString,
+                ambientAccounts,
+                settings?.AmbientStations ?? []),
             AppJson.Default.SetupState);
+    }
+
+    /// <summary>
+    /// The devices on the accounts in setup, by ID and their name on Ambient Weather, never their MAC
+    /// addresses. Typed keys are used where given, else the saved ones. Null if any account can't be read.
+    /// </summary>
+    public async Task<string> ListAmbientStations(string json)
+    {
+        var accounts = JsonSerializer.Deserialize(json, AppJson.Default.ListSetupAmbientKeys)!;
+        var devices = new List<AmbientDeviceChoice>();
+        foreach (var account in accounts.Where(account => !account.Remove))
+        {
+            var keys = !string.IsNullOrWhiteSpace(account.ApiKey) && !string.IsNullOrWhiteSpace(account.ApplicationKey)
+                ? (account.ApiKey, account.ApplicationKey)
+                : account.Id is null ? null : await store.GetAmbientKeysAsync(account.Id);
+            if (keys is not { } found)
+            {
+                continue;
+            }
+
+            if (await host.Get<KeyCheck>().ListAmbientDevicesAsync(found.ApiKey, found.ApplicationKey) is not { } listed)
+            {
+                return "null";
+            }
+
+            devices.AddRange(listed.Select(device => new AmbientDeviceChoice(device.Id, device.Name)));
+        }
+
+        return JsonSerializer.Serialize(devices.DistinctBy(device => device.Id).ToList(), AppJson.Default.ListAmbientDeviceChoice);
     }
 
     public async Task<string> CheckWeatherUnderground(string apiKey) =>
@@ -83,9 +122,15 @@ public sealed class AppBridge(AppHost host, SettingsStore store)
             return new SetupResult(false, "Enter a 5-digit ZIP code.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.AmbientApiKey) != string.IsNullOrWhiteSpace(request.AmbientApplicationKey))
+        if (request.AmbientAccounts.Any(account => !account.Remove
+            && string.IsNullOrWhiteSpace(account.ApiKey) != string.IsNullOrWhiteSpace(account.ApplicationKey)))
         {
             return new SetupResult(false, "Ambient Weather needs both keys. Enter the other key, or clear both.");
+        }
+
+        if (request.AmbientStations.Any(station => !string.IsNullOrWhiteSpace(station.Zip) && !LocationResolver.IsValidZip(station.Zip.Trim())))
+        {
+            return new SetupResult(false, "Enter a 5-digit ZIP code for each Ambient Weather station, or leave it blank.");
         }
 
         ForecastLocation location;
@@ -103,16 +148,58 @@ public sealed class AppBridge(AppHost host, SettingsStore store)
         }
 
         await store.SetKeyAsync(SettingsStore.WeatherUndergroundKey, request.WeatherUndergroundKey);
-        await store.SetKeyAsync(SettingsStore.AmbientApiKey, request.AmbientApiKey);
-        await store.SetKeyAsync(SettingsStore.AmbientApplicationKey, request.AmbientApplicationKey);
         await store.SetKeyAsync(SettingsStore.WeatherApiKey, request.WeatherApiKey);
+        var ambientAccounts = await SaveAmbientAccountsAsync(request.AmbientAccounts);
 
         var (defaults, added) = StationSelection.Split(request.StationIds, host.DefaultStations.Select(station => station.Id));
+        var ambientStations = request.AmbientStations
+            .Where(station => AmbientCatalog.IsDeviceId(station.DeviceId))
+            .DistinctBy(station => station.DeviceId, StringComparer.OrdinalIgnoreCase)
+            .Select(station => station with
+            {
+                Name = string.IsNullOrWhiteSpace(station.Name) ? null : station.Name.Trim(),
+                Zip = string.IsNullOrWhiteSpace(station.Zip) ? null : station.Zip.Trim(),
+            })
+            .ToList();
 
-        store.Save(new AppSettings(location, defaults, added));
+        store.Save(new AppSettings(location, defaults, added, ambientAccounts, ambientStations));
         await host.LoadAsync();
 
         return new SetupResult(true, null);
+    }
+
+    // Returns the extra accounts to keep. The primary account keeps its old key names, so updating the app
+    // doesn't ask for them again. A removed account's keys are deleted from secure storage.
+    private async Task<List<string>> SaveAmbientAccountsAsync(List<SetupAmbientKeys> accounts)
+    {
+        var known = SettingsStore.AmbientAccounts(store.Load());
+        var kept = new List<string>();
+        foreach (var account in accounts)
+        {
+            // Setup always sends the primary account, even before it has keys. A new one has no ID.
+            var id = account.Id is not null && (account.Id == SettingsStore.PrimaryAmbientAccount || known.Contains(account.Id))
+                ? account.Id
+                : Guid.NewGuid().ToString("N");
+
+            if (account.Remove)
+            {
+                await store.SetKeyAsync(SettingsStore.AmbientApiKeyFor(id), "");
+                await store.SetKeyAsync(SettingsStore.AmbientApplicationKeyFor(id), "");
+                continue;
+            }
+
+            await store.SetKeyAsync(SettingsStore.AmbientApiKeyFor(id), account.ApiKey);
+            await store.SetKeyAsync(SettingsStore.AmbientApplicationKeyFor(id), account.ApplicationKey);
+            if (id != SettingsStore.PrimaryAmbientAccount && await store.GetAmbientKeysAsync(id) is not null)
+            {
+                kept.Add(id);
+            }
+        }
+
+        // Accounts setup didn't send keep their keys.
+        kept.AddRange(known.Where(id => id != SettingsStore.PrimaryAmbientAccount
+            && !accounts.Any(account => account.Id == id) && !kept.Contains(id)));
+        return kept;
     }
 
     private static Dictionary<string, string?> ParseQuery(string query) =>

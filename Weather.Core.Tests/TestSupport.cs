@@ -49,6 +49,12 @@ internal static class TestData
     public static LocationResolver Locations(IHttpClientFactory http, IOptions<WeatherOptions> options) =>
         new(http, new WeatherCache(), options);
 
+    public static AmbientCatalog Ambient(IHttpClientFactory http, IOptions<WeatherOptions> options, TimeProvider? time = null) =>
+        new(http, options, Locations(http, options), time ?? new FixedTime(Now));
+
+    public static AmbientWeatherStation AmbientHome(IHttpClientFactory http, IOptions<WeatherOptions> options, TimeProvider? time = null) =>
+        Ambient(http, options, time).Home;
+
     public static StationSky Sky(IHttpClientFactory http, IOptions<WeatherOptions> options, WeatherCache? cache = null)
     {
         cache ??= new WeatherCache();

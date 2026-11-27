@@ -1,6 +1,6 @@
 # Weather
 
-Shows live readings and an almanac from an Ambient Weather station on the home page, a 16-day forecast, weather maps, and two comparison pages: daily lows and highs from several forecast sources in one 16-day table, and snow, rain and wind for one storm across several towns. Days well above or below normal are highlighted.
+Shows live readings and an almanac from your Ambient Weather stations on the home page, a 16-day forecast, weather maps, and two comparison pages: daily lows and highs from several forecast sources in one 16-day table, and snow, rain and wind for one storm across several towns. Days well above or below normal are highlighted.
 
 It opens on Topsham, ME (04086) and works with any US ZIP code. It shows current forecasts only, so there is no database.
 
@@ -16,6 +16,7 @@ It opens on Topsham, ME (04086) and works with any US ZIP code. It shows current
 - Storm Forecast: each source's snow, rain, strongest gust and snow depth for one storm's dates across several towns, with averages, timing, reports, alerts and an outage risk guide
 - Find a station by ZIP code or ID and keep it in that browser
 - Star a station to make it your default in that browser
+- Several Ambient Weather stations, from one or more accounts, each with its own name and ZIP code, and a Rename button that names any station in that browser
 - Settings for °F/°C and Auto, Light and Dark themes, with Auto following the device
 - ZIP code search
 - Usable on a phone, and as an Android app
@@ -68,7 +69,7 @@ You'll need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and [Node.j
 
    Optionally, add a [WeatherAPI.com](https://www.weatherapi.com/) key for its Storm Forecast row the same way, as `Weather:WeatherApi:ApiKey`.
 
-3. Create an API key and an application key on your [AmbientWeather.net account page](https://ambientweather.net/account), then add them. Without both, the station page asks for keys and the forecast table still works.
+3. Create an API key and an application key on your [AmbientWeather.net account page](https://ambientweather.net/account), then add them. Without both, the station page asks for keys and the forecast table still works. Every station on the account appears; to name them, give them ZIP codes or add more accounts, see [Your Ambient Weather stations](#your-ambient-weather-stations).
 
    ```bash
    dotnet user-secrets set "Weather:AmbientWeather:ApiKey" "YOUR_API_KEY" --project Weather.Server
@@ -92,14 +93,14 @@ Each push to `master` builds a container image and publishes it to `ghcr.io/mhay
 
 1. If the GitHub package is private, make it public or add `ghcr.io` credentials under Apps > Configuration > Manage Container Registries on the NAS.
 2. In TrueNAS, go to Apps > Discover Apps > Install via YAML and paste `deploy/truenas-compose.yaml`.
-3. Replace the three key placeholders with your Weather Underground and Ambient Weather keys, on the NAS only. The WeatherAPI.com key is optional and commented out.
+3. Replace the three key placeholders with your Weather Underground and Ambient Weather keys, on the NAS only. The WeatherAPI.com key, a second Ambient Weather account and station names and ZIP codes are optional and commented out.
 4. Open `http://<nas-ip>:8085`.
 
 To update, redeploy the app, which pulls the latest image. The site serves plain HTTP, and it accepts any Weather Underground station ID, which uses your shared API limit. Keep it on your own network and use a VPN such as Tailscale for outside access.
 
 ## Daily Forecast
 
-Shows 16 days for the station selected on the Station page, with its hourly forecast one click away. Your home station uses `DefaultLocation`, and other stations use the coordinates Weather Underground reports for them.
+Shows 16 days for the station selected on the Station page, with its hourly forecast one click away. Your home station uses `DefaultLocation` unless it has a ZIP code of its own, other Ambient Weather stations use their ZIP code, and Weather Underground stations use the coordinates Weather Underground reports for them.
 
 The forecast and sun times come from [Open-Meteo](https://open-meteo.com/), written descriptions and the forecasters' Area Forecast Discussion from the [National Weather Service](https://www.weather.gov/documentation/services-web-api) for about 7 days, and moon data from the [U.S. Naval Observatory](https://aa.usno.navy.mil/data/api). None of them need a key.
 
@@ -135,9 +136,26 @@ Compares each source's forecast for one storm's dates across several towns, star
 
 TV outlets publish their totals only as map images, so their rows are typed in and kept in that browser. Selecting a source in Storm timing, or a model in Depth, opens its forecast period by period for one town. The page loads only when you press Go, which fetches every view at once, and its address then holds the dates, towns and view, so it can be shared.
 
+## Your Ambient Weather stations
+
+Every device on your Ambient Weather account appears in the station dropdown. The first is the home station and keeps the `home` ID; the others get an ID such as `amb-1a2b3c4d5e6f`, worked out from the device and the account's API key, so it stays the same without revealing the MAC address. Replacing an account's API key changes its devices' IDs, so browsers lose their default and Rename names for those stations, and the Android app forgets their names, ZIP codes and home choice until you set them again. For devices on another account, add its keys under `AmbientWeather:Accounts`. Each account has its own one-request-a-second limit, and one call reads every device on it.
+
+Name and place each device under `AmbientWeather:Stations`, matched by its MAC address:
+
+```json
+"AmbientWeather": {
+  "Stations": [
+    { "MacAddress": "00:0E:C6:AA:BB:CC", "Name": "Home station", "Home": true },
+    { "MacAddress": "00:0E:C6:DD:EE:FF", "Name": "Camp station", "Zip": "04970" }
+  ]
+}
+```
+
+A device's ZIP code sets where its forecast, alerts and almanac come from. Home uses `DefaultLocation` unless it has one, and another device without a ZIP code shows its readings only. Without a `Name`, a device uses its name on Ambient Weather; home is listed as `AmbientWeather:Name` (Home station) but its page is headed by its Ambient name, as before. With `HomeStationSource` set to `OpenMeteo`, every Ambient device is listed as a station of its own. `Hidden` leaves a device out. Anyone can also press **Rename** under **Change station** to give a station a name that's kept only in that browser.
+
 ## Other weather stations
 
-The station page has a dropdown for other Weather Underground stations, listed under `Stations` in `Weather.Server/appsettings.json`. Each entry has a case-sensitive `Id` and a `Name`. They use your Weather Underground key, and your own station stays on Ambient Weather, which updates faster and reports more.
+The station page has a dropdown for other Weather Underground stations, listed under `Stations` in `Weather.Server/appsettings.json`. Each entry has a case-sensitive `Id` and a `Name`. They use your Weather Underground key, and your own stations stay on Ambient Weather, which updates faster and reports more.
 
 Other stations are fetched only while selected, and results are cached so they don't use up the key's limits, reported as 1,500 calls a day and 30 a minute. Readings a station doesn't report are left out, and its charts cover the current day rather than the last 24 hours.
 
@@ -173,12 +191,15 @@ These are in the `Weather` section of `Weather.Server/appsettings.json`:
 | `WeatherApi:ForecastDays` | 3 | Days WeatherAPI.com forecasts on its free plan |
 | `WeatherApi:CacheMinutes` | 60 | How long to keep WeatherAPI.com results |
 | `SnowTowns` | See file | Towns the Storm Forecast page starts with, in column order |
-| `AmbientWeather:MacAddress` | None | Station to show, if the account has more than one. Otherwise the first is used |
+| `AmbientWeather:MacAddress` | None | Device to use as the home station. Otherwise the first account's first device is home |
+| `AmbientWeather:Accounts` | None | More Ambient Weather accounts, each with an `ApiKey` and `ApplicationKey`. Every device on every account is shown |
+| `AmbientWeather:Stations` | None | Settings for devices, matched by `MacAddress` or `DeviceId` (the station ID shown for it): `Name`, `Zip` for its forecast, alerts and almanac, `Hidden`, and `Home`. Their order sets the dropdown's order |
+| `AmbientWeather:DiscoveryCacheMinutes` | 60 | How long to keep the list of devices on the accounts |
 | `AmbientWeather:CurrentCacheSeconds` | 60 | How long to keep current station readings |
 | `AmbientWeather:HistoryCacheMinutes` | 5 | How long to keep the 24-hour station history |
-| `AmbientWeather:Name` | Home station | Name of your station in the dropdown |
-| `AmbientWeather:OfflineAfterMinutes` | 15 | Age of the latest reading before your station shows as offline |
-| `AmbientWeather:RequestSpacingMilliseconds` | 1100 | Minimum gap between Ambient Weather requests |
+| `AmbientWeather:Name` | Home station | Name of the home station, unless a `Stations` entry with `Home` names it |
+| `AmbientWeather:OfflineAfterMinutes` | 15 | Age of the latest reading before an Ambient Weather station shows as offline |
+| `AmbientWeather:RequestSpacingMilliseconds` | 1100 | Minimum gap between requests on one Ambient Weather account |
 | `WeatherUndergroundStations:CurrentCacheMinutes` | 5 | How long to keep another station's current readings |
 | `WeatherUndergroundStations:HistoryCacheMinutes` | 15 | How long to keep another station's history |
 | `WeatherUndergroundStations:OfflineAfterMinutes` | 30 | Age of the latest reading before another station shows as offline |
@@ -210,7 +231,7 @@ To add a forecast source, implement `IForecastSource` in `Weather.Core/Sources` 
 
 ## Android app
 
-`Weather.Android` runs `Weather.Core` on the phone, with no server, and shows the website's client built with `--mode app`. Setup asks for a ZIP code and optional Weather Underground, Ambient Weather and WeatherAPI.com keys, which stay on the phone. Anything you skip uses Open-Meteo instead.
+`Weather.Android` runs `Weather.Core` on the phone, with no server, and shows the website's client built with `--mode app`. Setup asks for a ZIP code and optional Weather Underground, Ambient Weather and WeatherAPI.com keys, which stay on the phone. Anything you skip uses Open-Meteo instead. Setup takes keys for any number of Ambient Weather accounts, then **Find my stations** lists their devices to name, give a ZIP code, show or hide, and choose the home station.
 
 With the phone attached by USB:
 
@@ -256,7 +277,7 @@ Returns an Open-Meteo station for a ZIP code, with an ID such as `om-04086`. It 
 
 `GET /api/stations`
 
-Lists the stations for the dropdown, with your home station first.
+Lists the stations for the dropdown: your home station, then any other Ambient Weather devices (IDs such as `amb-1a2b3c4d5e6f`), then the configured Weather Underground stations. It never includes MAC addresses, keys or coordinates. It returns 503 while an Ambient Weather account can't be read and has no earlier list, rather than a shorter list that would look like stations had gone.
 
 `GET /api/station?id=KMESCARB113`
 

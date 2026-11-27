@@ -25,19 +25,17 @@ public sealed class AppHost(SettingsStore store)
 
         var settings = store.Load();
         var weatherUnderground = await store.GetKeyAsync(SettingsStore.WeatherUndergroundKey);
-        var ambientApiKey = await store.GetKeyAsync(SettingsStore.AmbientApiKey);
-        var ambientApplicationKey = await store.GetKeyAsync(SettingsStore.AmbientApplicationKey);
         var weatherApi = await store.GetKeyAsync(SettingsStore.WeatherApiKey);
-        var hasAmbient = !string.IsNullOrWhiteSpace(ambientApiKey) && !string.IsNullOrWhiteSpace(ambientApplicationKey);
 
         var overrides = new Dictionary<string, string?>
         {
-            [nameof(WeatherOptions.HomeStationSource)] = (hasAmbient ? HomeStationSource.AmbientWeather : HomeStationSource.OpenMeteo).ToString(),
             ["WeatherUnderground:ApiKey"] = weatherUnderground,
-            ["AmbientWeather:ApiKey"] = ambientApiKey,
-            ["AmbientWeather:ApplicationKey"] = ambientApplicationKey,
             ["WeatherApi:ApiKey"] = weatherApi,
         };
+
+        var hasAmbient = await AddAmbientAsync(overrides, settings);
+        overrides[nameof(WeatherOptions.HomeStationSource)] =
+            (hasAmbient ? HomeStationSource.AmbientWeather : HomeStationSource.OpenMeteo).ToString();
 
         if (settings is not null)
         {
@@ -63,6 +61,37 @@ public sealed class AppHost(SettingsStore store)
 
         // Requests still running on the old services finish there, so these aren't disposed.
         _services = services.BuildServiceProvider();
+    }
+
+    // Every account with both keys, and each device's name, ZIP and whether it's home or hidden.
+    private async Task<bool> AddAmbientAsync(Dictionary<string, string?> overrides, AppSettings? settings)
+    {
+        var accounts = 0;
+        foreach (var account in SettingsStore.AmbientAccounts(settings))
+        {
+            if (await store.GetAmbientKeysAsync(account) is not { } keys)
+            {
+                continue;
+            }
+
+            var prefix = accounts == 0 ? "AmbientWeather" : $"AmbientWeather:Accounts:{accounts - 1}";
+            overrides[$"{prefix}:ApiKey"] = keys.ApiKey;
+            overrides[$"{prefix}:ApplicationKey"] = keys.ApplicationKey;
+            accounts++;
+        }
+
+        var stations = settings?.AmbientStations ?? [];
+        for (var i = 0; i < stations.Count; i++)
+        {
+            var station = stations[i];
+            overrides[$"AmbientWeather:Stations:{i}:DeviceId"] = station.DeviceId;
+            overrides[$"AmbientWeather:Stations:{i}:Name"] = station.Name;
+            overrides[$"AmbientWeather:Stations:{i}:Zip"] = station.Zip;
+            overrides[$"AmbientWeather:Stations:{i}:Hidden"] = station.Hidden.ToString();
+            overrides[$"AmbientWeather:Stations:{i}:Home"] = station.Home.ToString();
+        }
+
+        return accounts > 0;
     }
 
     // Overrides can only replace entries in the file's list, and AddWeatherCore skips blank IDs.
