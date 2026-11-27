@@ -23,9 +23,16 @@ public sealed partial class StationDirectory(
         stations.Select(station => new StationSummary(station.Id, station.Name, station.Zip)).ToList();
 
     /// <summary>The configured stations, with any other Ambient Weather devices after home.</summary>
+    /// <exception cref="StationListUnavailableException">An Ambient Weather account can't be read and has no earlier list.</exception>
     public async Task<IReadOnlyList<StationSummary>> GetStationsAsync(CancellationToken cancellationToken = default)
     {
-        var devices = ambient is null ? [] : await ambient.GetStationsAsync(cancellationToken);
+        var list = ambient is null ? new AmbientStationList([], true) : await ambient.ListStationsAsync(cancellationToken);
+        if (!list.Complete)
+        {
+            throw new StationListUnavailableException("Ambient Weather couldn't be reached, so the station list is incomplete. Try again in a few minutes.");
+        }
+
+        var devices = list.Stations;
         if (devices.Count == 0)
         {
             return _configured;

@@ -14,7 +14,7 @@ public enum KeyCheckResult
 public sealed record AmbientDeviceSummary(string Id, string? Name);
 
 /// <summary>Tries keys someone has just typed, before they're saved. Each check is one call.</summary>
-public sealed class KeyCheck(IHttpClientFactory httpClientFactory, IOptions<WeatherOptions> options)
+public sealed class KeyCheck(IHttpClientFactory httpClientFactory, IOptions<WeatherOptions> options, AmbientCatalog? ambient = null)
 {
     private const string WeatherUndergroundUrl = "https://api.weather.com/v3/location/near";
     private const string AmbientWeatherUrl = "https://rt.ambientweather.net/v1/devices";
@@ -35,7 +35,9 @@ public sealed class KeyCheck(IHttpClientFactory httpClientFactory, IOptions<Weat
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(options.Value.SourceTimeoutSeconds));
         try
         {
-            var account = new AmbientAccount(apiKey.Trim(), applicationKey.Trim(), httpClientFactory, options, TimeProvider.System);
+            // Saved keys use the stations' own account, so these calls queue behind theirs within the key's limit.
+            var account = ambient?.FindAccount(apiKey, applicationKey)
+                ?? new AmbientAccount(apiKey.Trim(), applicationKey.Trim(), httpClientFactory, options, TimeProvider.System);
             var devices = await account.GetDevicesAsync(timeout.Token);
             return devices.Select(device => new AmbientDeviceSummary(device.DeviceId, device.Name)).ToList();
         }

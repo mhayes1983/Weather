@@ -40,7 +40,7 @@ public sealed class LocalApi(
             return path switch
             {
                 "/api/forecast" => await GetForecastAsync(value("zip"), cancellationToken),
-                "/api/stations" => Ok(await stations.GetStationsAsync(cancellationToken), LocalApiJson.Default.IReadOnlyListStationSummary),
+                "/api/stations" => await GetStationsAsync(cancellationToken),
                 "/api/stations/lookup" => await LookUpAsync(value("q"), value("source")),
                 "/api/station" => await GetStationAsync(value("id")),
                 "/api/alerts" => await GetAlertsAsync(value("station")),
@@ -223,6 +223,18 @@ public sealed class LocalApi(
     private static LocalApiResponse InvalidStation() => Problem(404, "That isn't a valid station ID.");
 
     private static LocalApiResponse Ok<T>(T value, JsonTypeInfo<T> type) => new(200, JsonSerializer.Serialize(value, type));
+
+    private async Task<LocalApiResponse> GetStationsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await stations.GetStationsAsync(cancellationToken), LocalApiJson.Default.IReadOnlyListStationSummary);
+        }
+        catch (StationListUnavailableException exception)
+        {
+            return Problem(503, exception.Message);
+        }
+    }
 
     private static LocalApiResponse Problem(int status, string detail) =>
         new(status, JsonSerializer.Serialize(new LocalApiProblem(status, detail), LocalApiJson.Default.LocalApiProblem));

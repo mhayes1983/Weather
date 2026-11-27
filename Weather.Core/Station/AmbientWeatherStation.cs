@@ -14,12 +14,19 @@ public sealed class AmbientWeatherStation : IWeatherStation
 
     private readonly AmbientCatalog _catalog;
     private readonly AmbientDevice? _device;
-    private AmbientDevice? _lastHomeDevice;
+    private readonly bool _usesAmbientName;
+    private AmbientDevice? _lastFound;
 
-    internal AmbientWeatherStation(AmbientCatalog catalog, string id, string name, string? zip, AmbientDevice? device)
+    /// <param name="device">
+    /// Null for home, whose device is found when it's read, and for an ID seen while its account couldn't
+    /// be read, whose device is looked for on every account.
+    /// </param>
+    /// <param name="usesAmbientName">Readings carry the device's name on Ambient Weather rather than <paramref name="name"/>.</param>
+    internal AmbientWeatherStation(AmbientCatalog catalog, string id, string name, string? zip, AmbientDevice? device, bool usesAmbientName = false)
     {
         _catalog = catalog;
         _device = device;
+        _usesAmbientName = usesAmbientName;
         Id = id;
         Name = name;
         Zip = zip;
@@ -27,7 +34,7 @@ public sealed class AmbientWeatherStation : IWeatherStation
 
     private AmbientWeatherOptions Settings => _catalog.Options.AmbientWeather;
 
-    private bool IsHome => _device is null;
+    private bool IsHome => Id == HomeId;
 
     public string Id { get; }
 
@@ -78,7 +85,7 @@ public sealed class AmbientWeatherStation : IWeatherStation
 
         return new StationReading
         {
-            StationName = Name,
+            StationName = _usesAmbientName ? device.Name : Name,
             ObservedAt = ObservedAt(data),
             TemperatureF = Number(data, "tempf"),
             FeelsLikeF = Number(data, "feelsLike"),
@@ -231,8 +238,8 @@ public sealed class AmbientWeatherStation : IWeatherStation
 
     public async Task<IReadOnlyList<StationHistoryPoint>> GetHistoryAsync(CancellationToken cancellationToken)
     {
-        // History needs only the MAC address, so home reuses the device it last found.
-        var device = _device ?? _lastHomeDevice ?? await FindDeviceAsync(cancellationToken);
+        // History needs only the MAC address, so a station found when read reuses the device it last found.
+        var device = _device ?? _lastFound ?? await FindDeviceAsync(cancellationToken);
         using var document = JsonDocument.Parse(await device.Account.GetHistoryAsync(
             device.MacAddress,
             $"&limit={HistoryPoints}",
@@ -262,7 +269,9 @@ public sealed class AmbientWeatherStation : IWeatherStation
     {
         if (_device is null)
         {
-            return _lastHomeDevice = await _catalog.FindHomeDeviceAsync(cancellationToken);
+            return _lastFound = IsHome
+                ? await _catalog.FindHomeDeviceAsync(cancellationToken)
+                : await _catalog.FindDeviceAsync(Id, cancellationToken);
         }
 
         var devices = await _device.Account.GetDevicesAsync(cancellationToken);

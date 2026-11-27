@@ -31,6 +31,8 @@ public sealed class AmbientAccount(
 
     internal string ApiKey => apiKey;
 
+    internal string ApplicationKey => applicationKey;
+
     private AmbientWeatherOptions Settings => options.Value.AmbientWeather;
 
     /// <summary>

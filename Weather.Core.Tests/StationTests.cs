@@ -126,8 +126,8 @@ public class StationTests
     {
         var reading = await Station(Working()).GetCurrentAsync(default);
 
-        // The name given to the station, not the label on the Ambient account.
-        Assert.Equal("Home station", reading.StationName);
+        // An unnamed home station is headed by its name on Ambient Weather, as it always was.
+        Assert.Equal("Backyard", reading.StationName);
         Assert.Equal(TestData.Now, reading.ObservedAt);
         Assert.Equal(66.9, reading.TemperatureF);
         Assert.Equal(74.1, reading.IndoorTemperatureF);
@@ -146,7 +146,7 @@ public class StationTests
 
         var reading = await Station(http).GetCurrentAsync(default);
 
-        Assert.Equal("Home station", reading.StationName);
+        Assert.Null(reading.StationName);
         Assert.Null(reading.TemperatureF);
         Assert.Null(reading.BatteryLow);
         Assert.Null(reading.TotalRainIn);

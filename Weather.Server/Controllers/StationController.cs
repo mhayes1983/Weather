@@ -12,7 +12,18 @@ public class StationController(StationService stations, StationLookup lookup) : 
     private const string OpenMeteoSource = "open-meteo";
 
     [HttpGet("stations")]
-    public Task<IReadOnlyList<StationSummary>> List(CancellationToken cancellationToken) => stations.GetStationsAsync(cancellationToken);
+    public async Task<ActionResult<IReadOnlyList<StationSummary>>> List(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await stations.GetStationsAsync(cancellationToken));
+        }
+        catch (StationListUnavailableException exception)
+        {
+            // Not a shorter list, which a browser would read as its saved station being gone.
+            return Problem(exception.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+    }
 
     [HttpGet("stations/lookup")]
     public async Task<ActionResult<StationMatch>> LookUp([FromQuery] string? q, [FromQuery] string? source = null)

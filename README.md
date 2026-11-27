@@ -138,7 +138,7 @@ TV outlets publish their totals only as map images, so their rows are typed in a
 
 ## Your Ambient Weather stations
 
-Every device on your Ambient Weather account appears in the station dropdown. The first is the home station and keeps the `home` ID; the others get an ID such as `amb-1a2b3c4d5e6f`, worked out from the device and the account's key, so it stays the same without revealing the MAC address. For devices on another account, add its keys under `AmbientWeather:Accounts`. Each account has its own one-request-a-second limit, and one call reads every device on it.
+Every device on your Ambient Weather account appears in the station dropdown. The first is the home station and keeps the `home` ID; the others get an ID such as `amb-1a2b3c4d5e6f`, worked out from the device and the account's API key, so it stays the same without revealing the MAC address. Replacing an account's API key changes its devices' IDs, so browsers lose their default and Rename names for those stations, and the Android app forgets their names, ZIP codes and home choice until you set them again. For devices on another account, add its keys under `AmbientWeather:Accounts`. Each account has its own one-request-a-second limit, and one call reads every device on it.
 
 Name and place each device under `AmbientWeather:Stations`, matched by its MAC address:
 
@@ -151,7 +151,7 @@ Name and place each device under `AmbientWeather:Stations`, matched by its MAC a
 }
 ```
 
-A device's ZIP code sets where its forecast, alerts and almanac come from. Home uses `DefaultLocation` unless it has one, and another device without a ZIP code shows its readings only. Without a `Name`, a device uses its name on Ambient Weather. `Hidden` leaves a device out. Anyone can also press **Rename** under **Change station** to give a station a name that's kept only in that browser.
+A device's ZIP code sets where its forecast, alerts and almanac come from. Home uses `DefaultLocation` unless it has one, and another device without a ZIP code shows its readings only. Without a `Name`, a device uses its name on Ambient Weather; home is listed as `AmbientWeather:Name` (Home station) but its page is headed by its Ambient name, as before. With `HomeStationSource` set to `OpenMeteo`, every Ambient device is listed as a station of its own. `Hidden` leaves a device out. Anyone can also press **Rename** under **Change station** to give a station a name that's kept only in that browser.
 
 ## Other weather stations
 
@@ -277,7 +277,7 @@ Returns an Open-Meteo station for a ZIP code, with an ID such as `om-04086`. It 
 
 `GET /api/stations`
 
-Lists the stations for the dropdown: your home station, then any other Ambient Weather devices (IDs such as `amb-1a2b3c4d5e6f`), then the configured Weather Underground stations. It never includes MAC addresses, keys or coordinates.
+Lists the stations for the dropdown: your home station, then any other Ambient Weather devices (IDs such as `amb-1a2b3c4d5e6f`), then the configured Weather Underground stations. It never includes MAC addresses, keys or coordinates. It returns 503 while an Ambient Weather account can't be read and has no earlier list, rather than a shorter list that would look like stations had gone.
 
 `GET /api/station?id=KMESCARB113`
 
