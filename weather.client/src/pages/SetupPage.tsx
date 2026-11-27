@@ -1,12 +1,18 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { ambientDefaultChoices, ambientName, ambientSettings, homeChoiceName } from '../ambientSetup';
 import {
     appName,
     checkAmbientWeather,
     checkWeatherApi,
     checkWeatherUnderground,
     getSetupState,
+    listAmbientStations,
+    primaryAmbientAccount,
     saveSetup,
+    type AmbientDeviceChoice,
+    type AmbientStationSetting,
     type KeyCheckResult,
+    type SetupAmbientKeys,
     type SetupState,
 } from '../appBridge';
 import { homeStation, loadDefaultStation, saveDefaultStation } from '../defaultStation';
@@ -60,6 +66,34 @@ function KeyField({ label, value, onChange }: KeyFieldProps) {
     );
 }
 
+interface AmbientAccountForm {
+    /** Null for an account added in this setup. */
+    id: string | null;
+    /** Tells React's list apart for new accounts, which have no ID yet. */
+    key: number;
+    saved: boolean;
+    apiKey: string;
+    applicationKey: string;
+    remove: boolean;
+}
+
+function hasBothKeys(account: AmbientAccountForm) {
+    return account.apiKey.trim() !== '' && account.applicationKey.trim() !== '';
+}
+
+function halfEntered(account: AmbientAccountForm) {
+    return !account.remove && (account.apiKey.trim() === '') !== (account.applicationKey.trim() === '');
+}
+
+function keysToSend(account: AmbientAccountForm): SetupAmbientKeys {
+    return {
+        id: account.id,
+        apiKey: account.apiKey.trim() === '' ? null : account.apiKey,
+        applicationKey: account.applicationKey.trim() === '' ? null : account.applicationKey,
+        remove: account.remove,
+    };
+}
+
 function SetupPage() {
     const [state, setState] = useState<SetupState>();
     const [loadFailed, setLoadFailed] = useState(false);
@@ -67,9 +101,13 @@ function SetupPage() {
     const [zip, setZip] = useState('');
     const [weatherUndergroundKey, setWeatherUndergroundKey] = useState('');
     const [removeWeatherUnderground, setRemoveWeatherUnderground] = useState(false);
-    const [ambientApiKey, setAmbientApiKey] = useState('');
-    const [ambientApplicationKey, setAmbientApplicationKey] = useState('');
-    const [removeAmbient, setRemoveAmbient] = useState(false);
+    const [ambientAccounts, setAmbientAccounts] = useState<AmbientAccountForm[]>([]);
+    const [nextAccountKey, setNextAccountKey] = useState(1);
+    const [ambientDevices, setAmbientDevices] = useState<AmbientDeviceChoice[]>();
+    const [savedAmbientStations, setSavedAmbientStations] = useState<AmbientStationSetting[]>([]);
+    const [ambientStations, setAmbientStations] = useState<AmbientStationSetting[]>([]);
+    const [findingDevices, setFindingDevices] = useState(false);
+    const [findFailed, setFindFailed] = useState(false);
     const [weatherApiKey, setWeatherApiKey] = useState('');
     const [removeWeatherApi, setRemoveWeatherApi] = useState(false);
     const [selected, setSelected] = useState<string[]>([]);
@@ -85,6 +123,14 @@ function SetupPage() {
                 setState(loaded);
                 setZip(loaded.zip ?? '');
                 setSelected(loaded.stations.filter(station => station.selected).map(station => station.id));
+                setSavedAmbientStations(loaded.ambientStations);
+
+                // The primary account always comes first, so its keys keep their place.
+                const others = loaded.ambientAccounts.filter(account => account.id !== primaryAmbientAccount);
+                setAmbientAccounts([
+                    { id: primaryAmbientAccount, saved: loaded.ambientAccounts.some(account => account.id === primaryAmbientAccount) },
+                    ...others.map(account => ({ id: account.id, saved: true })),
+                ].map((account, index) => ({ ...account, key: -index - 1, apiKey: '', applicationKey: '', remove: false })));
             })
             .catch(() => setLoadFailed(true));
     }, []);
@@ -98,13 +144,62 @@ function SetupPage() {
     }
 
     const usesWeatherUnderground = !removeWeatherUnderground && (state.hasWeatherUnderground || weatherUndergroundKey.trim() !== '');
-    const usesAmbient = !removeAmbient && (state.hasAmbientWeather || (ambientApiKey.trim() !== '' && ambientApplicationKey.trim() !== ''));
+    const usesAmbient = ambientAccounts.some(account => !account.remove && (account.saved || hasBothKeys(account)));
     const usesWeatherApi = !removeWeatherApi && (state.hasWeatherApi || weatherApiKey.trim() !== '');
-    const ambientHalfEntered = (ambientApiKey.trim() === '') !== (ambientApplicationKey.trim() === '');
+    const ambientHalfEntered = ambientAccounts.some(halfEntered);
+
+    // Until the devices are found again, the saved settings stay as they are.
+    const ambientToSave = !usesAmbient ? [] : ambientDevices ? ambientStations : savedAmbientStations;
+    const ambientChoices = usesAmbient && ambientDevices ? ambientDefaultChoices(ambientDevices, ambientStations) : [];
     const stations = [...state.stations, ...addedStations.map(id => ({ id, name: id, selected: true }))];
     const chosenStations = usesWeatherUnderground ? stations.filter(station => selected.includes(station.id)) : [];
-    const defaultChoices = defaultStationChoices(chosenStations, loadSavedStations(), usesWeatherUnderground);
+    const defaultChoices = defaultStationChoices([...ambientChoices, ...chosenStations], loadSavedStations(), usesWeatherUnderground);
     const nextDefault = defaultAfterSetup(defaultStation, defaultChoices);
+
+    function updateAccount(key: number, change: Partial<AmbientAccountForm>) {
+        setAmbientAccounts(ambientAccounts.map(account => account.key === key ? { ...account, ...change } : account));
+    }
+
+    function handleAddAccount() {
+        setAmbientAccounts([...ambientAccounts, { id: null, key: nextAccountKey, saved: false, apiKey: '', applicationKey: '', remove: false }]);
+        setNextAccountKey(nextAccountKey + 1);
+    }
+
+    function handleRemoveAccount(account: AmbientAccountForm) {
+        if (account.saved || account.id === primaryAmbientAccount) {
+            updateAccount(account.key, { remove: !account.remove, apiKey: '', applicationKey: '' });
+        } else {
+            setAmbientAccounts(ambientAccounts.filter(other => other.key !== account.key));
+        }
+    }
+
+    function handleFindDevices() {
+        setFindingDevices(true);
+        setFindFailed(false);
+        listAmbientStations(ambientAccounts.map(keysToSend))
+            .then(devices => {
+                if (devices === null) {
+                    setFindFailed(true);
+                    return;
+                }
+
+                setAmbientDevices(devices);
+                setAmbientStations(ambientSettings(devices, ambientDevices ? ambientStations : savedAmbientStations));
+            })
+            .catch(() => setFindFailed(true))
+            .finally(() => setFindingDevices(false));
+    }
+
+    function updateAmbientStation(deviceId: string, change: Partial<AmbientStationSetting>) {
+        setAmbientStations(ambientStations.map(setting => {
+            if (change.home) {
+                // Only one device can be home.
+                return { ...setting, ...(setting.deviceId === deviceId ? change : {}), home: setting.deviceId === deviceId };
+            }
+
+            return setting.deviceId === deviceId ? { ...setting, ...change } : setting;
+        }));
+    }
 
     function handleToggle(id: string) {
         setSelected(selected.includes(id) ? selected.filter(other => other !== id) : [...selected, id]);
@@ -147,10 +242,10 @@ function SetupPage() {
         saveSetup({
             zip,
             weatherUndergroundKey: keyToSave(weatherUndergroundKey, removeWeatherUnderground),
-            ambientApiKey: keyToSave(ambientApiKey, removeAmbient),
-            ambientApplicationKey: keyToSave(ambientApplicationKey, removeAmbient),
             weatherApiKey: keyToSave(weatherApiKey, removeWeatherApi),
             stationIds: selected,
+            ambientAccounts: ambientAccounts.map(keysToSend),
+            ambientStations: ambientToSave,
         })
             .then(result => {
                 if (result.ok) {
@@ -215,21 +310,63 @@ function SetupPage() {
                 {step === 2 &&
                     <>
                         <p>
-                            Optional. Both keys show your own Ambient Weather station as the home station. They stay encrypted on this
-                            phone. Without them, the home station shows Open-Meteo's modelled conditions.
+                            Optional. Both keys show your own Ambient Weather stations, with the first as the home station. Every
+                            station on each account is shown, and you can name them below. Keys stay encrypted on this phone.
+                            Without them, the home station shows Open-Meteo's modelled conditions.
                         </p>
-                        {state.hasAmbientWeather && !removeAmbient && <p>Keys are saved. Leave these blank to keep them.</p>}
-                        {!removeAmbient &&
-                            <>
-                                <KeyField label="API key" value={ambientApiKey} onChange={setAmbientApiKey} />
-                                <KeyField label="Application key" value={ambientApplicationKey} onChange={setAmbientApplicationKey} />
-                                {ambientHalfEntered && <p className="error" role="alert">Ambient Weather needs both keys.</p>}
-                                <KeyTest key={`${ambientApiKey}|${ambientApplicationKey}`} disabled={ambientApiKey.trim() === '' || ambientApplicationKey.trim() === ''} run={() => checkAmbientWeather(ambientApiKey, ambientApplicationKey)} />
-                            </>}
-                        {state.hasAmbientWeather &&
-                            <button type="button" onClick={() => setRemoveAmbient(!removeAmbient)}>
-                                {removeAmbient ? 'Keep saved keys' : 'Remove saved keys'}
-                            </button>}
+                        {ambientAccounts.map((account, index) =>
+                            <fieldset key={account.key} className="setup-account">
+                                <legend>Account {index + 1}</legend>
+                                {account.saved && !account.remove && <p>Keys are saved. Leave these blank to keep them.</p>}
+                                {account.remove && <p>These keys will be removed.</p>}
+                                {!account.remove &&
+                                    <>
+                                        <KeyField label="API key" value={account.apiKey} onChange={apiKey => updateAccount(account.key, { apiKey })} />
+                                        <KeyField label="Application key" value={account.applicationKey} onChange={applicationKey => updateAccount(account.key, { applicationKey })} />
+                                        {halfEntered(account) && <p className="error" role="alert">Ambient Weather needs both keys.</p>}
+                                        <KeyTest key={`${account.apiKey}|${account.applicationKey}`} disabled={!hasBothKeys(account)} run={() => checkAmbientWeather(account.apiKey, account.applicationKey)} />
+                                    </>}
+                                {(account.saved || index > 0) &&
+                                    <button type="button" onClick={() => handleRemoveAccount(account)}>
+                                        {account.remove ? 'Keep saved keys' : account.saved ? 'Remove saved keys' : 'Remove account'}
+                                    </button>}
+                            </fieldset>
+                        )}
+                        <div className="setup-actions">
+                            <button type="button" onClick={handleAddAccount}>Add another account</button>
+                            <button type="button" disabled={!usesAmbient || ambientHalfEntered || findingDevices} onClick={handleFindDevices}>
+                                {findingDevices ? 'Finding…' : ambientDevices ? 'Find stations again' : 'Find my stations'}
+                            </button>
+                        </div>
+                        {findFailed && <p className="error" role="alert">The stations couldn't be found. Check the keys and your connection.</p>}
+                        {ambientDevices?.length === 0 && <p>No stations were found on these accounts.</p>}
+                        {ambientDevices && ambientDevices.length > 0 && usesAmbient &&
+                            <ul className="setup-ambient">
+                                {ambientStations.map(setting => {
+                                    const device = ambientDevices.find(other => other.id === setting.deviceId);
+                                    return (
+                                        <li key={setting.deviceId}>
+                                            <label className="setup-field">
+                                                Name
+                                                <input type="text" value={setting.name ?? ''} placeholder={ambientName({ ...setting, name: null }, device)} maxLength={40} autoComplete="off" onChange={event => updateAmbientStation(setting.deviceId, { name: event.target.value })} />
+                                            </label>
+                                            <label className="setup-field">
+                                                ZIP code
+                                                <input type="text" inputMode="numeric" maxLength={5} value={setting.zip ?? ''} placeholder={setting.home ? zip.trim() : 'Needed for forecasts'} autoComplete="off" onChange={event => updateAmbientStation(setting.deviceId, { zip: event.target.value })} />
+                                            </label>
+                                            <label>
+                                                <input type="radio" name="ambient-home" checked={setting.home} onChange={() => updateAmbientStation(setting.deviceId, { home: true, hidden: false })} />
+                                                Home station
+                                            </label>
+                                            {!setting.home &&
+                                                <label>
+                                                    <input type="checkbox" checked={!setting.hidden} onChange={() => updateAmbientStation(setting.deviceId, { hidden: !setting.hidden })} />
+                                                    Show
+                                                </label>}
+                                        </li>
+                                    );
+                                })}
+                            </ul>}
                     </>}
 
                 {step === 3 &&
@@ -278,7 +415,8 @@ function SetupPage() {
                     <>
                         <ul>
                             <li>Location: ZIP {zip.trim()}</li>
-                            <li>Home station: {usesAmbient ? 'your Ambient Weather station' : "Open-Meteo's modelled conditions"}</li>
+                            <li>Home station: {usesAmbient ? homeChoiceName(ambientDevices, ambientToSave) : "Open-Meteo's modelled conditions"}</li>
+                            {ambientChoices.length > 0 && <li>Other Ambient Weather stations: {ambientChoices.map(station => station.name).join(', ')}</li>}
                             <li>Weather Underground: {usesWeatherUnderground ? `${chosenStations.length} stations and the forecast column` : 'not used'}</li>
                             <li>WeatherAPI.com: {usesWeatherApi ? 'the Storm Forecast row' : 'not used'}</li>
                             <li>Forecasts, alerts and maps work with or without keys</li>
@@ -287,7 +425,7 @@ function SetupPage() {
                             <label className="setup-field">
                                 Default station
                                 <select value={nextDefault} onChange={event => setDefaultStation(event.target.value)}>
-                                    <option value={homeStation}>Home station</option>
+                                    <option value={homeStation}>{usesAmbient ? homeChoiceName(ambientDevices, ambientToSave) : 'Home station'}</option>
                                     {defaultChoices.map(station => <option key={station.id} value={station.id}>{station.name}</option>)}
                                 </select>
                             </label>}

@@ -145,7 +145,7 @@ public class DailyForecastTests
         cache ??= new WeatherCache();
         return new DailyForecastService(
             new StationDirectory([
-                new AmbientWeatherStation(http, options, time),
+                TestData.AmbientHome(http, options, time),
                 new WeatherUndergroundStation(new WeatherStationOptions { Id = Id, Name = "Test" }, http, options),
             ], http, options, TestData.Locations(http, options), TimeProvider.System),
             new StationLocator(cache),

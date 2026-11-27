@@ -30,6 +30,13 @@ function HelpPage({ onNavigate }: HelpPageProps) {
                 the station's area, so it can occasionally differ from what the station measures.
             </p>
             <p>
+                Every station on each Ambient Weather account appears in the station list, with the first as the home station.
+                Each can have its own name and ZIP code, which sets where its forecast, alerts and almanac come from; a station
+                other than home without a ZIP code shows readings only. Under <strong>Change station</strong>,{' '}
+                <strong>Rename</strong> gives the selected station a name of your own, such as Camp station. That name is saved
+                only in this browser, and <strong>Use station name</strong> goes back to the original.
+            </p>
+            <p>
                 When the National Weather Service has active alerts for the station's area, they appear at the top of the
                 page. If alerts can't be checked, the page says so. That doesn't mean there are no alerts.
             </p>

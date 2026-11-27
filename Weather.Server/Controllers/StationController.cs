@@ -12,7 +12,7 @@ public class StationController(StationService stations, StationLookup lookup) : 
     private const string OpenMeteoSource = "open-meteo";
 
     [HttpGet("stations")]
-    public IReadOnlyList<StationSummary> List() => stations.Stations;
+    public Task<IReadOnlyList<StationSummary>> List(CancellationToken cancellationToken) => stations.GetStationsAsync(cancellationToken);
 
     [HttpGet("stations/lookup")]
     public async Task<ActionResult<StationMatch>> LookUp([FromQuery] string? q, [FromQuery] string? source = null)

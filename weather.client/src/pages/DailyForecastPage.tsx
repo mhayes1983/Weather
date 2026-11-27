@@ -6,6 +6,7 @@ import StationHeader, { type StationControls } from '../components/StationHeader
 import { formatDate } from '../localTime';
 import { snowAmount } from '../precipitation';
 import { displayTemperature, type Unit } from '../temperature';
+import { stationName } from '../stationNames';
 import type { Route } from '../useRoute';
 import { weatherIcon } from '../weatherIcons';
 import { compass } from '../wind';
@@ -94,7 +95,7 @@ function DailyForecastPage({ station, stationControls, unit, onNavigate }: Daily
         <main>
             <StationHeader {...stationControls}>
                 <h1>Daily Forecast</h1>
-                {report && <p className="location">{report.stationName}</p>}
+                {report && <p className="location">{stationName(stationControls.stationNames, station, report.stationName)}</p>}
             </StationHeader>
 
             {error && <p className="error" role="alert">{error}</p>}

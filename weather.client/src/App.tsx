@@ -16,6 +16,7 @@ import PrivacyPage from './pages/PrivacyPage';
 import StationPage from './pages/StationPage';
 import TermsPage from './pages/TermsPage';
 import { addSavedStation, loadSavedStations, removeSavedStation, watchSavedStations } from './savedStations';
+import { loadStationNames, renameStation, watchStationNames } from './stationNames';
 import { loadUnit, saveUnit, type Unit } from './temperature';
 import { applyTheme, loadTheme, saveTheme, type Theme } from './theme';
 import { forecastDate, useRoute, type Route } from './useRoute';
@@ -47,6 +48,7 @@ function App() {
     const [defaultStation, setDefaultStation] = useState(loadDefaultStation);
     const [station, setStation] = useState(defaultStation);
     const [savedStations, setSavedStations] = useState(loadSavedStations);
+    const [stationNames, setStationNames] = useState(loadStationNames);
     const [forecastOpened, setForecastOpened] = useState(route === '/forecast');
     const onSnow = route === '/storm' || route === '/storm/hourly';
     const [snowOpened, setSnowOpened] = useState(onSnow);
@@ -88,6 +90,8 @@ function App() {
 
     useEffect(() => watchSavedStations(setSavedStations), []);
 
+    useEffect(() => watchStationNames(setStationNames), []);
+
     useEffect(() => {
         document.title = titles[route] ?? 'Daily Forecast';
     }, [route]);
@@ -112,6 +116,10 @@ function App() {
         setSavedStations(addSavedStation(savedStations, saved));
     }
 
+    function handleStationRenamed(id: string, name: string | null) {
+        setStationNames(renameStation(stationNames, id, name));
+    }
+
     function handleStationRemoved(id: string) {
         setSavedStations(removeSavedStation(savedStations, id));
 
@@ -133,6 +141,8 @@ function App() {
         savedStations,
         onStationSaved: handleStationSaved,
         onStationRemoved: handleStationRemoved,
+        stationNames,
+        onStationRenamed: handleStationRenamed,
     };
 
     if (SetupPage && (route === '/setup' || !currentSetup()?.complete)) {
@@ -151,9 +161,9 @@ function App() {
                 <ErrorBoundary message="The radar page couldn't be loaded.">
                     <Suspense fallback={<main><p>Loading radar…</p></main>}><RadarPage unit={unit} /></Suspense>
                 </ErrorBoundary>}
-            {route === '/alerts' && <AlertsPage station={station} onNavigate={navigate} />}
+            {route === '/alerts' && <AlertsPage station={station} stationNames={stationNames} onNavigate={navigate} />}
             {route === '/daily' && <DailyForecastPage station={station} stationControls={stationControls} unit={unit} onNavigate={navigate} />}
-            {date && <ForecastDayPage date={date} station={station} unit={unit} onNavigate={navigate} />}
+            {date && <ForecastDayPage date={date} station={station} stationNames={stationNames} unit={unit} onNavigate={navigate} />}
             {forecastOpened && <ForecastPage hidden={route !== '/forecast'} unit={unit} station={station} savedStations={savedStations} />}
             {snowOpened && <SnowPage route={route} onNavigate={navigate} />}
             {route === '/help' && <HelpPage onNavigate={navigate} />}

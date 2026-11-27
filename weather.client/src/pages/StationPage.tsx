@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchStation, type StationReport } from '../api/station';
 import { stationWarnings } from '../stationCards';
+import { stationName } from '../stationNames';
 import CurrentConditions from '../components/CurrentConditions';
 import StationCharts from '../components/StationCharts';
 import StationAlerts from '../components/StationAlerts';
@@ -72,7 +73,7 @@ function StationPage({ selected, stationControls, unit, onNavigate }: StationPag
     return (
         <main>
             <StationHeader {...stationControls}>
-                <h1>{current?.stationName ?? 'Weather Station'}</h1>
+                <h1>{stationName(stationControls.stationNames, selected, current?.stationName ?? undefined) ?? 'Weather Station'}</h1>
                 {current && <p className="location">Updated {new Date(current.observedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
                 {report?.modelled && <p className="location">Modelled estimate, not measured</p>}
             </StationHeader>

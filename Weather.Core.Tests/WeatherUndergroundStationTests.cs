@@ -62,7 +62,7 @@ public class WeatherUndergroundStationTests
         var time = new FixedTime(TestData.Now);
         return new StationService(
             new StationDirectory([
-                new AmbientWeatherStation(http, options, time),
+                TestData.AmbientHome(http, options, time),
                 new WeatherUndergroundStation(new WeatherStationOptions { Id = Id, Name = "Test" }, http, options),
             ], http, options, TestData.Locations(http, options), TimeProvider.System),
             new WeatherCache(),
@@ -160,7 +160,7 @@ public class WeatherUndergroundStationTests
 
         var report = (await service.GetReportAsync(Id))!;
 
-        Assert.Equal(["home", Id], service.Stations.Select(station => station.Id));
+        Assert.Equal(["home", Id], (await service.GetStationsAsync()).Select(station => station.Id));
         Assert.Equal("Weather Underground", report.Source);
         Assert.Equal(StationHistoryRange.Today, report.HistoryRange);
         Assert.Equal(60, report.Current!.TemperatureF);
@@ -284,7 +284,7 @@ public class WeatherUndergroundStationTests
     }
 
     [Fact]
-    public void RegistrationListsHomeFirstAndSkipsBadEntries()
+    public async Task RegistrationListsHomeFirstAndSkipsBadEntries()
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -304,7 +304,7 @@ public class WeatherUndergroundStationTests
             .AddWeatherCore(configuration)
             .BuildServiceProvider();
 
-        var stations = provider.GetRequiredService<StationService>().Stations;
+        var stations = await provider.GetRequiredService<StationService>().GetStationsAsync();
 
         Assert.Equal(
             [new StationSummary("home", "Home station", "04086"), new StationSummary("KFIRST1", "KFIRST1"), new StationSummary("KSECOND2", "Second", "04011")],

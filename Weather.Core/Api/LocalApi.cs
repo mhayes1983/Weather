@@ -40,7 +40,7 @@ public sealed class LocalApi(
             return path switch
             {
                 "/api/forecast" => await GetForecastAsync(value("zip"), cancellationToken),
-                "/api/stations" => Ok(stations.Stations, LocalApiJson.Default.IReadOnlyListStationSummary),
+                "/api/stations" => Ok(await stations.GetStationsAsync(cancellationToken), LocalApiJson.Default.IReadOnlyListStationSummary),
                 "/api/stations/lookup" => await LookUpAsync(value("q"), value("source")),
                 "/api/station" => await GetStationAsync(value("id")),
                 "/api/alerts" => await GetAlertsAsync(value("station")),

@@ -26,6 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ClimateStations>();
         services.AddSingleton<IClimateNormals, AcisClimateNormals>();
         services.AddSingleton<ForecastTableService>();
+        services.AddSingleton<AmbientCatalog>();
         AddHomeStation(services, configuration.Get<WeatherOptions>() ?? new WeatherOptions());
         services.AddSingleton<StationDirectory>();
         services.AddSingleton<StationLookup>();
@@ -49,10 +50,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<SnowReportService>();
         services.AddSingleton<LocalApi>();
 
-        // The home station comes first in the dropdown, then the configured stations in order.
+        // The home station comes first in the dropdown, then any other Ambient Weather devices,
+        // then the configured stations in order.
         var stations = (configuration.Get<WeatherOptions>()?.Stations ?? [])
             .Where(station => !string.IsNullOrWhiteSpace(station.Id)
-                && !string.Equals(station.Id, AmbientWeatherStation.HomeId, StringComparison.OrdinalIgnoreCase))
+                && !string.Equals(station.Id, AmbientWeatherStation.HomeId, StringComparison.OrdinalIgnoreCase)
+                && !AmbientCatalog.IsDeviceId(station.Id))
             .DistinctBy(station => station.Id, StringComparer.OrdinalIgnoreCase);
 
         foreach (var station in stations)
@@ -128,7 +131,7 @@ public static class ServiceCollectionExtensions
         }
         else
         {
-            services.AddSingleton<IWeatherStation, AmbientWeatherStation>();
+            services.AddSingleton<IWeatherStation>(provider => provider.GetRequiredService<AmbientCatalog>().Home);
         }
     }
 

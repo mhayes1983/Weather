@@ -4,29 +4,36 @@ using Weather.Core.Models;
 
 namespace Weather.Core.Station;
 
-public sealed class AmbientWeatherStation(
-    IHttpClientFactory httpClientFactory,
-    IOptions<WeatherOptions> options,
-    TimeProvider timeProvider) : IWeatherStation
+/// <summary>One Ambient Weather device. <see cref="AmbientCatalog"/> makes these, with the home station's device found when it's first read.</summary>
+public sealed class AmbientWeatherStation : IWeatherStation
 {
     public const string HomeId = "home";
 
-    private const string DevicesUrl = "https://rt.ambientweather.net/v1/devices";
     private const int HistoryPoints = 288;
     private static readonly TimeSpan HistoryWindow = TimeSpan.FromHours(24);
 
-    // Ambient allows one request a second per key, so calls run one at a time.
-    private readonly SemaphoreSlim _requestGate = new(1, 1);
-    private DateTimeOffset _nextRequestAt = DateTimeOffset.MinValue;
-    private string? _macAddress;
+    private readonly AmbientCatalog _catalog;
+    private readonly AmbientDevice? _device;
+    private AmbientDevice? _lastHomeDevice;
 
-    private AmbientWeatherOptions Settings => options.Value.AmbientWeather;
+    internal AmbientWeatherStation(AmbientCatalog catalog, string id, string name, string? zip, AmbientDevice? device)
+    {
+        _catalog = catalog;
+        _device = device;
+        Id = id;
+        Name = name;
+        Zip = zip;
+    }
 
-    public string Id => HomeId;
+    private AmbientWeatherOptions Settings => _catalog.Options.AmbientWeather;
 
-    public string Name => Settings.Name;
+    private bool IsHome => _device is null;
 
-    public string? Zip => string.IsNullOrWhiteSpace(options.Value.DefaultLocation.Zip) ? null : options.Value.DefaultLocation.Zip;
+    public string Id { get; }
+
+    public string Name { get; }
+
+    public string? Zip { get; }
 
     public string Source => "AmbientWeather.net";
 
@@ -38,30 +45,40 @@ public sealed class AmbientWeatherStation(
 
     public TimeSpan OfflineAfter => TimeSpan.FromMinutes(Settings.OfflineAfterMinutes);
 
-    public bool HasKeys =>
-        !string.IsNullOrWhiteSpace(Settings.ApiKey) && !string.IsNullOrWhiteSpace(Settings.ApplicationKey);
+    public bool HasKeys => _catalog.HasKeys;
 
-    // Forecasts use the configured location, so Ambient's street address and coordinates are never read.
-    public bool CanLocate => true;
+    // Ambient's street address and coordinates are never read. Home uses the configured location unless it
+    // has a ZIP of its own, and other devices need a ZIP, because home's forecast would be wrong for them.
+    public bool CanLocate => IsHome || Zip is not null;
 
-    public Task<GeoPoint> GetCoordinatesAsync(CancellationToken cancellationToken)
+    public async Task<GeoPoint> GetCoordinatesAsync(CancellationToken cancellationToken)
     {
-        var location = options.Value.DefaultLocation;
-        return Task.FromResult(new GeoPoint(location.Latitude, location.Longitude));
-    }
+        var location = _catalog.Options.DefaultLocation;
+        if (IsHome && (Zip is null || Zip == location.Zip))
+        {
+            return new GeoPoint(location.Latitude, location.Longitude);
+        }
 
+        if (Zip is null)
+        {
+            throw new InvalidOperationException("This station has no ZIP code.");
+        }
+
+        var resolved = await _catalog.Locations.ResolveAsync(Zip, cancellationToken);
+        return new GeoPoint(resolved.Latitude, resolved.Longitude);
+    }
     public async Task<StationReading> GetCurrentAsync(CancellationToken cancellationToken)
     {
-        using var document = JsonDocument.Parse(await GetAsync(DevicesUrl, null, cancellationToken));
-        var device = SelectDevice(document.RootElement);
-        _macAddress = device.GetProperty("macAddress").GetString();
+        var device = await FindDeviceAsync(cancellationToken);
+        var data = device.LastData;
+        if (data.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException("The Ambient Weather station has no reading.");
+        }
 
-        var data = device.GetProperty("lastData");
         return new StationReading
         {
-            StationName = device.TryGetProperty("info", out var info) && info.TryGetProperty("name", out var name)
-                ? name.GetString()
-                : null,
+            StationName = Name,
             ObservedAt = ObservedAt(data),
             TemperatureF = Number(data, "tempf"),
             FeelsLikeF = Number(data, "feelsLike"),
@@ -214,19 +231,14 @@ public sealed class AmbientWeatherStation(
 
     public async Task<IReadOnlyList<StationHistoryPoint>> GetHistoryAsync(CancellationToken cancellationToken)
     {
-        var macAddress = string.IsNullOrWhiteSpace(Settings.MacAddress) ? _macAddress : Settings.MacAddress;
-        if (macAddress is null)
-        {
-            await GetCurrentAsync(cancellationToken);
-            macAddress = _macAddress!;
-        }
-
-        using var document = JsonDocument.Parse(await GetAsync(
-            $"{DevicesUrl}/{Uri.EscapeDataString(macAddress)}",
+        // History needs only the MAC address, so home reuses the device it last found.
+        var device = _device ?? _lastHomeDevice ?? await FindDeviceAsync(cancellationToken);
+        using var document = JsonDocument.Parse(await device.Account.GetHistoryAsync(
+            device.MacAddress,
             $"&limit={HistoryPoints}",
             cancellationToken));
 
-        var since = timeProvider.GetUtcNow() - HistoryWindow;
+        var since = _catalog.Time.GetUtcNow() - HistoryWindow;
         return document.RootElement.EnumerateArray()
             .Select(data => new StationHistoryPoint(
                 ObservedAt(data),
@@ -245,51 +257,18 @@ public sealed class AmbientWeatherStation(
             .ToList();
     }
 
-    private async Task<string> GetAsync(string url, string? query, CancellationToken cancellationToken)
+    // The account's device list is shared and short-lived, so this is the device's latest reading.
+    private async Task<AmbientDevice> FindDeviceAsync(CancellationToken cancellationToken)
     {
-        var settings = Settings;
-        var fullUrl = $"{url}?apiKey={Uri.EscapeDataString(settings.ApiKey!)}&applicationKey={Uri.EscapeDataString(settings.ApplicationKey!)}{query}";
-
-        await _requestGate.WaitAsync(cancellationToken);
-        try
+        if (_device is null)
         {
-            var wait = _nextRequestAt - timeProvider.GetUtcNow();
-            if (wait > TimeSpan.Zero)
-            {
-                await Task.Delay(wait, timeProvider, cancellationToken);
-            }
+            return _lastHomeDevice = await _catalog.FindHomeDeviceAsync(cancellationToken);
+        }
 
-            try
-            {
-                var client = httpClientFactory.CreateClient(WeatherHttp.ClientName);
-                return await client.GetStringAsync(fullUrl, cancellationToken);
-            }
-            finally
-            {
-                _nextRequestAt = timeProvider.GetUtcNow().AddMilliseconds(settings.RequestSpacingMilliseconds);
-            }
-        }
-        finally
-        {
-            _requestGate.Release();
-        }
+        var devices = await _device.Account.GetDevicesAsync(cancellationToken);
+        return devices.FirstOrDefault(device => string.Equals(device.MacAddress, _device.MacAddress, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException("The station is no longer on the Ambient Weather account.");
     }
-
-    private JsonElement SelectDevice(JsonElement devices)
-    {
-        var macAddress = Settings.MacAddress;
-        foreach (var device in devices.EnumerateArray())
-        {
-            if (string.IsNullOrWhiteSpace(macAddress)
-                || string.Equals(device.GetProperty("macAddress").GetString(), macAddress, StringComparison.OrdinalIgnoreCase))
-            {
-                return device;
-            }
-        }
-
-        throw new InvalidOperationException("No matching station on the Ambient Weather account.");
-    }
-
     private static DateTimeOffset ObservedAt(JsonElement data) =>
         DateTimeOffset.FromUnixTimeMilliseconds(data.GetProperty("dateutc").GetInt64());
 

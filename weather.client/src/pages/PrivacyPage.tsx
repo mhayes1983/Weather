@@ -10,7 +10,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
         <main className="prose">
             <header>
                 <h1>Privacy Policy</h1>
-                <p className="location">Effective November 25, 2026</p>
+                <p className="location">Effective November 27, 2026</p>
             </header>
 
             <p>
@@ -26,6 +26,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 <li>Default station</li>
                 <li>The order of the Station page's cards and charts, and which ones you've collapsed</li>
                 <li>Stations you've added (up to 20), with the ZIP code you found each one by</li>
+                <li>Names you've given stations in this browser</li>
                 <li>The Storm Forecast page's towns, and the snow, rain and gust amounts you type into its manual rows</li>
             </ul>
             <p>To remove them, clear this site's data in your browser settings.</p>
@@ -48,7 +49,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
                 <li>Open-Meteo: forecasts, modelled conditions for a ZIP code or a station's location, and past sunrise and sunset times</li>
                 <li>National Weather Service: forecasts and alerts</li>
                 <li>Weather Underground: forecasts, station readings and station search</li>
-                <li>Ambient Weather: home station readings</li>
+                <li>Ambient Weather: readings from the stations on the configured accounts</li>
                 <li>ACIS: averages, records and climate station measurements</li>
                 <li>US Naval Observatory: sun and moon data</li>
                 <li>NOAA Tides and Currents: tide predictions. It's sent a tide station ID and dates, not a ZIP code; the nearest station is picked on the server from NOAA's list</li>

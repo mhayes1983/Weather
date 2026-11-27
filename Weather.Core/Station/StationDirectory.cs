@@ -6,19 +6,48 @@ using Weather.Core.Models;
 namespace Weather.Core.Station;
 
 /// <summary>
-/// Finds the configured stations, plus any other Weather Underground station or Open-Meteo
-/// ZIP a browser has looked up. Those aren't known in advance, so a well-formed ID is enough.
+/// Finds the configured stations, the Ambient Weather devices on the configured accounts, and any other
+/// Weather Underground station or Open-Meteo ZIP a browser has looked up. Those aren't known in advance,
+/// so a well-formed ID is enough.
 /// </summary>
 public sealed partial class StationDirectory(
     IEnumerable<IWeatherStation> stations,
     IHttpClientFactory httpClientFactory,
     IOptions<WeatherOptions> options,
     LocationResolver locations,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    AmbientCatalog? ambient = null)
 {
     // Registration order, with the home station first.
-    public IReadOnlyList<StationSummary> Stations { get; } =
+    private readonly List<StationSummary> _configured =
         stations.Select(station => new StationSummary(station.Id, station.Name, station.Zip)).ToList();
+
+    /// <summary>The configured stations, with any other Ambient Weather devices after home.</summary>
+    public async Task<IReadOnlyList<StationSummary>> GetStationsAsync(CancellationToken cancellationToken = default)
+    {
+        var devices = ambient is null ? [] : await ambient.GetStationsAsync(cancellationToken);
+        if (devices.Count == 0)
+        {
+            return _configured;
+        }
+
+        var home = _configured.FindIndex(station => station.Id == AmbientWeatherStation.HomeId);
+        return
+        [
+            .. _configured.Take(home + 1),
+            .. devices.Select(station => new StationSummary(station.Id, station.Name, station.Zip)),
+            .. _configured.Skip(home + 1),
+        ];
+    }
+
+    /// <summary>
+    /// Like <see cref="Find"/>, and also finds Ambient Weather devices other than home, which needs the
+    /// accounts asked. Returns null when the ID is badly formed or no device has it.
+    /// </summary>
+    public async Task<IWeatherStation?> FindAsync(string? id, CancellationToken cancellationToken = default) =>
+        AmbientCatalog.IsDeviceId(id)
+            ? ambient is null ? null : await ambient.FindAsync(id!, cancellationToken)
+            : Find(id);
 
     public static bool IsValidId(string id) => StationIdPattern().IsMatch(id);
 

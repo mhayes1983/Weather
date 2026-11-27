@@ -95,14 +95,14 @@ public class StationTests
     });
 
     private static AmbientWeatherStation Station(StubHttp http, string? macAddress = null) =>
-        new(http, Keys(macAddress), new FixedTime(TestData.Now));
+        TestData.AmbientHome(http, Keys(macAddress));
 
     private static StationService Service(StubHttp http, WeatherCache? cache = null, DateTimeOffset? now = null)
     {
         var options = Keys();
         var time = new FixedTime(now ?? TestData.Now);
         return new StationService(
-            new StationDirectory([new AmbientWeatherStation(http, options, time)], http, options, TestData.Locations(http, options), TimeProvider.System),
+            new StationDirectory([TestData.AmbientHome(http, options, time)], http, options, TestData.Locations(http, options), TimeProvider.System),
             cache ?? new WeatherCache(),
             options,
             time,
@@ -126,7 +126,8 @@ public class StationTests
     {
         var reading = await Station(Working()).GetCurrentAsync(default);
 
-        Assert.Equal("Backyard", reading.StationName);
+        // The name given to the station, not the label on the Ambient account.
+        Assert.Equal("Home station", reading.StationName);
         Assert.Equal(TestData.Now, reading.ObservedAt);
         Assert.Equal(66.9, reading.TemperatureF);
         Assert.Equal(74.1, reading.IndoorTemperatureF);
@@ -145,7 +146,7 @@ public class StationTests
 
         var reading = await Station(http).GetCurrentAsync(default);
 
-        Assert.Null(reading.StationName);
+        Assert.Equal("Home station", reading.StationName);
         Assert.Null(reading.TemperatureF);
         Assert.Null(reading.BatteryLow);
         Assert.Null(reading.TotalRainIn);
@@ -262,7 +263,7 @@ public class StationTests
         });
         var time = new FixedTime(TestData.Now);
         var service = new StationService(
-            new StationDirectory([new AmbientWeatherStation(http, options, time)], http, options, TestData.Locations(http, options), TimeProvider.System),
+            new StationDirectory([TestData.AmbientHome(http, options, time)], http, options, TestData.Locations(http, options), TimeProvider.System),
             new WeatherCache(),
             options,
             time,

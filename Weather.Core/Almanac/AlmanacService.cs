@@ -29,7 +29,7 @@ public sealed class AlmanacService(
     /// <summary>Returns null when the ID is badly formed.</summary>
     public async Task<AlmanacReport?> GetAsync(string? stationId = null)
     {
-        if (directory.Find(stationId) is not { } station)
+        if (await directory.FindAsync(stationId) is not { } station)
         {
             return null;
         }

@@ -1,14 +1,16 @@
 import AlertPanel from '../components/AlertPanel';
 import RouteLink from '../components/RouteLink';
 import { useAlerts } from '../useAlerts';
+import { stationName, type StationNames } from '../stationNames';
 import type { Route } from '../useRoute';
 
 interface AlertsPageProps {
     station: string;
+    stationNames: StationNames;
     onNavigate: (route: Route) => void;
 }
 
-function AlertsPage({ station, onNavigate }: AlertsPageProps) {
+function AlertsPage({ station, stationNames, onNavigate }: AlertsPageProps) {
     const { report, failed } = useAlerts(station);
     const alerts = report?.alerts ?? [];
 
@@ -20,7 +22,7 @@ function AlertsPage({ station, onNavigate }: AlertsPageProps) {
 
             <header>
                 <h1>Weather Alerts</h1>
-                {report && <p className="location">{report.stationName}</p>}
+                {report && <p className="location">{stationName(stationNames, station, report.stationName)}</p>}
             </header>
 
             {failed && <p className="error" role="alert">Alerts unavailable. There may be active alerts for this location.</p>}
