@@ -296,3 +296,7 @@ Returns each source's snow, rain, wind and depth for those towns and dates. `GET
 ## Data use
 
 Open-Meteo's free API is for non-commercial use, and its data is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), so the website credits it. Weather Underground data is limited to personal, non-commercial use. A public or commercial version of this site would need a different arrangement. The NewsCenter Maine columns read the station's web page, so a redesign of that page could break them.
+
+## License
+
+The code is released under the [MIT License](LICENSE). It covers the code only, not the weather data: each data source keeps its own terms, described under [Data use](#data-use), and anyone running the site with their own keys must follow them.
