@@ -20,8 +20,8 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <h2>Station</h2>
             <p>
                 The <RouteLink route="/" onNavigate={onNavigate}>Station</RouteLink> page shows current conditions and charts
-                of recent readings, and refreshes every minute. Charts cover the last 24 hours for the home station and the
-                current day for other stations. Readings a station doesn't report are left out, and add-on sensors such as
+                of recent readings, and refreshes every minute. Charts cover the last 24 hours for Ambient Weather and modelled stations and the
+                current day for Weather Underground stations. Readings a station doesn't report are left out, and add-on sensors such as
                 extra thermometers, soil probes, air quality monitors, lightning detectors and leak sensors appear only when
                 the station has them. The Temperature card shows the highest and lowest readings over the same period as the
                 charts, with the time of each, and the pressure trend is the change over the last 3 hours: steady is under
@@ -193,7 +193,9 @@ function HelpPage({ onNavigate }: HelpPageProps) {
             <h2>Android app</h2>
             <p>
                 The app works like this site, using your own keys. Setup asks for a ZIP code, then optional Weather Underground,
-                Ambient Weather and WeatherAPI.com keys, and which stations to include. Anything you skip uses Open-Meteo instead. To change
+                Ambient Weather and WeatherAPI.com keys, and which stations to include. You can add keys for more than one Ambient
+                Weather account, then <strong>Find my stations</strong> lists every station on them to name, give a ZIP code, show or
+                hide, and choose as the home station. Anything you skip uses Open-Meteo instead. To change
                 them later, open <strong>Data &amp; keys</strong> in Settings.
             </p>
 

@@ -69,7 +69,7 @@ You'll need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and [Node.j
 
    Optionally, add a [WeatherAPI.com](https://www.weatherapi.com/) key for its Storm Forecast row the same way, as `Weather:WeatherApi:ApiKey`.
 
-3. Create an API key and an application key on your [AmbientWeather.net account page](https://ambientweather.net/account), then add them. Without both, the station page asks for keys and the forecast table still works.
+3. Create an API key and an application key on your [AmbientWeather.net account page](https://ambientweather.net/account), then add them. Without both, the station page asks for keys and the forecast table still works. Every station on the account appears; to name them, give them ZIP codes or add more accounts, see [Your Ambient Weather stations](#your-ambient-weather-stations).
 
    ```bash
    dotnet user-secrets set "Weather:AmbientWeather:ApiKey" "YOUR_API_KEY" --project Weather.Server
@@ -93,14 +93,14 @@ Each push to `master` builds a container image and publishes it to `ghcr.io/mhay
 
 1. If the GitHub package is private, make it public or add `ghcr.io` credentials under Apps > Configuration > Manage Container Registries on the NAS.
 2. In TrueNAS, go to Apps > Discover Apps > Install via YAML and paste `deploy/truenas-compose.yaml`.
-3. Replace the three key placeholders with your Weather Underground and Ambient Weather keys, on the NAS only. The WeatherAPI.com key is optional and commented out.
+3. Replace the three key placeholders with your Weather Underground and Ambient Weather keys, on the NAS only. The WeatherAPI.com key, a second Ambient Weather account and station names and ZIP codes are optional and commented out.
 4. Open `http://<nas-ip>:8085`.
 
 To update, redeploy the app, which pulls the latest image. The site serves plain HTTP, and it accepts any Weather Underground station ID, which uses your shared API limit. Keep it on your own network and use a VPN such as Tailscale for outside access.
 
 ## Daily Forecast
 
-Shows 16 days for the station selected on the Station page, with its hourly forecast one click away. Your home station uses `DefaultLocation`, and other stations use the coordinates Weather Underground reports for them.
+Shows 16 days for the station selected on the Station page, with its hourly forecast one click away. Your home station uses `DefaultLocation` unless it has a ZIP code of its own, other Ambient Weather stations use their ZIP code, and Weather Underground stations use the coordinates Weather Underground reports for them.
 
 The forecast and sun times come from [Open-Meteo](https://open-meteo.com/), written descriptions and the forecasters' Area Forecast Discussion from the [National Weather Service](https://www.weather.gov/documentation/services-web-api) for about 7 days, and moon data from the [U.S. Naval Observatory](https://aa.usno.navy.mil/data/api). None of them need a key.
 
@@ -155,7 +155,7 @@ A device's ZIP code sets where its forecast, alerts and almanac come from. Home 
 
 ## Other weather stations
 
-The station page has a dropdown for other Weather Underground stations, listed under `Stations` in `Weather.Server/appsettings.json`. Each entry has a case-sensitive `Id` and a `Name`. They use your Weather Underground key, and your own station stays on Ambient Weather, which updates faster and reports more.
+The station page has a dropdown for other Weather Underground stations, listed under `Stations` in `Weather.Server/appsettings.json`. Each entry has a case-sensitive `Id` and a `Name`. They use your Weather Underground key, and your own stations stay on Ambient Weather, which updates faster and reports more.
 
 Other stations are fetched only while selected, and results are cached so they don't use up the key's limits, reported as 1,500 calls a day and 30 a minute. Readings a station doesn't report are left out, and its charts cover the current day rather than the last 24 hours.
 
@@ -198,7 +198,7 @@ These are in the `Weather` section of `Weather.Server/appsettings.json`:
 | `AmbientWeather:CurrentCacheSeconds` | 60 | How long to keep current station readings |
 | `AmbientWeather:HistoryCacheMinutes` | 5 | How long to keep the 24-hour station history |
 | `AmbientWeather:Name` | Home station | Name of the home station, unless a `Stations` entry with `Home` names it |
-| `AmbientWeather:OfflineAfterMinutes` | 15 | Age of the latest reading before your station shows as offline |
+| `AmbientWeather:OfflineAfterMinutes` | 15 | Age of the latest reading before an Ambient Weather station shows as offline |
 | `AmbientWeather:RequestSpacingMilliseconds` | 1100 | Minimum gap between requests on one Ambient Weather account |
 | `WeatherUndergroundStations:CurrentCacheMinutes` | 5 | How long to keep another station's current readings |
 | `WeatherUndergroundStations:HistoryCacheMinutes` | 15 | How long to keep another station's history |

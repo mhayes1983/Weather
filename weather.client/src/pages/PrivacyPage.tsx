@@ -75,7 +75,7 @@ function PrivacyPage({ onNavigate }: PrivacyPageProps) {
             </p>
             <ul>
                 <li>Your keys are encrypted with Android's secure storage, and aren't sent to us or included in Android backups.</li>
-                <li>Your ZIP code and chosen stations are saved on your phone, along with the preferences listed above.</li>
+                <li>Your ZIP code, chosen stations, and the names, ZIP codes and home choice you give Ambient Weather stations are saved on your phone, along with the preferences listed above.</li>
                 <li>Uninstalling the app removes all of this. You can also remove your keys from Data &amp; keys in Settings.</li>
             </ul>
 
